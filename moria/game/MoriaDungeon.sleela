@@ -1,0 +1,508 @@
+#sleela 1.6
+//
+// Moria — the Dungeon Crawler core
+// ================================
+// A small, deterministic Moria dungeon crawler, in simple new video-game
+// theatrics: a hero descends the Mines of Moria one level at a time, moving by
+// torchlight through rough-hewn rooms, past the orc and the troll, toward the
+// stair down — and, far below, the Balrog on level eight.
+//
+// This Wrapper is a SINGLE #sleela 1.6 class (the game-Wrapper convention used
+// by game/AirportTycoon.sleela). Like that Wrapper, the 1.6 game dialect
+// provides scalars, `struct` reference types and `new StructName()` — NOT
+// arrays — so the dungeon is kept array-free:
+//
+//   * the MAP is computed PROCEDURALLY from (seed, depth, x, y): the same seed
+//     and depth always yield the same walls, stair, treasure and monsters, so
+//     nothing needs to be stored in a grid;
+//   * MUTATIONS (a slain monster, gathered treasure) are recorded as a small
+//     singly-linked list of `Change` struct nodes layered over the procedural
+//     base — exactly the intrusive-list pattern the airport Wrapper uses;
+//   * the CHRONICLE is a singly-linked list of `Msg` struct nodes.
+//
+// The GUI front-end (ui-sleela/MoriaUI.sleela) presents this same model in a
+// SleelaUI text pane; the headless renderGrid()/recentLog() here are the
+// authoritative read, so the game is fully playable with no display at all.
+//
+// Determinism: every "roll" comes from a seeded linear-congruential stream, so
+// a given seed replays the same descent, step for step — the Careful Years of
+// Time repeat exactly.
+//
+// Theatrics (the glyph alphabet the text pane paints):
+//   @  the Adventurer        #  rough wall           .  lit floor
+//   ' '(space) unseen dark   >  the stair down        $  a glint of treasure
+//   o  an orc                T  a troll               B  the Balrog
+//   +  a door
+
+// A chronicle line (intrusive singly-linked list node).
+struct Msg {
+    String text;
+    Msg    next;
+}
+
+// A cell mutation layered over the procedural base: at (x,y) on this depth, the
+// cell has been changed to `glyph` (usually floor, after a kill or pickup).
+struct Change {
+    int    depth;
+    int    x;
+    int    y;
+    String glyph;
+    Change next;
+}
+
+class MoriaDungeon {
+
+    // ---- Map dimensions (a comfortable torch-lit chamber) -----------------
+    static int W = 40;        // columns
+    static int H = 18;        // rows
+
+    // ---- Glyphs (one-character strings; the pane colours them by role) -----
+    static String G_HERO     = "@";
+    static String G_WALL     = "#";
+    static String G_FLOOR    = ".";
+    static String G_DARK     = " ";
+    static String G_STAIR    = ">";
+    static String G_TREASURE = "$";
+    static String G_ORC      = "o";
+    static String G_TROLL    = "T";
+    static String G_BALROG   = "B";
+    static String G_DOOR     = "+";
+
+    // ---- Deterministic RNG (seeded MINSTD) --------------------------------
+    static int RNG_MOD  = 2147483647;
+    static int RNG_MULT = 48271;
+    int rng;                 // live generator state (advances with play)
+    int worldSeed;           // the base seed (used to derive each level)
+
+    // ---- The hero ---------------------------------------------------------
+    String heroName;
+    int heroX;
+    int heroY;
+    int depth;               // current dungeon level (1..8)
+    int health;              // 0..maxHealth
+    int maxHealth;
+    int torch;               // torchlight radius, in cells
+    int gold;
+    int monstersSlain;
+    boolean alive;
+    boolean descended;       // crossed all eight levels and survived
+
+    // ---- Per-level derived geometry (computed in carveLevel) --------------
+    int stairX;
+    int stairY;
+
+    // ---- Mutations layered over the procedural base -----------------------
+    Change changes;          // head of the change list (newest first)
+
+    // ---- The scrollback chronicle -----------------------------------------
+    Msg  logHead;            // oldest
+    Msg  logTail;            // newest
+    int  logCount;
+    int  turns;
+
+    // =======================================================================
+    // Lifecycle
+    // =======================================================================
+
+    void begin(String name, int seed) {
+        heroName = name;
+        if (heroName == null) { heroName = "Adventurer"; }
+        worldSeed = normalizeSeed(seed);
+        rng = worldSeed;
+        changes = null;
+        logHead = null;
+        logTail = null;
+        logCount = 0;
+        turns = 0;
+        depth = 1;
+        maxHealth = 30;
+        health = maxHealth;
+        torch = 6;
+        gold = 0;
+        monstersSlain = 0;
+        alive = true;
+        descended = false;
+        carveLevel();
+        say("You step into the Mines of Moria. The dark is patient.");
+        say("Depth 1. Your torch throws a small, brave circle of light.");
+    }
+
+    int normalizeSeed(int s) {
+        int v = s;
+        if (v < 0) { v = 0 - v; }
+        v = v % RNG_MOD;
+        if (v == 0) { v = 1; }
+        return v;
+    }
+
+    int nextRng() {
+        rng = (RNG_MULT * rng) % RNG_MOD;
+        if (rng <= 0) { rng = rng + RNG_MOD; }
+        return rng;
+    }
+
+    int roll(int lo, int hi) {
+        if (hi <= lo) { return lo; }
+        return lo + (nextRng() % (hi - lo + 1));
+    }
+
+    // A stable per-level hash (no live state), used by the procedural map so a
+    // cell's base glyph depends only on (worldSeed, depth, x, y).
+    int hash(int a, int b, int c, int d) {
+        int h = normalizeSeed(worldSeed);
+        h = (h * 31 + a) % RNG_MOD; if (h < 0) { h = h + RNG_MOD; }
+        h = (h * 31 + b) % RNG_MOD; if (h < 0) { h = h + RNG_MOD; }
+        h = (h * 31 + c) % RNG_MOD; if (h < 0) { h = h + RNG_MOD; }
+        h = (h * 31 + d) % RNG_MOD; if (h < 0) { h = h + RNG_MOD; }
+        return h;
+    }
+
+    // =======================================================================
+    // Level setup: pick the stair and hero start; the rest is procedural.
+    // =======================================================================
+
+    void carveLevel() {
+        // Hero near the left, on the mid-line.
+        heroX = 2;
+        heroY = H / 2;
+        // Stair near the right wall; its row is derived from the level hash so
+        // it is stable for a given seed+depth.
+        stairX = W - 3;
+        stairY = 2 + (hash(depth, 7, 7, 7) % (H - 4));
+        // Clear any lingering change list from the previous level by filtering
+        // on depth at read time (we simply keep appending; reads check depth).
+    }
+
+    // =======================================================================
+    // Procedural base glyph at (x,y) for the CURRENT depth, before mutations.
+    // =======================================================================
+
+    String baseGlyph(int x, int y) {
+        // Border walls.
+        if (x == 0 || y == 0 || x == W - 1 || y == H - 1) { return G_WALL; }
+        // The stair down.
+        if (x == stairX && y == stairY) { return G_STAIR; }
+        // A single door on the top mid-line (theatrics).
+        if (y == 1 && x == W / 2) { return G_DOOR; }
+
+        // Interior pillars: a sparse, deterministic scatter.
+        if (x > 2 && x < W - 2 && y > 1 && y < H - 1) {
+            if ((hash(depth, x, y, 1) % 23) == 0) { return G_WALL; }
+        }
+
+        // The Balrog guards the deep, just before the stair on level 8.
+        if (depth >= 8 && x == stairX - 2 && y == stairY) { return G_BALROG; }
+
+        // Monsters and treasure live in the right two-thirds of the hall.
+        if (x >= W / 3 && x < W - 2 && y > 1 && y < H - 1) {
+            int r = hash(depth, x, y, 2) % 100;
+            // Orc density grows with depth.
+            if (r < 4 + depth) { return G_ORC; }
+            // A troll appears from depth 3 (rarer).
+            if (depth >= 3 && r >= 40 && r < 42) { return G_TROLL; }
+            // Treasure glints (uncommon).
+            if (r >= 60 && r < 63) { return G_TREASURE; }
+        }
+        return G_FLOOR;
+    }
+
+    // =======================================================================
+    // Mutations: look up / record an overriding glyph at (depth,x,y).
+    // =======================================================================
+
+    String changeAt(int x, int y) {
+        Change c = changes;
+        while (c != null) {
+            if (c.depth == depth && c.x == x && c.y == y) { return c.glyph; }
+            c = c.next;
+        }
+        return null;
+    }
+
+    void setChange(int x, int y, String glyph) {
+        Change c = new Change();
+        c.depth = depth;
+        c.x = x;
+        c.y = y;
+        c.glyph = glyph;
+        c.next = changes;   // newest first; changeAt returns the newest match
+        changes = c;
+    }
+
+    // The effective glyph at a cell: a mutation if present, else the base.
+    String cell(int x, int y) {
+        if (!inBounds(x, y)) { return G_WALL; }
+        String m = changeAt(x, y);
+        if (m != null) { return m; }
+        return baseGlyph(x, y);
+    }
+
+    boolean inBounds(int x, int y) { return x >= 0 && y >= 0 && x < W && y < H; }
+    boolean isWall(int x, int y)  { return cell(x, y) == G_WALL; }
+
+    // =======================================================================
+    // The turn: the hero moves one step (dx,dy in -1..1)
+    // =======================================================================
+
+    boolean move(int dx, int dy) {
+        if (!alive) { return false; }
+        int nx = heroX + dx;
+        int ny = heroY + dy;
+        if (!inBounds(nx, ny) || isWall(nx, ny)) {
+            say("A wall of ancient dwarf-stone. You cannot pass.");
+            return false;
+        }
+        turns = turns + 1;
+        String there = cell(nx, ny);
+
+        if (there == G_ORC)    { return fight(nx, ny, "orc", 6); }
+        if (there == G_TROLL)  { return fight(nx, ny, "troll", 12); }
+        if (there == G_BALROG) { return fightBalrog(nx, ny); }
+
+        if (there == G_TREASURE) {
+            int found = roll(10, 60);
+            gold = gold + found;
+            say("Gold glints in the rubble — you gather " + found + " coins.");
+            setChange(nx, ny, G_FLOOR);
+        }
+
+        if (there == G_STAIR) {
+            stepHeroTo(nx, ny);
+            descend();
+            return true;
+        }
+
+        stepHeroTo(nx, ny);
+        if (roll(1, 100) <= 6) {
+            say("Your torch gutters. The shadows lean closer.");
+        }
+        return true;
+    }
+
+    void stepHeroTo(int nx, int ny) {
+        heroX = nx;
+        heroY = ny;
+    }
+
+    // =======================================================================
+    // Combat (deterministic rolls)
+    // =======================================================================
+
+    boolean fight(int x, int y, String kind, int threat) {
+        int hit = roll(1, 20);
+        int dmg = roll(1, threat);
+        if (hit >= 8) {
+            say("You strike the " + kind + " — it falls into the dust.");
+            setChange(x, y, G_FLOOR);
+            stepHeroTo(x, y);
+            monstersSlain = monstersSlain + 1;
+            return true;
+        }
+        health = health - dmg;
+        say("The " + kind + " lands a blow for " + dmg + ". (" + health + " HP)");
+        if (health <= 0) { die("the " + kind); }
+        return false;
+    }
+
+    boolean fightBalrog(int x, int y) {
+        int resolve = health + gold / 20 + monstersSlain * 2;
+        int roll1 = roll(1, 100);
+        say("A shadow and a flame. The Balrog of Moria bars the deep stair.");
+        if (resolve >= 40 && roll1 >= 35) {
+            say("\"You cannot pass!\" — and this time, it is YOU who says it.");
+            setChange(x, y, G_FLOOR);
+            stepHeroTo(x, y);
+            monstersSlain = monstersSlain + 1;
+            return true;
+        }
+        int dmg = roll(10, 25);
+        health = health - dmg;
+        say("The whip of flame bites for " + dmg + ". (" + health + " HP)");
+        if (health <= 0) { die("the Balrog"); }
+        return false;
+    }
+
+    void die(String by) {
+        alive = false;
+        say("You fall, slain by " + by + ", at depth " + depth + ".");
+        say("The Mines keep their silence. (Careful next time, Adventurer.)");
+    }
+
+    // =======================================================================
+    // Descending
+    // =======================================================================
+
+    void descend() {
+        if (depth >= 8) {
+            descended = true;
+            say("Beyond the deep, the stair rises toward distant daylight.");
+            say("You have crossed all eight levels of Moria. You LIVE.");
+            return;
+        }
+        depth = depth + 1;
+        int heal = roll(3, 8);
+        health = health + heal;
+        if (health > maxHealth) { health = maxHealth; }
+        say("You take the stair down. Depth " + depth
+            + ". You catch your breath (+" + heal + " HP).");
+        carveLevel();
+    }
+
+    // =======================================================================
+    // The scrollback chronicle (struct linked list)
+    // =======================================================================
+
+    void say(String line) {
+        if (line == null) { return; }
+        Msg m = new Msg();
+        m.text = line;
+        m.next = null;
+        if (logHead == null) { logHead = m; logTail = m; }
+        else { logTail.next = m; logTail = m; }
+        logCount = logCount + 1;
+    }
+
+    int logLines() { return logCount; }
+
+    // The i-th chronicle line (0 = oldest). Walks the list.
+    String logAt(int i) {
+        if (i < 0 || i >= logCount) { return ""; }
+        Msg m = logHead;
+        int k = 0;
+        while (k < i && m != null) { m = m.next; k = k + 1; }
+        if (m == null) { return ""; }
+        return m.text;
+    }
+
+    // The most recent `n` lines, newest last, joined by newlines.
+    String recentLog(int n) {
+        int start = logCount - n;
+        if (start < 0) { start = 0; }
+        String out = "";
+        int i = start;
+        while (i < logCount) {
+            String line = logAt(i);
+            if (out == "") { out = line; } else { out = out + "\n" + line; }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    // =======================================================================
+    // Text rendering (the authoritative headless read)
+    // =======================================================================
+
+    // Fog of war: cells beyond the torch radius read as dark; remembered walls
+    // stay faintly drawn. The lit circle follows the hero.
+    String visibleGlyph(int x, int y) {
+        int dx = x - heroX; if (dx < 0) { dx = 0 - dx; }
+        int dy = y - heroY; if (dy < 0) { dy = 0 - dy; }
+        int dist = dx + dy;              // Manhattan torchlight (cheap + readable)
+        if (dist > torch) {
+            if (isWall(x, y)) { return G_WALL; }
+            return G_DARK;
+        }
+        return cell(x, y);
+    }
+
+    // One row of the map, with the hero overlaid at his position.
+    String renderRow(int y) {
+        String row = "";
+        int x = 0;
+        while (x < W) {
+            if (x == heroX && y == heroY && alive) { row = row + G_HERO; }
+            else { row = row + visibleGlyph(x, y); }
+            x = x + 1;
+        }
+        return row;
+    }
+
+    // The whole map as a newline-joined block.
+    String renderGrid() {
+        String out = "";
+        int y = 0;
+        while (y < H) {
+            if (y == 0) { out = renderRow(y); } else { out = out + "\n" + renderRow(y); }
+            y = y + 1;
+        }
+        return out;
+    }
+
+    // The HUD status line.
+    String statusLine() {
+        return heroName + "  depth " + depth + "/8   HP " + health + "/" + maxHealth
+             + "   gold " + gold + "   slain " + monstersSlain
+             + "   torch " + torch + "   turn " + turns;
+    }
+
+    // =======================================================================
+    // Queries for the GUI front-end
+    // =======================================================================
+
+    String name() { return heroName; }
+    int currentDepth() { return depth; }
+    int hp() { return health; }
+    int hpMax() { return maxHealth; }
+    int goldCount() { return gold; }
+    int slain() { return monstersSlain; }
+    int torchRadius() { return torch; }
+    int turnCount() { return turns; }
+    int heroCol() { return heroX; }
+    int heroRow() { return heroY; }
+    int width() { return W; }
+    int height() { return H; }
+    boolean isAlive() { return alive; }
+    boolean hasWon() { return descended; }
+    boolean over() { return !alive || descended; }
+
+    // =======================================================================
+    // A scripted self-descent, for `make run` and the self-check. Deterministic:
+    // walk the hero toward each stair, fighting what blocks the way, until the
+    // game is over or a step budget is spent.
+    // =======================================================================
+
+    void autoDescend(int stepBudget) {
+        int steps = 0;
+        while (!over() && steps < stepBudget) {
+            boolean moved = false;
+            // Toward the stair row first, then rightward toward the stair column.
+            if (heroY < stairY) { moved = move(0, 1); }
+            else if (heroY > stairY) { moved = move(0, 0 - 1); }
+            if (!moved && !over()) { moved = move(1, 0); }
+            if (!moved && !over()) { moved = move(1, nudgeRow()); }
+            if (!moved && !over()) { moved = move(0, 1); }
+            if (!moved && !over()) { moved = move(0, 0 - 1); }
+            steps = steps + 1;
+        }
+    }
+
+    int nudgeRow() {
+        int r = roll(0, 2);
+        if (r == 0) { return 0; }
+        if (r == 1) { return 1; }
+        return 0 - 1;
+    }
+
+    void main() {
+        begin("Adventurer", 1428);
+        autoDescend(600);
+        print("Moria — the Careful Years of Time");
+        print("==================================");
+        print(renderGrid());
+        print("");
+        print(statusLine());
+        print("");
+        print("Recent chronicle:");
+        print(recentLog(6));
+        if (hasWon()) {
+            print("");
+            print("RESULT: You crossed all eight levels and lived. Excellent.");
+        } else if (!isAlive()) {
+            print("");
+            print("RESULT: You fell in the dark. The Mines keep their silence.");
+        } else {
+            print("");
+            print("RESULT: The descent continues (step budget spent).");
+        }
+    }
+}

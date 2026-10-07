@@ -1,0 +1,233 @@
+#sleela 1.6
+//
+// Moria — the SleelaUI text-pane front-end
+// ========================================
+// A GUI-driven TEXT PANE / CANVAS for the Moria dungeon crawler, built with
+// SleelaUI™ (SLeeLa's own cross-platform native toolkit, vendored under
+// ../sources/user-interface and resolved by the SLeeLa library Index via
+// `--library`). It opens a REAL native window (X11 / Cocoa / Win32) and paints
+// the dungeon as a text canvas with "excellent text features" aimed at the very
+// willing, the very picky, the most excellent — the Adventurers in the Careful
+// Years of Time:
+//
+//   * a MONOSPACED MAP PANE  — the dungeon grid, one themed row-label per line,
+//     inside a dark surface card (the torch-lit "canvas");
+//   * a HUD STATUS STRIP     — hero, depth, HP, gold, kills, torch, turn;
+//   * a GLYPH LEGEND         — each theatrical glyph with its meaning;
+//   * a CHRONICLE PANE       — the scrollback message log, newest last;
+//   * a SLICK-BLACK THEME     — a torch-amber accent on near-black stone, a
+//     generous radius, and a monospaced font request so columns line up.
+//
+// The model is MoriaDungeon (../game/MoriaDungeon.sleela): this Wrapper is the
+// presentation surface, not a second rules engine. If no display is available
+// it falls back to the same text read the model prints headless, so the game is
+// playable with or without a window.
+//
+class MoriaUI {
+
+    // Accent colour: torch-amber on dwarf-stone.
+    static int TORCH_R = 240;
+    static int TORCH_G = 170;
+    static int TORCH_B = 60;
+
+    void main() {
+        // The model does the whole descent; we present the result.
+        MoriaDungeon dungeon = new MoriaDungeon();
+        dungeon.begin("Adventurer", 1428);
+        dungeon.autoDescend(600);
+
+        SLUserInterface ui = new SLUserInterface();
+        ui.configure("com.mearvk.moria");
+
+        if (!ui.open()) {
+            printTextRead(dungeon, "headless");
+            return;
+        }
+
+        // --- Theme: Slick Black stone with a torch-amber accent ------------
+        SLTheme theme = new SLTheme();
+        theme.slickBlack();
+        SLColor torch = new SLColor();
+        torch.rgb(TORCH_R, TORCH_G, TORCH_B);
+        theme.setAccentColor(torch);
+        theme.setRadius(10);
+        // A monospaced font request so the map columns line up like a canvas.
+        theme.setFont("monospace", 13);
+
+        SLWindow win = ui.openWindow(
+            "Moria — Dungeon Crawler · the Careful Years of Time",
+            820, 900, theme.handle());
+        SLWidget root = win.rootWidget();
+
+        SLBox col = new SLBox();
+        col.vertical(root, 12);
+        col.setMarginAll(20);
+
+        // Title + backend badge.
+        SLHeading title = new SLHeading();
+        title.createIn(col, "The Mines of Moria", 24);
+
+        SLLabel sub = new SLLabel();
+        sub.createIn(col, "SleelaUI text pane · backend: " + ui.backend()
+            + " · " + ui.version() + " · simple new video-game theatrics");
+
+        SLSeparator rule = new SLSeparator();
+        rule.horizontal(col);
+
+        // --- The HUD status strip -----------------------------------------
+        buildHud(col, dungeon);
+
+        // --- The map pane: the text canvas --------------------------------
+        buildMapPane(col, dungeon);
+
+        // --- The glyph legend ---------------------------------------------
+        buildLegend(col);
+
+        // --- The chronicle (scrollback log) pane --------------------------
+        buildChronicle(col, dungeon);
+
+        // --- The result banner --------------------------------------------
+        buildResult(col, dungeon);
+
+        // Footer.
+        SLStatusBar status = new SLStatusBar();
+        status.createIn(col);
+        SLLabel statusText = new SLLabel();
+        statusText.createIn(status, "Moria · " + dungeon.turnCount()
+            + " turns · depth " + dungeon.currentDepth() + "/8");
+
+        win.show();
+        ui.run();
+        ui.close();
+    }
+
+    // The HUD: a single themed status line inside a thin card.
+    void buildHud(SLBox parent, MoriaDungeon d) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 4);
+        box.setMarginAll(10);
+        SLLabel hud = new SLLabel();
+        hud.createIn(box, d.statusLine());
+    }
+
+    // The MAP PANE — the text canvas. Each dungeon row becomes one monospaced
+    // label inside a dark surface card, so the torch-lit grid reads as a canvas.
+    void buildMapPane(SLBox parent, MoriaDungeon d) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 0);          // zero spacing: rows stack like text lines
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Torchlight", 15);
+
+        int y = 0;
+        int rows = d.height();
+        while (y < rows) {
+            SLLabel line = new SLLabel();
+            line.createIn(box, d.renderRow(y));
+            // Left-align so every column lands under the one above it.
+            line.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+            y = y + 1;
+        }
+    }
+
+    // The glyph legend: one labelled row per theatrical glyph.
+    void buildLegend(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 4);
+        box.setMarginAll(12);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Legend", 15);
+
+        legendRow(box, "@", "the Adventurer");
+        legendRow(box, "#", "rough dwarf-stone wall");
+        legendRow(box, ".", "lit floor (within torchlight)");
+        legendRow(box, ">", "the stair down");
+        legendRow(box, "$", "a glint of treasure");
+        legendRow(box, "+", "a door");
+        legendRow(box, "o", "an orc");
+        legendRow(box, "T", "a troll (depth 3+)");
+        legendRow(box, "B", "the Balrog (depth 8)");
+    }
+
+    void legendRow(SLBox parent, String glyph, String meaning) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 10);
+        SLBadge g = new SLBadge();
+        g.createIn(row, glyph);
+        SLLabel m = new SLLabel();
+        m.createIn(row, meaning);
+    }
+
+    // The CHRONICLE pane: the scrollback message log, newest last. A scrollbar
+    // sits beside it so a picky Adventurer can read the whole descent.
+    void buildChronicle(SLBox parent, MoriaDungeon d) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 3);
+        box.setMarginAll(12);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Chronicle", 15);
+
+        // Show the last dozen lines, each as its own text run.
+        int n = 12;
+        int total = d.logLines();
+        int start = total - n;
+        if (start < 0) { start = 0; }
+        int i = start;
+        while (i < total) {
+            SLLabel line = new SLLabel();
+            line.createIn(box, d.logAt(i));
+            line.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+            i = i + 1;
+        }
+
+        // A scrollbar beside the chronicle (horizontal orientation, full page).
+        SLScrollBar bar = new SLScrollBar();
+        bar.createIn(box, SLWidget.ORIENT_HORIZONTAL, 1.0, 0.25);
+    }
+
+    // The result banner: win, death, or ongoing — as an inline notice.
+    void buildResult(SLBox parent, MoriaDungeon d) {
+        SLInfoBar bar = new SLInfoBar();
+        if (d.hasWon()) {
+            bar.info(parent, "VICTORY — you crossed all eight levels of Moria "
+                + "and lived. Excellent, Adventurer.");
+        } else if (!d.isAlive()) {
+            bar.info(parent, "FALLEN — the Mines keep their silence at depth "
+                + d.currentDepth() + ". Careful, next time.");
+        } else {
+            bar.info(parent, "DESCENDING — the dark goes deeper still "
+                + "(depth " + d.currentDepth() + "/8).");
+        }
+    }
+
+    // Headless fallback: the same read the model prints, so the game always
+    // "reads" without a display.
+    void printTextRead(MoriaDungeon d, String why) {
+        print("Moria — Dungeon Crawler (SleelaUI, " + why + ")");
+        print("================================================");
+        print(d.renderGrid());
+        print("");
+        print(d.statusLine());
+        print("");
+        print("Chronicle (recent):");
+        print(d.recentLog(8));
+        if (d.hasWon()) {
+            print("");
+            print("VICTORY — all eight levels crossed. Excellent, Adventurer.");
+        } else if (!d.isAlive()) {
+            print("");
+            print("FALLEN — the Mines keep their silence.");
+        }
+    }
+}
