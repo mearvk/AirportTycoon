@@ -12,6 +12,7 @@ widget vocabulary without requiring a full SLeeLa checkout on the build path.
 | `sources/character/` | `lib/character/` |
 | `sources/citizen/` | `lib/citizen/` |
 | `sources/user-interface/` | `lib/user-interface/` |
+| `sources/os/` | `lib/os/` |
 
 ## `user-interface/` — the SleelaUI widget toolkit
 
@@ -28,6 +29,17 @@ on these classes:
   `SLSeparator`, `SLHeading`, `SLLabel`, `SLButton`, `SLBadge`, `SLInfoBar`,
   `SLLevelBar`, `SLProgressBar`, and the rest of the catalogue.
 - Theming: `SLTheme` (`slickBlack()` + role colours, radius, font) and `SLColor`.
+
+## `os/` — the host operating-system surface
+
+The SLeeLa-source surface of `lib/os`: a single portable API over the real host
+OS (Windows / Linux / macOS). Calls bottom out in the `os*` VM built-ins
+(`osPlatform`, `osHostName`, `osUserName`, `osCurrentDir`, `osGetEnv`, `osRun`,
+`osSpawn`, …). The **Author Terminal** ([`terminal/AuthorTerminal.sleela`](../terminal/AuthorTerminal.sleela))
+uses these for its basic OS functionality. Classes: `SLOperatingSystem`,
+`SLEnvironment`, `SLProcess`, `SLFileSystem`, `SLFile`, `SLDirectory`, `SLPath`,
+`SLPermissions`, `SLClock`, `SLEventSignal`, and the per-OS flavors
+`SLLinuxOS` / `SLMacOS` / `SLWindowsOS`.
 
 ## `character/` — the business-owner vocabulary
 

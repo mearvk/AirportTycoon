@@ -25,6 +25,10 @@ public final class LocalGameModelTest {
         testWinRequiresMonthOverMonthIncrease();
         testAuthorPathWinsInExactly1001Moves();
         testAuthorPathWinsFromAnyStartingState();
+        testTerminalAuthorYes();
+        testTerminalNumberFlow();
+        testTerminalAuthorNumber1001();
+        testTerminalOsCommands();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -197,5 +201,52 @@ public final class LocalGameModelTest {
         }
         check(cases > 0, "exercised multiple starting states");
         check(wins == cases, "author path wins in every case (" + wins + "/" + cases + ")");
+    }
+
+    // --- the author terminal: asks if you're the Author, else your Number ---
+
+    private static void testTerminalAuthorYes() {
+        AuthorTerminal t = new AuthorTerminal();
+        check(t.banner().contains("Are you the Author?"), "terminal asks if you are the Author");
+        String reply = t.handleLine("yes");
+        check(reply.contains("Welcome back, Author"), "answering yes greets the Author");
+        check(reply.contains("1001"), "author greeting cites the 1001-move path");
+        check(t.isAuthor(), "author flag set on yes");
+    }
+
+    private static void testTerminalNumberFlow() {
+        AuthorTerminal t = new AuthorTerminal();
+        String q = t.handleLine("no");
+        check(q.equals("What is your Number?"), "answering no asks for your Number");
+        String reply = t.handleLine("2");
+        check(reply.contains("New York") && reply.contains("Major Eastern"),
+                "number 2 => New York, a Major Eastern Region");
+        AuthorTerminal t2 = new AuthorTerminal();
+        t2.handleLine("no");
+        String west = t2.handleLine("12");
+        check(west.contains("San Francisco") && !west.contains("Major Eastern"),
+                "number 12 => San Francisco, not Major Eastern");
+    }
+
+    private static void testTerminalAuthorNumber1001() {
+        AuthorTerminal t = new AuthorTerminal();
+        t.handleLine("no");
+        String reply = t.handleLine("1001");
+        check(reply.contains("author's number") && reply.contains("Author after all"),
+                "number 1001 reveals you are the Author");
+        check(t.isAuthor(), "1001 sets the author flag");
+    }
+
+    private static void testTerminalOsCommands() {
+        AuthorTerminal t = new AuthorTerminal();
+        t.handleLine("no");
+        t.handleLine("7"); // Chicago -> into the shell
+        check(t.handleLine("platform").matches("Windows|Linux|macOS"),
+                "platform command returns a real OS name");
+        check(!t.handleLine("whoami").isEmpty(), "whoami returns a user name");
+        check(t.handleLine("help").contains("whoami"), "help lists commands");
+        check(t.handleLine("author?").equals("no"), "non-author reports author?=no");
+        check(t.handleLine("bogus").contains("unknown command"), "unknown command handled");
+        check(t.handleLine("exit").equals("bye"), "exit says bye");
     }
 }

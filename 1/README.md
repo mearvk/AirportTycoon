@@ -39,7 +39,8 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
-| [`sources/`](sources/) | **Imported SLeeLa library sources** — `character/` + `citizen/` (the economy) and `user-interface/` (the SleelaUI widget toolkit), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
+| [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |
+| [`sources/`](sources/) | **Imported SLeeLa library sources** — `character/` + `citizen/` (the economy), `user-interface/` (the SleelaUI toolkit), and `os/` (host OS surface), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
 | [`ui/`](ui/) | The **JavaFX Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. (A playable stand-in; the native front-end is `ui-sleela/`.) |
 | [`config/airport.conf`](config/airport.conf) | SLeeLa VM settings + gameplay tuning (economy, capacity, pace, RNG seed). |
 | [`Makefile`](Makefile) | Top-level dispatcher (`game`, `run`, `run-life`, `author`, `ui-sleela`, `test`, `ui`, `ui-run`, `check`). |
@@ -104,6 +105,33 @@ The window presents the whole program readably, using the real widgets:
 
 Run it with `make ui-sleela` (needs the SLeeLa toolchain). With no display it
 falls back to a text read so the program still reports itself.
+
+### The Author Terminal (text input + basic OS)
+
+[`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) is a
+text-input terminal with **basic OS functionality**, built on SLeeLa's real
+[`lib/os`](https://github.com/mearvk/SLeeLa/tree/master/lib/os) surface
+(`osPlatform`, `osHostName`, `osUserName`, `osCurrentDir`, …), vendored under
+[`sources/os/`](sources/os/). It:
+
+1. greets you with live OS facts (platform, host, user, cwd);
+2. asks **"Are you the Author? (yes/no)"**
+   - **yes** → greets you as the Author who knew the clues and wins in **1001**
+     moves, every time;
+   - **otherwise** → asks **"What is your Number?"** and responds to it:
+     - **1001** → the author's number — *"you are the Author after all"*;
+     - **1–12** → a Federal Reserve District (1, 2, 3, 5, 6 are Major Eastern) —
+       a civic traveler greeting;
+     - anything else → a courteous default;
+3. drops you into a small OS shell: `whoami`, `host`, `pwd`, `platform`, `pid`,
+   `temp`, `author?`, `whoami?`, `help`, `exit`.
+
+Because SLeeLa's surface has `print` but no stdin primitive (its `lib/io`
+console classes are stubs), the Wrapper exposes a **pure decision core**
+(`handleLine()`), and the interactive host [`AuthorTerminal.java`](ui/src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java)
+reads real `stdin` and prints what it returns — the same split used throughout
+this project. Run the interactive terminal with **`make terminal-run`**, or the
+SLeeLa self-demo with **`make terminal`**.
 
 ## Both ends of the economy — Character & Citizen
 
