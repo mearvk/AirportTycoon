@@ -1,0 +1,118 @@
+#sleela 1.6
+//
+// Airport Tycoon — the Reporter (your Boss)
+// =========================================
+// The media reporter who sits above the Events Center. He is your Boss. He sees
+// the center rated at a 220-IQ model (sharp, but below the 300 center he reads)
+// and does his best to interpret BOTH:
+//   * Your ways and ideas — the Author viewpoint (the one who knew the clues
+//     and wins in 1001 moves); and
+//   * Asia — modelled as "East 5.0".
+//
+// He leans on East 5.0 for Asia routes (the Great area the game focuses on) and
+// on the Author viewpoint for the Euro-American routes, then publishes a single
+// blended read. The Events Center (300) is the source of truth; the Reporter
+// (220) is interpretation, softly padded so the headline is calm.
+//
+// This Wrapper takes the center's regional figures as inputs (the host/UI reads
+// EventsCenter.snapshot() and passes them in) and produces the published report.
+
+class Reporter {
+
+    static int REPORTER_IQ = 220;    // the Boss's rating
+    static int AUTHOR_IQ   = 300;    // "your ways" — the author viewpoint
+    static int EAST_IQ     = 250;    // East 5.0's effective sharpness
+    static int EAST_VERSION_X10 = 50; // "East 5.0"
+
+    String headline;
+    int    publishedAsiaOnTime;
+    int    publishedEuamOnTime;
+    int    publishedFareIndex;
+    int    confidence;               // 0..100 — the Boss's confidence
+
+    // -----------------------------------------------------------------------
+    // Interpret the center. Inputs are the center's measured figures per region.
+    //   asiaOnTime, euamOnTime : region on-time percentages (0..100)
+    //   asiaFare, euamFare     : region fare indices (dollars)
+    // The Reporter blends the Author viewpoint and East 5.0 per region:
+    //   * Asia routes  -> East 5.0 leads (weight 70), Author follows (30).
+    //   * Euro-Am routes -> Author leads (weight 70), East 5.0 follows (30).
+    // -----------------------------------------------------------------------
+    void interpret(int asiaOnTime, int asiaFare, int euamOnTime, int euamFare) {
+        // East 5.0 reads Asia optimistically (its home turf): a small lift.
+        int eastAsia = lift(asiaOnTime, 2);
+        // The Author reads Euro-American with discipline: a small, honest trim.
+        int authorEuam = euamOnTime;
+
+        // Blend each region by the leading viewpoint.
+        publishedAsiaOnTime = blend(eastAsia, 70, asiaOnTime, 30);
+        publishedEuamOnTime = blend(authorEuam, 70, euamOnTime, 30);
+
+        // Fare index: the Boss publishes the mean of the two regions, softly.
+        int rawFare = (asiaFare + euamFare) / 2;
+        publishedFareIndex = rawFare;
+
+        // Confidence rises when both regions run on time and agree.
+        int agree = 100 - absDiff(publishedAsiaOnTime, publishedEuamOnTime);
+        int quality = (publishedAsiaOnTime + publishedEuamOnTime) / 2;
+        confidence = clampPct((agree + quality) / 2);
+
+        headline = buildHeadline();
+    }
+
+    // The Boss's published headline — his best interpretation of both ways.
+    String buildHeadline() {
+        String lead = "";
+        if (publishedAsiaOnTime >= publishedEuamOnTime) {
+            lead = "Asia leads: East 5.0 reads strong punctuality on the focus routes";
+        } else {
+            lead = "Euro-American routes lead on the Author's disciplined read";
+        }
+        return "REPORTER(220): " + lead
+            + " — Asia " + publishedAsiaOnTime + "% on time, "
+            + "Euro-Am " + publishedEuamOnTime + "% on time, "
+            + "fare index $" + publishedFareIndex
+            + " (confidence " + confidence + ").";
+    }
+
+    // Weighted blend of two readings; weights are percentages summing to 100.
+    int blend(int a, int wa, int b, int wb) {
+        int total = wa + wb;
+        if (total <= 0) { return (a + b) / 2; }
+        return clampPct((a * wa + b * wb) / total);
+    }
+
+    int lift(int v, int by) { return clampPct(v + by); }
+    int absDiff(int a, int b) { if (a >= b) { return a - b; } return b - a; }
+    int clampPct(int v) {
+        if (v < 0) { return 0; }
+        if (v > 100) { return 100; }
+        return v;
+    }
+
+    String eastVersion() {
+        return "East " + (EAST_VERSION_X10 / 10) + "." + (EAST_VERSION_X10 % 10);
+    }
+
+    String snapshot() {
+        return "REPORTER|iq=" + REPORTER_IQ
+            + "|east=" + eastVersion()
+            + "|asiaOnTime=" + publishedAsiaOnTime
+            + "|euamOnTime=" + publishedEuamOnTime
+            + "|fareIndex=" + publishedFareIndex
+            + "|confidence=" + confidence
+            + "\n" + headline;
+    }
+
+    // -----------------------------------------------------------------------
+    // Headless demo with representative center figures.
+    // -----------------------------------------------------------------------
+    void main() {
+        print("Airport Tycoon — Reporter (Boss, IQ " + REPORTER_IQ + ")");
+        print("Interprets Your ways (Author) and Asia (" + eastVersion() + ").");
+
+        // Representative center read: Asia running hot, Euro-Am steady.
+        interpret(97, 760, 90, 640);
+        print(snapshot());
+    }
+}
