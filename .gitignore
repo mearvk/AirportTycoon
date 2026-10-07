@@ -67,5 +67,6 @@ vcpkg_installed/
 Testing/
 .cache/
 
-# Project dispatcher Makefile is source, not CMake output — keep it tracked.
-!/Makefile
+# The per-version dispatcher Makefile is source, not CMake output — keep it
+# tracked in every version folder (1/Makefile, 2/Makefile, ...).
+!/*/Makefile
