@@ -235,8 +235,14 @@ public final class AirportTycoonApp extends Application {
         sb.append(String.format("  %s%n", life.ownerThriving() ? "THRIVING" : "grinding"));
         sb.append(String.format("Ticket $%d · Tax %d%%%n",
                 life.ticketPriceCents() / 100, life.taxRatePercent()));
-        sb.append(String.format("Seats %d/%d sold%n%n",
-                life.seatsSold(), life.seatsOffered()));
+        sb.append(String.format("Seats %d/%d sold%n", life.seatsSold(), life.seatsOffered()));
+        sb.append(String.format("East rev $%d (prev $%d)%n",
+                life.eastRevenueCents() / 100, life.prevEastRevenueCents() / 100));
+        sb.append(String.format("Total rev $%d (prev $%d)%n",
+                life.totalRevenueCents() / 100, life.prevTotalRevenueCents() / 100));
+        sb.append(String.format("Win bar: >$%d East, rising%n",
+                life.eastWinThresholdCents() / 100));
+        sb.append(life.won() ? ">> WINNING MONTH <<\n\n" : "(not a winning month)\n\n");
         sb.append("Travelers (Citizens):\n");
         for (String line : life.travelerLines()) {
             sb.append("  ").append(line).append('\n');

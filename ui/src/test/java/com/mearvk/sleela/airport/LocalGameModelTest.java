@@ -21,6 +21,10 @@ public final class LocalGameModelTest {
         testLifeOwnerEarnsFromBusinessModel();
         testLifeTravelersBuySeats();
         testLifeHighTaxGroundsTravelers();
+        testEasternWinThreshold();
+        testWinRequiresMonthOverMonthIncrease();
+        testAuthorPathWinsInExactly1001Moves();
+        testAuthorPathWinsFromAnyStartingState();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -124,5 +128,74 @@ public final class LocalGameModelTest {
         life.setTicketPrice(1_000_000);     // $10,000 ticket nobody can afford
         int sold = life.liveAMonth(0);
         check(sold == 0, "unaffordable tickets ground every traveler");
+    }
+
+    // --- the win condition: >$240k in a Major Eastern Region, rising m/m ---
+
+    private static void testEasternWinThreshold() {
+        // Below the threshold with no Eastern fare: not a win.
+        LifeEconomy low = new LifeEconomy();
+        low.liveAMonth(0);
+        check(!low.won(), "small Eastern revenue is not a win");
+
+        // Push well past $240,000 of Eastern fare income in month 1.
+        LifeEconomy hi = new LifeEconomy();
+        hi.liveAMonth(LifeEconomy.EAST_WIN_THRESHOLD_CENTS + 500_000);
+        check(hi.eastRevenueCents() > LifeEconomy.EAST_WIN_THRESHOLD_CENTS,
+                "Eastern revenue clears the $240,000 bar");
+        check(hi.won(), "month over $240k East and rising from zero wins");
+    }
+
+    private static void testWinRequiresMonthOverMonthIncrease() {
+        LifeEconomy life = new LifeEconomy();
+        // Month 1: a big winning East revenue (rises from 0).
+        life.liveAMonth(LifeEconomy.EAST_WIN_THRESHOLD_CENTS + 1_000_000);
+        check(life.won(), "month 1 wins");
+        int m1East = life.eastRevenueCents();
+        // Month 2: still above the bar, but NOT higher than month 1 -> no win,
+        // because the win requires an increase month over month.
+        life.liveAMonth(LifeEconomy.EAST_WIN_THRESHOLD_CENTS + 1_000_000 - 500_000);
+        check(life.eastRevenueCents() > LifeEconomy.EAST_WIN_THRESHOLD_CENTS,
+                "month 2 still above the $240k bar");
+        check(life.eastRevenueCents() < m1East, "month 2 East dipped vs month 1");
+        check(!life.won(), "no increase over previous month => not a win");
+    }
+
+    // --- the author path: wins in exactly 1001 moves, every time ---
+
+    private static void testAuthorPathWinsInExactly1001Moves() {
+        AuthorPath.Result r = AuthorPath.playCanonical();
+        check(r.moves == 1001, "author path is exactly 1001 moves");
+        check(r.won, "author path wins");
+        check(r.winningMonths == r.monthsPlayed && r.monthsPlayed >= 1,
+                "every month the author plays is a winning month");
+        check(r.finalEastCents > LifeEconomy.EAST_WIN_THRESHOLD_CENTS,
+                "author finishes above the $240k Eastern bar");
+    }
+
+    private static void testAuthorPathWinsFromAnyStartingState() {
+        // "Wins in every case": vary the starting economy (ticket price, tax,
+        // and how many months the author advances) and confirm the author path
+        // still wins and is still exactly 1001 moves.
+        int cases = 0;
+        int wins = 0;
+        for (int ticket = 10000; ticket <= 40000; ticket += 10000) {
+            for (int tax = 0; tax <= 40; tax += 20) {
+                for (int liveMonths = 1; liveMonths <= 24; liveMonths += 23) {
+                    LifeEconomy econ = new LifeEconomy();
+                    econ.setTicketPrice(ticket);
+                    econ.setTaxRate(tax);
+                    AuthorPath.Result r =
+                            AuthorPath.play(econ, AuthorPath.build(liveMonths));
+                    cases++;
+                    if (r.won && r.moves == 1001
+                            && r.winningMonths == r.monthsPlayed) {
+                        wins++;
+                    }
+                }
+            }
+        }
+        check(cases > 0, "exercised multiple starting states");
+        check(wins == cases, "author path wins in every case (" + wins + "/" + cases + ")");
     }
 }
