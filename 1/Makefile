@@ -26,9 +26,10 @@ TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
+#   gameplay          -> the three-move turn system (help index / ask help / new desire)
 #   user-interface    -> the native SleelaUI front-end
 #   os                -> the Author Terminal's OS functionality
-SOURCES := sources/character sources/citizen
+SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 

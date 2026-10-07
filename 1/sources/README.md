@@ -11,6 +11,7 @@ widget vocabulary without requiring a full SLeeLa checkout on the build path.
 |---|---|
 | `sources/character/` | `lib/character/` |
 | `sources/citizen/` | `lib/citizen/` |
+| `sources/gameplay/` | `lib/gameplay/` |
 | `sources/user-interface/` | `lib/user-interface/` |
 | `sources/os/` | `lib/os/` |
 
@@ -66,6 +67,37 @@ cycle (born → working → retired), composing three sidecars:
 - `Industry.sleela` — employment sector + wage.
 - `BankAccount.sleela` — balance in cents, deposits/withdrawals, Fed district.
 - `FederalReserveID.sleela` — synthetic clearing ID + the twelve Fed districts.
+- `SLPackage.sleela` — the package facade.
+
+## `gameplay/` — the three-move turn system
+
+A player takes a turn and makes exactly one of three moves, each resolved by
+**deterministic, seeded rolls** so a replayed game (luck included) repeats. The
+package is the same base/subclass polymorphism pattern as `character/`:
+
+- `DiceRoll.sleela` — a seeded MINSTD roller: `rollUnder(pct)`, `coinFlip()`,
+  `between(lo,hi)` — the 80/20 and 50/50 behind every move.
+- `Player.sleela` — experience, a Person/Citizen `quality` score (which sets the
+  price of information), cash, boss understanding, and pass-throughs to the
+  courtroom.
+- `ManagementCourtroom.sleela` — banked `file` / `tact` / `rolls` and a derived
+  `standing`.
+- `MoveOutcome.sleela` — the result record a move fills and `applyTo(Player)`.
+- `GameMove.sleela` — the base move contract (`resolve(Player) → MoveOutcome`),
+  with `CHOICE_*` for the three moves.
+- Three concrete moves: `HelpIndexMove` (a — create a help index/friend: an 80%
+  roll then a 20% roll, with the better index + boss understanding as live
+  subevents), `AskForHelpMove` (b — ask for help/new routes: a 50/50 that either
+  shows your `ExpectedFuture` or buys the boss's `DetailedReport`), and
+  `NewDesireMove` (c — create a new desire: review `PortfolioDecision`s, gain
+  courtroom standing, and back a bet for profit + a futures read).
+- Move (b) brain: `InferenceEngine.sleela` → `ExpectedFuture.sleela` (the
+  on-schedule projection on a winning 50/50) and `DetailedReport.sleela` (the
+  boss's pre-decided Game-Engineering moves on a losing 50/50, priced by player
+  quality).
+- Move (c) substance: `PortfolioDecision.sleela` — a medium bet on a realistic
+  industry; a found **BIG** bet always wins (bet big where you find it).
+- `GameTurn.sleela` — the orchestrator (bind → resolve → apply, per turn).
 - `SLPackage.sleela` — the package facade.
 
 ## How the game uses them
