@@ -5,9 +5,11 @@
 #
 #   make game     Type/parse-check the .sleela Wrappers with Sleelvac (if present)
 #   make run      Headless self-play of the game Wrapper (needs SLeeLa toolchain)
-#   make run-life  Headless run of the business/life layer (Character + Citizen)
-#   make ui-sleela Open the native SleelaUI front-end (real window)
-#   make test      Run the SLeeLa self-check Wrapper (needs SLeeLa toolchain)
+#   make run-life     Headless run of the business/life layer (Character + Citizen)
+#   make ui-sleela    Open the native SleelaUI front-end (real window)
+#   make terminal     Author Terminal self-demo (SLeeLa toolchain)
+#   make terminal-run Interactive text terminal (reads real stdin)
+#   make test         Run the SLeeLa self-check Wrapper (needs SLeeLa toolchain)
 #   make ui     Build the JavaFX Sleela UI (needs Maven + JavaFX)
 #   make ui-run Launch the JavaFX game window
 #   make check  Build + unit-test the UI's game-logic mirror (no JavaFX needed)
@@ -20,13 +22,16 @@ LIFE_SRC := game/AirportTycoonLife.sleela
 AUTHOR_SRC := game/AuthorPath.sleela
 TEST_SRC := game/AirportTycoonTest.sleela
 UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
+TERMINAL_SRC := terminal/AuthorTerminal.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
 #   user-interface    -> the native SleelaUI front-end
+#   os                -> the Author Terminal's OS functionality
 SOURCES := sources/character sources/citizen
 UI_SOURCES := sources/user-interface
+OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela test ui ui-run check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run test ui ui-run check clean help
 
 all: game check ui
 
@@ -34,7 +39,8 @@ game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
-			$(UI_SLEELA_SRC) --library $(SOURCES) $(UI_SOURCES); \
+			$(UI_SLEELA_SRC) $(TERMINAL_SRC) \
+			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -54,6 +60,19 @@ author:
 # Open the native SleelaUI front-end (real X11/Cocoa/Win32 window).
 ui-sleela:
 	$(SLEELA) run $(UI_SLEELA_SRC) --library $(UI_SOURCES)
+
+# Run the Author Terminal's scripted self-demo via the SLeeLa toolchain.
+terminal:
+	$(SLEELA) run $(TERMINAL_SRC) --library $(OS_SOURCES)
+
+# Launch the INTERACTIVE text terminal (reads real stdin via the Java host).
+terminal-run:
+	cd ui && mvn -q -DskipTests exec:java \
+	  -Dexec.mainClass=com.mearvk.sleela.airport.AuthorTerminal 2>/dev/null || \
+	( mkdir -p ui/target/term && \
+	  javac -d ui/target/term \
+	    ui/src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java && \
+	  java -cp ui/target/term com.mearvk.sleela.airport.AuthorTerminal )
 
 test:
 	$(SLEELA) run $(TEST_SRC)
@@ -76,6 +95,7 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/SleelaProcessRuntime.java \
 	    src/main/java/com/mearvk/sleela/airport/LifeEconomy.java \
 	    src/main/java/com/mearvk/sleela/airport/AuthorPath.java \
+	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 
@@ -90,6 +110,8 @@ help:
 	@echo "  make run-life  Headless business/life layer (Character + Citizen)"
 	@echo "  make author    Prove the author path wins in 1001 moves, every time"
 	@echo "  make ui-sleela Open the native SleelaUI front-end (real window)"
+	@echo "  make terminal     Author Terminal self-demo (SLeeLa toolchain)"
+	@echo "  make terminal-run Interactive text terminal (reads real stdin)"
 	@echo "  make test      Run the SLeeLa self-check Wrapper"
 	@echo "  make ui      Build the JavaFX Sleela UI"
 	@echo "  make ui-run  Launch the JavaFX game window"
