@@ -19,6 +19,22 @@ public final class LocalGameModel implements SleelaRuntime {
     static final int MAX_GATES = 8;
     static final int MAX_RUNWAYS = 3;
 
+    // --- Edition 2: economic feedback loop (service premium + on-time combo) ---
+    // Fares are scaled by a "service premium" tied to reputation: a well-run,
+    // high-reputation airport earns tips on every departure, while a struggling
+    // one must discount to keep flying. The premium is expressed in percent and
+    // clamped to [MIN, MAX]. At the baseline reputation (REF) the premium is
+    // exactly 100% (no change), so Edition 1's fares are the neutral midpoint.
+    static final int PREMIUM_REF_REP = 60;   // reputation giving a neutral 100%
+    static final int PREMIUM_MIN_PCT = 70;   // worst-case discount floor
+    static final int PREMIUM_MAX_PCT = 150;  // best-case tip ceiling
+
+    // On-time combo: every CsomboStep consecutive on-time departures (no plane
+    // has left angry since the last reset) pays a flat combo tip, rewarding
+    // sustained, clean tower management. A single abandonment breaks the combo.
+    static final int COMBO_STEP = 5;         // departures per combo milestone
+    static final int COMBO_TIP = 150;        // cash tip at each milestone
+
     static final int INBOUND = 1;
     static final int LANDING = 2;
     static final int TAXI_IN = 3;
@@ -71,6 +87,10 @@ public final class LocalGameModel implements SleelaRuntime {
     private int nextPlaneId;
     private boolean gameOver;
 
+    // Edition 2 feedback-loop state.
+    private int streak;        // consecutive on-time departures (resets on abandon)
+    private int comboTips;     // cash earned from combo milestones this shift
+
     public LocalGameModel() {
         reset();
     }
@@ -93,6 +113,8 @@ public final class LocalGameModel implements SleelaRuntime {
         openRunways = 1;
         nextPlaneId = 1;
         gameOver = false;
+        streak = 0;
+        comboTips = 0;
 
         for (int i = 1; i <= MAX_GATES; i++) {
             Gate g = new Gate();
@@ -173,7 +195,8 @@ public final class LocalGameModel implements SleelaRuntime {
         return null;
     }
 
-    private int fareFor(int sizeClass) {
+    /** Edition 1 base fare for a size class (the neutral, pre-premium value). */
+    private int baseFareFor(int sizeClass) {
         if (sizeClass == 0) {
             return 120;
         }
@@ -181,6 +204,29 @@ public final class LocalGameModel implements SleelaRuntime {
             return 260;
         }
         return 540;
+    }
+
+    /**
+     * Edition 2 service premium (percent): scales linearly with reputation
+     * around a neutral 100% at {@link #PREMIUM_REF_REP}, clamped to
+     * [{@link #PREMIUM_MIN_PCT}, {@link #PREMIUM_MAX_PCT}]. One point of
+     * reputation moves the premium by one percent, so reputation now has a
+     * direct, legible effect on the bottom line.
+     */
+    int servicePremiumPct() {
+        int pct = 100 + (reputation - PREMIUM_REF_REP);
+        if (pct < PREMIUM_MIN_PCT) {
+            pct = PREMIUM_MIN_PCT;
+        }
+        if (pct > PREMIUM_MAX_PCT) {
+            pct = PREMIUM_MAX_PCT;
+        }
+        return pct;
+    }
+
+    /** The actual fare paid on departure: base fare times the service premium. */
+    private int fareFor(int sizeClass) {
+        return (baseFareFor(sizeClass) * servicePremiumPct()) / 100;
     }
 
     private void spawnPlane() {
@@ -294,17 +340,37 @@ public final class LocalGameModel implements SleelaRuntime {
         return true;
     }
 
+    /**
+     * Edition 2 priority score for auto-assist: lower is more urgent. Urgency
+     * is dominated by remaining patience, but a plane's value (bigger planes
+     * pay more and are costlier to lose) shaves the score so the tower protects
+     * heavies when two planes are equally close to timing out. The size term is
+     * bounded (&lt; one patience point) so it only breaks near-ties and never
+     * lets a comfortable heavy jump ahead of a tiny plane about to leave.
+     */
+    private int priorityScore(Plane p) {
+        return scoreFor(p.patience, p.sizeClass);
+    }
+
+    /** The Edition 2 priority formula, exposed for tests. Lower = more urgent. */
+    int scoreFor(int patience, int sizeClass) {
+        return patience * 4 - sizeClass;
+    }
+
     @Override
     public void autoAssist() {
         Plane best = null;
-        int bestPatience = Integer.MAX_VALUE;
+        int bestScore = Integer.MAX_VALUE;
         for (Plane p : planes) {
             boolean actionable = p.state == INBOUND
                     || (p.state == TAXI_IN && p.gateIdx == 0)
                     || (p.state == AT_GATE && p.serviceLeft == 0);
-            if (actionable && p.patience < bestPatience) {
-                bestPatience = p.patience;
-                best = p;
+            if (actionable) {
+                int score = priorityScore(p);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = p;
+                }
             }
         }
         if (best == null) {
@@ -426,6 +492,13 @@ public final class LocalGameModel implements SleelaRuntime {
             if (reputation < 100) {
                 reputation++;
             }
+            // Edition 2: a clean, on-time departure extends the combo. Every
+            // COMBO_STEP in a row pays a flat tip on top of the fare.
+            streak++;
+            if (streak % COMBO_STEP == 0) {
+                cash += COMBO_TIP;
+                comboTips += COMBO_TIP;
+            }
             p.state = DONE;
         }
     }
@@ -448,6 +521,8 @@ public final class LocalGameModel implements SleelaRuntime {
         p.state = ANGRY;
         lost++;
         reputation -= 12;
+        // Edition 2: an angry departure breaks the on-time combo.
+        streak = 0;
     }
 
     @Override
@@ -462,7 +537,8 @@ public final class LocalGameModel implements SleelaRuntime {
                     p.posX, p.posY));
         }
         return new GameSnapshot(tick, cash, reputation, served, lost,
-                openGates, openRunways, planes.size(), gameOver, views);
+                openGates, openRunways, planes.size(), gameOver, views,
+                streak, servicePremiumPct());
     }
 
     @Override
@@ -481,5 +557,13 @@ public final class LocalGameModel implements SleelaRuntime {
 
     int served() {
         return served;
+    }
+
+    int streak() {
+        return streak;
+    }
+
+    int comboTips() {
+        return comboTips;
     }
 }

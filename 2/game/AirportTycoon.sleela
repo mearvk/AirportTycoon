@@ -72,6 +72,19 @@ class AirportTycoon {
     static int MAX_RUNWAYS  = 3;
     static int SERVICE_LOCK = 0;     // lock-table slot guarding shared state
 
+    // --- Edition 2: economic feedback loop (service premium + on-time combo) ---
+    // Fares are scaled by a "service premium" tied to reputation: a well-run,
+    // high-reputation airport earns tips on every departure, while a struggling
+    // one must discount. The premium is a percentage, clamped to [MIN, MAX],
+    // and is exactly 100% at the reference reputation (Edition 1's fares are the
+    // neutral midpoint). On top of that, every COMBO_STEP consecutive on-time
+    // departures pays a flat COMBO_TIP; a single angry departure breaks it.
+    static int PREMIUM_REF_REP = 60;   // reputation giving a neutral 100%
+    static int PREMIUM_MIN_PCT = 70;   // worst-case discount floor
+    static int PREMIUM_MAX_PCT = 150;  // best-case tip ceiling
+    static int COMBO_STEP      = 5;    // departures per combo milestone
+    static int COMBO_TIP       = 150;  // cash tip at each milestone
+
     // --- Plane lifecycle states ---
     static int PLANE_INBOUND    = 1; // circling, needs a runway to land
     static int PLANE_LANDING    = 2; // on a runway, descending
@@ -98,6 +111,8 @@ class AirportTycoon {
     int    openRunways = 1;      // how many runways start open
     int    nextPlaneId = 1;
     int    planeCount  = 0;      // live planes currently in the list
+    int    streak      = 0;      // consecutive on-time departures (Edition 2)
+    int    comboTips   = 0;      // cash earned from combo milestones (Edition 2)
     boolean running    = true;
     boolean gameOver   = false;
 
@@ -231,10 +246,26 @@ class AirportTycoon {
         return null;
     }
 
-    int fareFor(int sizeClass) {
+    // Edition 1 base fare for a size class (the neutral, pre-premium value).
+    int baseFareFor(int sizeClass) {
         if (sizeClass == 0) { return 120; }
         if (sizeClass == 1) { return 260; }
         return 540;
+    }
+
+    // Edition 2 service premium (percent): scales one-for-one with reputation
+    // around a neutral 100% at PREMIUM_REF_REP, clamped to [MIN, MAX]. This
+    // gives reputation a direct, legible effect on the bottom line.
+    int servicePremiumPct() {
+        int pct = 100 + (reputation - PREMIUM_REF_REP);
+        if (pct < PREMIUM_MIN_PCT) { pct = PREMIUM_MIN_PCT; }
+        if (pct > PREMIUM_MAX_PCT) { pct = PREMIUM_MAX_PCT; }
+        return pct;
+    }
+
+    // The actual fare paid on departure: base fare times the service premium.
+    int fareFor(int sizeClass) {
+        return (baseFareFor(sizeClass) * servicePremiumPct()) / 100;
     }
 
     // ---------------------------------------------------------------------
@@ -322,17 +353,29 @@ class AirportTycoon {
     // Auto-pilot convenience: an "AUTO" button in the UI calls this to make a
     // sensible move for the most urgent plane. Keeps the game fast and fun.
     // ---------------------------------------------------------------------
+    // Edition 2 priority score for auto-assist: lower is more urgent. Urgency
+    // is dominated by remaining patience (times 4), but a plane's value shaves
+    // the score so the tower protects heavies on a near-tie. The size term is
+    // smaller than one patience point, so it only breaks ties and never lets a
+    // comfortable heavy jump a tiny plane that is about to leave.
+    int priorityScore(Plane p) {
+        return p.patience * 4 - p.sizeClass;
+    }
+
     void autoAssist() {
         Plane p = planes;
         Plane best = null;
-        int bestPatience = 100000;
+        int bestScore = 100000000;
         while (p != null) {
             boolean actionable = (p.state == PLANE_INBOUND)
                 || (p.state == PLANE_TAXI_IN && p.gateIdx == 0)
                 || (p.state == PLANE_AT_GATE && p.serviceLeft == 0);
-            if (actionable && p.patience < bestPatience) {
-                bestPatience = p.patience;
-                best = p;
+            if (actionable) {
+                int score = priorityScore(p);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = p;
+                }
             }
             p = p.next;
         }
@@ -455,6 +498,13 @@ class AirportTycoon {
             cash = cash + fareFor(p.sizeClass);
             served = served + 1;
             if (reputation < 100) { reputation = reputation + 1; }
+            // Edition 2: a clean, on-time departure extends the combo. Every
+            // COMBO_STEP in a row pays a flat tip on top of the fare.
+            streak = streak + 1;
+            if (streak % COMBO_STEP == 0) {
+                cash = cash + COMBO_TIP;
+                comboTips = comboTips + COMBO_TIP;
+            }
             p.state = PLANE_DONE;
             return;
         }
@@ -474,6 +524,8 @@ class AirportTycoon {
         p.state = PLANE_LEFT_ANGRY;
         lost = lost + 1;
         reputation = reputation - 12;
+        // Edition 2: an angry departure breaks the on-time combo.
+        streak = 0;
     }
 
     // Unlink any PLANE_DONE / PLANE_LEFT_ANGRY nodes from the list.
@@ -511,7 +563,8 @@ class AirportTycoon {
         String out = "ATC|tick=" + tick + "|cash=" + cash
             + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
             + "|gates=" + openGates + "|runways=" + openRunways
-            + "|planes=" + planeCount + "|over=" + gameOver;
+            + "|planes=" + planeCount + "|over=" + gameOver
+            + "|streak=" + streak + "|premium=" + servicePremiumPct();
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
@@ -541,14 +594,16 @@ class AirportTycoon {
             if (tick % 30 == 0) {
                 print("t=" + tick + " cash=" + cash + " rep=" + reputation
                     + " served=" + served + " lost=" + lost
-                    + " planes=" + planeCount);
+                    + " planes=" + planeCount
+                    + " streak=" + streak + " premium%=" + servicePremiumPct());
             }
             frames = frames + 1;
         }
 
         print("=== SHIFT OVER ===");
         print("served=" + served + " lost=" + lost + " cash=" + cash
-            + " reputation=" + reputation);
+            + " reputation=" + reputation
+            + " best-streak-tips=" + comboTips);
         if (gameOver) { print("The airport closed. Reputation hit zero."); }
     }
 }

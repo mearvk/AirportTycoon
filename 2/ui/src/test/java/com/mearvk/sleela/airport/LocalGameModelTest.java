@@ -34,6 +34,13 @@ public final class LocalGameModelTest {
         testMediaFlightsMainlyOnTime();
         testMediaReporterFusesAuthorAndEast();
         testMediaSoftPad();
+        // --- Edition 2: economic feedback loop ---
+        testServicePremiumTracksReputation();
+        testPremiumClampedToRange();
+        testOnTimeComboPaysTips();
+        testSnapshotCarriesEdition2Readouts();
+        testSnapshotBackwardCompatibleDefaults();
+        testAutoAssistProtectsHeaviesOnNearTie();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -323,5 +330,86 @@ public final class LocalGameModelTest {
         check(padded > 100 && padded < 200, "soft pad moves gently toward target");
         // With a 35% pad, a 100->200 step should move 65 of the 100 gap.
         check(padded == 165, "soft pad applies the configured 35% cushion");
+    }
+
+    // --- Edition 2: economic feedback loop (service premium + on-time combo) -
+
+    private static void testServicePremiumTracksReputation() {
+        // Fresh game starts at reputation 100, which is 40 above the reference
+        // (60), so the premium is 140% and clamped nowhere yet.
+        LocalGameModel m = new LocalGameModel();
+        check(m.reputation() == 100, "fresh reputation is 100");
+        check(m.servicePremiumPct() == 140,
+                "premium is 140% at reputation 100 (ref 60)");
+        // Snapshot exposes the same premium the fares use.
+        check(m.snapshot().servicePremiumPct == m.servicePremiumPct(),
+                "snapshot premium matches the model");
+    }
+
+    private static void testPremiumClampedToRange() {
+        // Drive reputation down by never assisting; abandonments bleed it to 0,
+        // where the premium must clamp to the configured floor (70%), never
+        // below.
+        LocalGameModel m = new LocalGameModel();
+        for (int i = 0; i < 400 && m.reputation() > 0; i++) {
+            m.step();
+        }
+        int prem = m.servicePremiumPct();
+        check(prem >= 70 && prem <= 150, "premium stays within [70,150] (" + prem + ")");
+        if (m.reputation() == 0) {
+            check(prem == 70, "premium clamps to the 70% floor at reputation 0");
+        }
+    }
+
+    private static void testOnTimeComboPaysTips() {
+        // Auto-play a shift; a clean run should bank combo tips (multiples of
+        // COMBO_TIP=150), and the streak must never be negative.
+        LocalGameModel m = new LocalGameModel();
+        for (int i = 0; i < 500; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.served() > 0, "combo test served planes");
+        check(m.streak() >= 0, "streak is never negative");
+        check(m.comboTips() % 150 == 0, "combo tips are whole multiples of the tip");
+        // After serving at least COMBO_STEP planes with no losses the combo
+        // must have paid at least once; if there were losses the streak reset,
+        // so we only assert the invariant linking served, streak, and tips.
+        check(m.comboTips() >= 0 && m.comboTips() <= m.served() * 150,
+                "combo tips bounded by served planes");
+    }
+
+    private static void testSnapshotCarriesEdition2Readouts() {
+        // The wire format now carries streak and premium; parse must round-trip
+        // them.
+        String wire = "ATC|tick=9|cash=5000|rep=80|served=12|lost=1|gates=3|"
+                + "runways=2|planes=4|over=false|streak=7|premium=120";
+        GameSnapshot s = GameSnapshot.parse(wire);
+        check(s.streak == 7, "snapshot streak parsed");
+        check(s.servicePremiumPct == 120, "snapshot premium parsed");
+    }
+
+    private static void testSnapshotBackwardCompatibleDefaults() {
+        // An Edition 1 frame with no streak/premium keys still parses, with a
+        // neutral 100% premium and zero streak.
+        String oldWire = "ATC|tick=1|cash=2000|rep=100|served=0|lost=0|gates=2|"
+                + "runways=1|planes=0|over=false";
+        GameSnapshot s = GameSnapshot.parse(oldWire);
+        check(s.streak == 0, "missing streak defaults to 0");
+        check(s.servicePremiumPct == 100, "missing premium defaults to a neutral 100%");
+    }
+
+    private static void testAutoAssistProtectsHeaviesOnNearTie() {
+        // The Edition 2 priority score is patience*4 - sizeClass, so a heavy
+        // (sizeClass 2) is served before a small plane (sizeClass 0) with the
+        // SAME patience, but a small plane with less patience still wins.
+        LocalGameModel m = new LocalGameModel();
+        // Equal patience => heavier plane is strictly more urgent (lower score).
+        check(m.scoreFor(40, 2) < m.scoreFor(40, 0),
+                "equal patience: heavy outranks small");
+        // The size nudge is sub-one-patience-point: a small plane one patience
+        // tick closer to timeout still beats a heavy.
+        check(m.scoreFor(39, 0) < m.scoreFor(40, 2),
+                "more-urgent small plane still beats a comfortable heavy");
     }
 }

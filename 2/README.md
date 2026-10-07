@@ -1,12 +1,40 @@
 # Airport Tycoon — Business Edition (Edition 2)
 
-> **Edition 2 — the improvement line.** This version starts as a complete,
-> self-contained carry-forward of the **Edition 1 Base Concepts** (see
-> [`../1/README.md`](../1/README.md)): the tower game, the business/life layer
-> (`Character` + `Citizen`), the media/events center, the Author Terminal, the
-> native SleelaUI front-end, the win condition, and the Author Path that wins in
-> exactly 1001 moves. Everything below is inherited from Edition 1 verbatim and
-> is the baseline we improve from here — nothing has been changed yet.
+> **Edition 2 — the improvement line.** Built on the complete, self-contained
+> **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
+> tower game, the business/life layer (`Character` + `Citizen`), the
+> media/events center, the Author Terminal, the native SleelaUI front-end, the
+> win condition, and the Author Path that wins in exactly 1001 moves — all
+> carried forward intact.
+>
+> ### What's new in Edition 2 — the economic feedback loop
+>
+> Edition 1's fares were flat and reputation was mostly cosmetic. Edition 2
+> makes a well-run tower *pay*, with three faithful changes applied identically
+> in the SLeeLa Wrapper ([`game/AirportTycoon.sleela`](game/AirportTycoon.sleela))
+> and its Java mirror (`ui/.../LocalGameModel.java`):
+>
+> 1. **Service premium.** Every fare is scaled by a reputation-driven premium:
+>    `premium% = 100 + (reputation − 60)`, clamped to **[70%, 150%]**. At the
+>    reference reputation (60) the premium is a neutral 100%, so Edition 1's
+>    fares are the exact midpoint — a thriving airport (rep 100) now earns a
+>    **+40%** tip on every departure, while a failing one (rep 0) is forced to
+>    **−30%** discounts. Reputation finally hits the bottom line.
+> 2. **On-time combo.** Every **5** consecutive clean departures pays a flat
+>    **$150** combo tip; a single plane leaving angry resets the streak to zero.
+>    This rewards sustained, careful tower management, not just volume.
+> 3. **Smarter auto-assist.** The "A" / Auto-assist helper now ranks planes by a
+>    priority score, `patience × 4 − sizeClass`, so when two planes are equally
+>    close to timing out it protects the **heavier, higher-value** one — while a
+>    genuinely more-urgent small plane still wins. The tie-break is sub-one
+>    patience point, so urgency always dominates value.
+>
+> The snapshot wire format gains two backward-compatible fields (`streak`,
+> `premium`) that the HUD now shows as **`FARE n%`** and **`STREAK n`**. All
+> three changes are tunable in [`config/airport.conf`](config/airport.conf) under
+> the *Edition 2* keys, and are locked in by new assertions in the game-logic
+> test suite (`make check`). Everything else is inherited from Edition 1
+> verbatim.
 
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an

@@ -402,8 +402,9 @@ public final class AirportTycoonApp extends Application {
 
     private void updateHud(GameSnapshot snap) {
         hud.setText(String.format(
-                "CASH $%-6d   REP %-4d   SERVED %-4d   LOST %-4d   GATES %d/%d   RWY %d/%d   PLANES %-3d   t=%d",
-                snap.cash, snap.reputation, snap.served, snap.lost,
+                "CASH $%-6d   REP %-4d   FARE %d%%   STREAK %-3d   SERVED %-4d   LOST %-4d   GATES %d/%d   RWY %d/%d   PLANES %-3d   t=%d",
+                snap.cash, snap.reputation, snap.servicePremiumPct, snap.streak,
+                snap.served, snap.lost,
                 snap.openGates, LocalGameModel.MAX_GATES,
                 snap.openRunways, LocalGameModel.MAX_RUNWAYS,
                 snap.planeCount, snap.tick));
