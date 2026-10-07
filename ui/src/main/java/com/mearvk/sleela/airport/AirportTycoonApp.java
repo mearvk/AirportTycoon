@@ -35,11 +35,16 @@ import javafx.stage.Stage;
  */
 public final class AirportTycoonApp extends Application {
 
-    private static final double W = 960;
-    private static final double H = 600;
+    private static final double W = 960;        // canvas / field width
+    private static final double H = 640;        // window height
     private static final double FIELD_H = 440;
+    private static final double WINDOW_W = 1280; // room for the economy panel
 
     private final SleelaRuntime runtime = new SleelaProcessRuntime();
+
+    // The business/life layer (Character owner + Citizen travelers), mirroring
+    // game/AirportTycoonLife.sleela and the vendored /sources classes.
+    private final LifeEconomy life = new LifeEconomy();
 
     // Smoothed sprite positions keyed by plane id (for interpolation).
     private final java.util.Map<Integer, double[]> sprites = new java.util.HashMap<>();
@@ -48,10 +53,14 @@ public final class AirportTycoonApp extends Application {
     private Label hud;
     private Label backendLabel;
     private Label messageLabel;
+    private Label economyLabel;
     private ToggleButton pauseBtn;
 
     private long lastTickNanos = 0;
     private static final long TICK_NANOS = 100_000_000L; // 10 Hz
+    // One in-game "month" of the business/life layer per this many ticks.
+    private static final int TICKS_PER_MONTH = 60;
+    private int cashAtMonthStart = 0;
     private boolean paused = false;
 
     @Override
@@ -72,11 +81,18 @@ public final class AirportTycoonApp extends Application {
         messageLabel.setFont(Font.font("Consolas", 12));
         messageLabel.setTextFill(Color.web("#aee6b4"));
 
+        economyLabel = new Label();
+        economyLabel.setFont(Font.font("Consolas", 12));
+        economyLabel.setTextFill(Color.web("#e8f0ff"));
+
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #0b1220;");
         root.setTop(buildHeader());
         root.setCenter(canvas);
+        root.setRight(buildEconomyPanel());
         root.setBottom(buildControls());
+
+        cashAtMonthStart = runtime.snapshot().cash;
 
         Scene scene = new Scene(root, W, H);
         scene.setOnKeyPressed(e -> {
@@ -103,11 +119,13 @@ public final class AirportTycoonApp extends Application {
                 if (!paused && now - lastTickNanos >= TICK_NANOS) {
                     runtime.step();
                     lastTickNanos = now;
+                    maybeAdvanceMonth();
                 }
                 GameSnapshot snap = runtime.snapshot();
                 updateSprites(snap);
                 render(snap);
                 updateHud(snap);
+                updateEconomy();
             }
         };
         loop.start();
@@ -136,7 +154,9 @@ public final class AirportTycoonApp extends Application {
         Button restart = new Button("Restart");
         restart.setOnAction(e -> {
             runtime.reset();
+            life.setup();
             sprites.clear();
+            cashAtMonthStart = runtime.snapshot().cash;
             message("New shift started.");
         });
 
@@ -148,6 +168,80 @@ public final class AirportTycoonApp extends Application {
         box.setStyle("-fx-background-color: #111a2e;");
         VBox.setVgrow(box, Priority.NEVER);
         return box;
+    }
+
+    private Region buildEconomyPanel() {
+        Label title = new Label("THE BUSINESS & THE TRAVELERS");
+        title.setFont(Font.font("Consolas", FontWeight.BOLD, 12));
+        title.setTextFill(Color.web("#9bc4ff"));
+
+        Label sub = new Label("Owner = Character · Passengers = Citizen\n(both ends of the economy)");
+        sub.setFont(Font.font("Consolas", 10));
+        sub.setTextFill(Color.web("#7fa8d0"));
+
+        Button priceUp = new Button("Ticket +$20");
+        priceUp.setOnAction(e -> {
+            life.setTicketPrice(life.ticketPriceCents() + 2000);
+            message("Ticket price now $" + (life.ticketPriceCents() / 100));
+        });
+        Button priceDown = new Button("Ticket -$20");
+        priceDown.setOnAction(e -> {
+            life.setTicketPrice(Math.max(0, life.ticketPriceCents() - 2000));
+            message("Ticket price now $" + (life.ticketPriceCents() / 100));
+        });
+        Button taxUp = new Button("Tax +1%");
+        taxUp.setOnAction(e -> {
+            life.setTaxRate(Math.min(100, life.taxRatePercent() + 1));
+            message("Traveler tax now " + life.taxRatePercent() + "%");
+        });
+        Button taxDown = new Button("Tax -1%");
+        taxDown.setOnAction(e -> {
+            life.setTaxRate(Math.max(0, life.taxRatePercent() - 1));
+            message("Traveler tax now " + life.taxRatePercent() + "%");
+        });
+
+        HBox priceRow = new HBox(6, priceUp, priceDown);
+        HBox taxRow = new HBox(6, taxUp, taxDown);
+
+        VBox box = new VBox(8, title, sub, economyLabel, priceRow, taxRow);
+        box.setPadding(new Insets(12));
+        box.setPrefWidth(300);
+        box.setStyle("-fx-background-color: #0e1830; -fx-border-color: #1c2a44; -fx-border-width: 0 0 0 1;");
+        return box;
+    }
+
+    // Advance the business/life layer one in-game month every TICKS_PER_MONTH
+    // ticks, folding the tower game's fare income earned this month into the
+    // owner's Character book.
+    private void maybeAdvanceMonth() {
+        GameSnapshot snap = runtime.snapshot();
+        if (snap.tick > 0 && snap.tick % TICKS_PER_MONTH == 0) {
+            int fareIncomeCents = Math.max(0, (snap.cash - cashAtMonthStart)) * 100;
+            life.liveAMonth(fareIncomeCents);
+            cashAtMonthStart = snap.cash;
+            message(String.format("Month %d closed — %d/%d seats sold, owner cash $%d (rep %d).",
+                    life.month(), life.seatsSold(), life.seatsOffered(),
+                    life.ownerCashCents() / 100, life.ownerReputation()));
+        }
+    }
+
+    private void updateEconomy() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("Month ").append(life.month()).append('\n');
+        sb.append("Owner: ").append(life.ownerName()).append('\n');
+        sb.append(String.format("  cash $%d%n", life.ownerCashCents() / 100));
+        sb.append(String.format("  reputation %d · grit %d%n",
+                life.ownerReputation(), life.ownerGrit()));
+        sb.append(String.format("  %s%n", life.ownerThriving() ? "THRIVING" : "grinding"));
+        sb.append(String.format("Ticket $%d · Tax %d%%%n",
+                life.ticketPriceCents() / 100, life.taxRatePercent()));
+        sb.append(String.format("Seats %d/%d sold%n%n",
+                life.seatsSold(), life.seatsOffered()));
+        sb.append("Travelers (Citizens):\n");
+        for (String line : life.travelerLines()) {
+            sb.append("  ").append(line).append('\n');
+        }
+        economyLabel.setText(sb.toString());
     }
 
     private void togglePause() {
