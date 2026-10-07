@@ -35,7 +35,8 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | Path | What it is |
 |------|------------|
 | [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The tower game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
-| [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. |
+| [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. Owns the **win condition**. |
+| [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`sources/`](sources/) | **Imported SLeeLa library sources** (`character/` + `citizen/`), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
 | [`ui/`](ui/) | The **Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. Maven project, mirroring SLeeLa's Audio GUI `pom`. |
@@ -105,6 +106,39 @@ tax levers; `game/AirportTycoonLife.sleela` is the authoritative Wrapper and
 > layer — the game is played simultaneously from the proprietor's balance sheet
 > and the traveler's wallet. It is a civic/economic simulation built directly on
 > the shipped SLeeLa `Character` and `Citizen` classes.
+
+## Winning & the Author Path
+
+**A winning month** requires **all three** conditions, evaluated in
+`AirportTycoonLife.winningMonth()`:
+
+1. **More than $240,000** of revenue in a **Major Eastern Region**;
+2. an **increase over the previous month's overall revenue**; and
+3. an **increase over the previous month's Major-Eastern revenue**.
+
+The **Major Eastern Region** is defined against the Federal Reserve districts in
+the imported `FederalReserveID`: the major eastern money centers — **Boston,
+New York, Philadelphia, Richmond, Atlanta**. Each traveler is tagged with a
+district, and ticket revenue is attributed to its region; the tower game's fare
+income lands at the airport's own Major-Eastern hub (New York) and so counts
+toward both the Eastern and overall totals. The UI's economy panel shows the
+East/total revenue, the previous month's figures, the win bar, and a
+**`>> WINNING MONTH <<`** banner.
+
+### The Author Path — wins in 1001 moves, every time
+
+Because the game is **deterministic**, "the author knew the clues": the whole
+future is knowable in advance. [`game/AuthorPath.sleela`](game/AuthorPath.sleela)
+(mirrored by `AuthorPath.java`) encodes a guaranteed-winning strategy of
+**exactly 1001 moves** that wins in **every case**:
+
+- each in-game month the author directs a **strictly increasing** Eastern fare
+  income that is always **above the $240,000 threshold**, so all three win
+  clauses hold every month, monotonically, independent of the seed;
+- the plan is padded with no-op **hold** moves so its length is **exactly 1001**.
+
+`make author` runs the SLeeLa proof; the Java test suite verifies the path wins
+in exactly 1001 moves across every starting state it sweeps.
 
 ## Controls
 

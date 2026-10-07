@@ -51,6 +51,29 @@ class AirportTycoonLife {
     int seatsOffered;             // seats put up for sale this month
     int taxRatePercent;           // civic tax applied to travelers each month
 
+    // --- Regional revenue (the WIN CONDITION lives here) ------------------
+    // Each traveler is tagged with a Federal Reserve District (see the imported
+    // FederalReserveID). Ticket revenue is attributed to the traveler's region.
+    // The "Major Eastern Region" is the set of major eastern Fed districts:
+    // Boston(1), New York(2), Philadelphia(3), Richmond(5), Atlanta(6).
+    // The threshold for a winning month is MORE THAN $240,000 ($24,000,000c)
+    // of revenue in the Major Eastern Region, AND an increase over the
+    // previous month both OVERALL and in the Major Eastern Region.
+    static int EAST_WIN_THRESHOLD_CENTS = 24000000; // $240,000.00
+
+    int revenueTotalCents;        // all revenue earned this month (all regions)
+    int revenueEastCents;         // revenue earned this month in Major East
+    int prevRevenueTotalCents;    // last month's overall revenue
+    int prevRevenueEastCents;     // last month's Major-East revenue
+    boolean wonThisMonth;         // did this month satisfy the win condition?
+
+    // District of each traveler (parallels pax0..pax4; SLeeLa 1.6 has no arrays)
+    int dist0;
+    int dist1;
+    int dist2;
+    int dist3;
+    int dist4;
+
     // ---------------------------------------------------------------------
     // Setup: stand up the owner with a Subscription-style gate-lease business,
     // and seed a handful of Citizens with jobs and bank accounts.
@@ -73,12 +96,29 @@ class AirportTycoonLife {
         owner.adopt(biz);
 
         // Traveler end -----------------------------------------------------
-        pax0 = makeCitizen("Dana Reyes",   Industry.SECTOR_TECHNOLOGY, 650000);
-        pax1 = makeCitizen("Marco Hale",   Industry.SECTOR_FINANCE,    720000);
-        pax2 = makeCitizen("Priya Nandi",  Industry.SECTOR_HEALTHCARE, 580000);
-        pax3 = makeCitizen("Sam Okafor",   Industry.SECTOR_EDUCATION,  300000);
-        pax4 = makeCitizen("Lin Zhou",     Industry.SECTOR_RETAIL,     260000);
+        // Districts are drawn from the imported FederalReserveID. New York(2),
+        // Boston(1), Philadelphia(3) are Major Eastern; Chicago(7) and San
+        // Francisco(12) are not, so the East total is distinct from the whole.
+        pax0 = makeCitizen("Dana Reyes",  Industry.SECTOR_TECHNOLOGY, 650000);
+        pax1 = makeCitizen("Marco Hale",  Industry.SECTOR_FINANCE,    720000);
+        pax2 = makeCitizen("Priya Nandi", Industry.SECTOR_HEALTHCARE, 580000);
+        pax3 = makeCitizen("Sam Okafor",  Industry.SECTOR_EDUCATION,  300000);
+        pax4 = makeCitizen("Lin Zhou",    Industry.SECTOR_RETAIL,     260000);
+        // District tags are tracked here in the Wrapper (the imported Citizen
+        // owns its own FederalReserveID but does not expose a district setter,
+        // and the vendored /sources are kept verbatim).
+        dist0 = FederalReserveID.DISTRICT_NEW_YORK;      // Major East
+        dist1 = FederalReserveID.DISTRICT_BOSTON;        // Major East
+        dist2 = FederalReserveID.DISTRICT_PHILADELPHIA;  // Major East
+        dist3 = FederalReserveID.DISTRICT_CHICAGO;       // not East
+        dist4 = FederalReserveID.DISTRICT_SAN_FRANCISCO; // not East
         paxCount = 5;
+
+        revenueTotalCents = 0;
+        revenueEastCents = 0;
+        prevRevenueTotalCents = 0;
+        prevRevenueEastCents = 0;
+        wonThisMonth = false;
 
         syncOwnerFigures();
     }
@@ -93,6 +133,28 @@ class AirportTycoonLife {
         while (b < 30) { c.haveABirthday(); b = b + 1; }
         c.getAJob(sector, monthlyWageCents);
         return c;
+    }
+
+    // Index -> that traveler's Fed district (parallels paxAt).
+    int distAt(int i) {
+        if (i == 0) { return dist0; }
+        if (i == 1) { return dist1; }
+        if (i == 2) { return dist2; }
+        if (i == 3) { return dist3; }
+        if (i == 4) { return dist4; }
+        return 0;
+    }
+
+    // Is a Federal Reserve District part of the "Major Eastern Region"?
+    // The major eastern money centers: Boston, New York, Philadelphia,
+    // Richmond, Atlanta.
+    boolean isMajorEast(int district) {
+        if (district == FederalReserveID.DISTRICT_BOSTON) { return true; }
+        if (district == FederalReserveID.DISTRICT_NEW_YORK) { return true; }
+        if (district == FederalReserveID.DISTRICT_PHILADELPHIA) { return true; }
+        if (district == FederalReserveID.DISTRICT_RICHMOND) { return true; }
+        if (district == FederalReserveID.DISTRICT_ATLANTA) { return true; }
+        return false;
     }
 
     // Index -> citizen (SLeeLa 1.6 has no arrays, so this is the accessor).
@@ -115,6 +177,12 @@ class AirportTycoonLife {
     int liveAMonth(int fareIncomeCents) {
         month = month + 1;
 
+        // Roll this month's figures into "previous" before recomputing.
+        prevRevenueTotalCents = revenueTotalCents;
+        prevRevenueEastCents = revenueEastCents;
+        revenueTotalCents = 0;
+        revenueEastCents = 0;
+
         // --- Traveler end: each Citizen earns, is taxed, and maybe flies ---
         seatsSold = 0;
         int i = 0;
@@ -128,6 +196,11 @@ class AirportTycoonLife {
                     if (seatsSold < seatsOffered) {
                         if (c.treatYourself(ticketPriceCents)) {
                             seatsSold = seatsSold + 1;
+                            // Attribute this fare to the traveler's region.
+                            revenueTotalCents = revenueTotalCents + ticketPriceCents;
+                            if (isMajorEast(distAt(i))) {
+                                revenueEastCents = revenueEastCents + ticketPriceCents;
+                            }
                         }
                     }
                 }
@@ -135,16 +208,42 @@ class AirportTycoonLife {
             i = i + 1;
         }
 
-        // Ticket revenue the travelers just paid, plus the tower game's fares.
-        int ticketRevenue = seatsSold * ticketPriceCents;
+        // The tower game's fare income lands at the airport's own region, which
+        // is a Major Eastern hub (New York) — so it counts toward BOTH totals.
+        revenueTotalCents = revenueTotalCents + fareIncomeCents;
+        revenueEastCents = revenueEastCents + fareIncomeCents;
 
         // --- Owner end: realize the business model + add this month's cash ---
         owner.liveAMonth();                  // moves grit/reputation/cash by model
-        creditOwner(ticketRevenue + fareIncomeCents);
+        creditOwner(revenueTotalCents);
+
+        // --- Evaluate the win condition for the month ---------------------
+        wonThisMonth = winningMonth();
 
         syncOwnerFigures();
         return seatsSold;
     }
+
+    // ---------------------------------------------------------------------
+    // THE WIN CONDITION.
+    // A winning month requires ALL THREE:
+    //   1. MORE THAN $240,000 of revenue in the Major Eastern Region;
+    //   2. an INCREASE over the previous month's OVERALL revenue;
+    //   3. an INCREASE over the previous month's Major-Eastern revenue.
+    // Month 1 has no prior month, so the increase clauses compare against 0.
+    // ---------------------------------------------------------------------
+    boolean winningMonth() {
+        boolean eastBigEnough = revenueEastCents > EAST_WIN_THRESHOLD_CENTS;
+        boolean totalUp = revenueTotalCents > prevRevenueTotalCents;
+        boolean eastUp = revenueEastCents > prevRevenueEastCents;
+        return eastBigEnough && totalUp && eastUp;
+    }
+
+    boolean won() { return wonThisMonth; }
+    int eastRevenueCents() { return revenueEastCents; }
+    int totalRevenueCents() { return revenueTotalCents; }
+    int prevEastRevenueCents() { return prevRevenueEastCents; }
+    int prevTotalRevenueCents() { return prevRevenueTotalCents; }
 
     // Credit the owner's Character cash. Character exposes cash() for reads; we
     // keep an explicit mirror field the UI can show without reaching inside.
@@ -197,6 +296,12 @@ class AirportTycoonLife {
             + "|tax=" + taxRatePercent
             + "|seatsOffered=" + seatsOffered
             + "|seatsSold=" + seatsSold
+            + "|revTotal=" + revenueTotalCents
+            + "|revEast=" + revenueEastCents
+            + "|prevTotal=" + prevRevenueTotalCents
+            + "|prevEast=" + prevRevenueEastCents
+            + "|eastThreshold=" + EAST_WIN_THRESHOLD_CENTS
+            + "|won=" + yn(wonThisMonth)
             + "|pax=" + paxCount;
         int i = 0;
         while (i < paxCount) {
@@ -219,26 +324,31 @@ class AirportTycoonLife {
         setup();
         print("owner: " + owner.describe());
 
+        // The AUTHOR PATH. The author knows the clues — the game is
+        // deterministic — so he plays the exact moves that satisfy the win
+        // condition every month: a Major-Eastern revenue above $240,000 that
+        // also rises, overall and in the East, month over month. He feeds a
+        // strictly increasing stream of Eastern fare income to guarantee it.
         int m = 0;
+        int wins = 0;
         while (m < 12 && owner.stillStanding()) {
-            // Pretend the tower game earned a growing amount of fare cash.
-            int towerFares = 40000 + m * 5000;   // cents
+            // Strictly increasing Eastern fare income, always above the
+            // $240,000 Major-Eastern threshold, so every month is a win.
+            int towerFares = EAST_WIN_THRESHOLD_CENTS + 100000 + m * 100000;
             int sold = liveAMonth(towerFares);
-            print("month " + month + ": seatsSold=" + sold
-                + " ownerCash=" + ownerCashCents
-                + " rep=" + ownerReputation
-                + " grit=" + ownerGrit);
+            if (wonThisMonth) { wins = wins + 1; }
+            print("month " + month
+                + ": east=$" + (revenueEastCents / 100)
+                + " total=$" + (revenueTotalCents / 100)
+                + " (prevEast=$" + (prevRevenueEastCents / 100)
+                + " prevTotal=$" + (prevRevenueTotalCents / 100) + ")"
+                + " won=" + yn(wonThisMonth));
             m = m + 1;
         }
 
         print("=== YEAR-END ===");
         print("owner: " + owner.describe());
-        int i = 0;
-        while (i < paxCount) {
-            Citizen c = paxAt(i);
-            if (c != null) { print("pax" + i + ": " + c.describe()); }
-            i = i + 1;
-        }
+        print("winning months on the author path: " + wins + " of " + m);
         if (!owner.stillStanding()) { print("The airport operator went under."); }
     }
 }

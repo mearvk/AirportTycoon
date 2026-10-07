@@ -184,8 +184,25 @@ public final class LifeEconomy {
         }
     }
 
+    // Federal Reserve districts (mirror of the imported FederalReserveID).
+    static final int DISTRICT_BOSTON = 1;
+    static final int DISTRICT_NEW_YORK = 2;
+    static final int DISTRICT_PHILADELPHIA = 3;
+    static final int DISTRICT_RICHMOND = 5;
+    static final int DISTRICT_ATLANTA = 6;
+    static final int DISTRICT_CHICAGO = 7;
+    static final int DISTRICT_SAN_FRANCISCO = 12;
+
+    /**
+     * The win threshold: a winning month needs MORE THAN $240,000
+     * ($24,000,000 cents) of revenue in the Major Eastern Region, and that
+     * revenue must rise month over month both overall and in the East.
+     */
+    static final int EAST_WIN_THRESHOLD_CENTS = 24_000_000;
+
     private Character owner;
     private final List<Citizen> pax = new ArrayList<>();
+    private final List<Integer> paxDistrict = new ArrayList<>();
 
     private int month;
     private int ticketPriceCents = 24000;
@@ -193,6 +210,13 @@ public final class LifeEconomy {
     private int taxRatePercent = 18;
     private int seatsSold;
     private int ownerAddOnCash;
+
+    // Regional revenue tracking (the win condition lives here).
+    private int revenueTotalCents;
+    private int revenueEastCents;
+    private int prevRevenueTotalCents;
+    private int prevRevenueEastCents;
+    private boolean wonThisMonth;
 
     public LifeEconomy() {
         setup();
@@ -216,6 +240,29 @@ public final class LifeEconomy {
         pax.add(makeCitizen("Priya Nandi", 9, 580000));
         pax.add(makeCitizen("Sam Okafor", 10, 300000));
         pax.add(makeCitizen("Lin Zhou", 6, 260000));
+
+        // Region tags: three Major-Eastern, two not — so East < overall.
+        paxDistrict.clear();
+        paxDistrict.add(DISTRICT_NEW_YORK);
+        paxDistrict.add(DISTRICT_BOSTON);
+        paxDistrict.add(DISTRICT_PHILADELPHIA);
+        paxDistrict.add(DISTRICT_CHICAGO);
+        paxDistrict.add(DISTRICT_SAN_FRANCISCO);
+
+        revenueTotalCents = 0;
+        revenueEastCents = 0;
+        prevRevenueTotalCents = 0;
+        prevRevenueEastCents = 0;
+        wonThisMonth = false;
+    }
+
+    /** The Major Eastern Region: the major eastern Fed districts. */
+    static boolean isMajorEast(int district) {
+        return district == DISTRICT_BOSTON
+                || district == DISTRICT_NEW_YORK
+                || district == DISTRICT_PHILADELPHIA
+                || district == DISTRICT_RICHMOND
+                || district == DISTRICT_ATLANTA;
     }
 
     private Citizen makeCitizen(String who, int sector, int wage) {
@@ -234,19 +281,49 @@ public final class LifeEconomy {
      */
     public int liveAMonth(int fareIncomeCents) {
         month++;
+
+        // Roll this month's figures into "previous" before recomputing.
+        prevRevenueTotalCents = revenueTotalCents;
+        prevRevenueEastCents = revenueEastCents;
+        revenueTotalCents = 0;
+        revenueEastCents = 0;
+
         seatsSold = 0;
-        for (Citizen c : pax) {
+        for (int i = 0; i < pax.size(); i++) {
+            Citizen c = pax.get(i);
             c.getPaid();
             c.payTaxes(taxRatePercent);
             if (c.isAble() && c.netWorthCents() >= ticketPriceCents
                     && seatsSold < seatsOffered && c.treatYourself(ticketPriceCents)) {
                 seatsSold++;
+                revenueTotalCents += ticketPriceCents;
+                if (isMajorEast(paxDistrict.get(i))) {
+                    revenueEastCents += ticketPriceCents;
+                }
             }
         }
-        int ticketRevenue = seatsSold * ticketPriceCents;
+
+        // The tower game's fare income lands at the airport's own region — a
+        // Major Eastern hub (New York) — so it counts toward both totals.
+        revenueTotalCents += fareIncomeCents;
+        revenueEastCents += fareIncomeCents;
+
         owner.liveAMonth();
-        ownerAddOnCash += ticketRevenue + fareIncomeCents;
+        ownerAddOnCash += revenueTotalCents;
+
+        wonThisMonth = winningMonth();
         return seatsSold;
+    }
+
+    /**
+     * The win condition. A winning month needs all three: Major-Eastern revenue
+     * strictly above $240,000, and an increase over the previous month both
+     * overall and in the Major Eastern Region.
+     */
+    public boolean winningMonth() {
+        return revenueEastCents > EAST_WIN_THRESHOLD_CENTS
+                && revenueTotalCents > prevRevenueTotalCents
+                && revenueEastCents > prevRevenueEastCents;
     }
 
     public boolean setTicketPrice(int cents) {
@@ -308,6 +385,31 @@ public final class LifeEconomy {
 
     public int seatsSold() {
         return seatsSold;
+    }
+
+    // --- win-condition read-side ---
+    public boolean won() {
+        return wonThisMonth;
+    }
+
+    public int eastRevenueCents() {
+        return revenueEastCents;
+    }
+
+    public int totalRevenueCents() {
+        return revenueTotalCents;
+    }
+
+    public int prevEastRevenueCents() {
+        return prevRevenueEastCents;
+    }
+
+    public int prevTotalRevenueCents() {
+        return prevRevenueTotalCents;
+    }
+
+    public int eastWinThresholdCents() {
+        return EAST_WIN_THRESHOLD_CENTS;
     }
 
     public List<String> travelerLines() {

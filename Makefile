@@ -16,18 +16,19 @@
 SLEELA ?= sleela
 GAME_SRC := game/AirportTycoon.sleela
 LIFE_SRC := game/AirportTycoonLife.sleela
+AUTHOR_SRC := game/AuthorPath.sleela
 TEST_SRC := game/AirportTycoonTest.sleela
 # Imported SLeeLa library sources the life/business layer resolves against.
 SOURCES := sources/character sources/citizen
 
-.PHONY: all game run run-life test ui ui-run check clean help
+.PHONY: all game run run-life author test ui ui-run check clean help
 
 all: game check ui
 
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(TEST_SRC) \
+		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
 			--library $(SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
@@ -40,6 +41,10 @@ run:
 # Run the business/life layer headless (resolves Character/Citizen from /sources)
 run-life:
 	$(SLEELA) run $(LIFE_SRC) --library $(SOURCES)
+
+# Prove the author path wins in exactly 1001 moves, every time.
+author:
+	$(SLEELA) run $(AUTHOR_SRC)
 
 test:
 	$(SLEELA) run $(TEST_SRC)
@@ -61,6 +66,7 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/LocalGameModel.java \
 	    src/main/java/com/mearvk/sleela/airport/SleelaProcessRuntime.java \
 	    src/main/java/com/mearvk/sleela/airport/LifeEconomy.java \
+	    src/main/java/com/mearvk/sleela/airport/AuthorPath.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 
@@ -73,6 +79,7 @@ help:
 	@echo "  make game     Type/parse-check the .sleela Wrappers (Sleelvac)"
 	@echo "  make run      Headless self-play (SLeeLa toolchain)"
 	@echo "  make run-life Headless business/life layer (Character + Citizen)"
+	@echo "  make author   Prove the author path wins in 1001 moves, every time"
 	@echo "  make test     Run the SLeeLa self-check Wrapper"
 	@echo "  make ui      Build the JavaFX Sleela UI"
 	@echo "  make ui-run  Launch the JavaFX game window"
