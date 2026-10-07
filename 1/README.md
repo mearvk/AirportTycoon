@@ -38,10 +38,11 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. Owns the **win condition**. |
 | [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
-| [`sources/`](sources/) | **Imported SLeeLa library sources** (`character/` + `citizen/`), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
-| [`ui/`](ui/) | The **Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. Maven project, mirroring SLeeLa's Audio GUI `pom`. |
+| [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
+| [`sources/`](sources/) | **Imported SLeeLa library sources** — `character/` + `citizen/` (the economy) and `user-interface/` (the SleelaUI widget toolkit), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
+| [`ui/`](ui/) | The **JavaFX Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. (A playable stand-in; the native front-end is `ui-sleela/`.) |
 | [`config/airport.conf`](config/airport.conf) | SLeeLa VM settings + gameplay tuning (economy, capacity, pace, RNG seed). |
-| [`Makefile`](Makefile) | Top-level dispatcher (`game`, `run`, `run-life`, `test`, `ui`, `ui-run`, `check`). |
+| [`Makefile`](Makefile) | Top-level dispatcher (`game`, `run`, `run-life`, `author`, `ui-sleela`, `test`, `ui`, `ui-run`, `check`). |
 
 ### Inside the SLeeLa Wrapper
 
@@ -78,6 +79,31 @@ Written to the normative SLeeLa 1.6 grammar
   `.sleela` Wrapper, so the game is playable and animated on any machine even
   before the SLeeLa compiler is installed — and a reviewer can diff the two to
   confirm they match.
+
+### The native SleelaUI front-end
+
+[`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) is the
+program's **native** interface, built with **SleelaUI™** — SLeeLa's own
+cross-platform widget toolkit ([`lib/user-interface`](https://github.com/mearvk/SLeeLa/tree/master/lib/user-interface),
+vendored under [`sources/user-interface/`](sources/user-interface/)). It opens a
+**real native window** through the `ui*` VM bridge (X11 on Linux, Cocoa on
+macOS, Win32 on Windows) and paints the signature **Slick Black** look with the
+toolkit's own rasterizer, identical on all three desktops.
+
+The window presents the whole program readably, using the real widgets:
+
+- an `SLHeading` title and a backend/version `SLLabel`;
+- an `SLCard` with the **owner's books** — cash, plus reputation and grit as
+  `SLLevelBar`s;
+- an `SLInfoBar` showing the **win status** (Major-Eastern revenue above
+  $240,000, rising);
+- an `SLCard` of **travelers** (`SLLabel` + `SLBadge` home-district pills);
+- an `SLCard` for the **Author Path**, with the one accent `SLButton`
+  (`setSuggested(true)`) — *wins in 1001 moves, every time*;
+- an `SLStatusBar` footer.
+
+Run it with `make ui-sleela` (needs the SLeeLa toolchain). With no display it
+falls back to a text read so the program still reports itself.
 
 ## Both ends of the economy — Character & Citizen
 
