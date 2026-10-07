@@ -33,8 +33,37 @@
 > `premium`) that the HUD now shows as **`FARE n%`** and **`STREAK n`**. All
 > three changes are tunable in [`config/airport.conf`](config/airport.conf) under
 > the *Edition 2* keys, and are locked in by new assertions in the game-logic
-> test suite (`make check`). Everything else is inherited from Edition 1
-> verbatim.
+> test suite (`make check`).
+>
+> ### What's new in Edition 2 — the Business Desk
+>
+> Edition 2 adds a **Business Desk** — the place the player steps up to to make
+> a **move** or **transaction** while the tower game runs
+> ([`game/BusinessDesk.sleela`](game/BusinessDesk.sleela), mirrored by
+> `ui/.../BusinessDesk.java`). The desk starts **empty** — a player who has only
+> *tried on their genius* has opened nothing yet. From the desk you run **side
+> games in parallel** with flying planes, modelled as **Chemistry**:
+>
+> - **Casino Management** — an **exothermic** reaction: high variance, a small
+>   positive edge, big swings week to week.
+> - **Investment Management** — a **titration** reaction: a steady, compounding
+>   weekly yield with the occasional drawdown.
+>
+> Each venture settles a weekly transaction onto the owner's book and accrues
+> **IQ** from sustained profitable weeks. When a venture reaches **IQ level 5**
+> it fires a **Major Level-5 move: the Great Assimilation** — the *"IQ reordering
+> of the Orient by assimilation of US capitalist interests."* For a run of weeks
+> it multiplies **Major-Eastern** revenue **3×** — the stretch that *rakes in the
+> money* — feeding straight into the East&nbsp;5.0 / Major-Eastern win economy
+> (`applyAssimilation()` scales [`LifeEconomy`](#) revenue while it runs). The
+> whole desk is **deterministic** from a seed, like the rest of the game.
+>
+> Run the self-demo with **`make desk`** (it falls back to the Java mirror when
+> the SLeeLa toolchain is absent). The desk's knobs — the major level, the
+> assimilation length, and its 3× Eastern multiplier — are tunable under the
+> *Business Desk* keys in [`config/airport.conf`](config/airport.conf), and the
+> mechanics are covered by new `make check` assertions. Everything else is
+> inherited from Edition 1 verbatim.
 
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
@@ -73,6 +102,7 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The tower game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
 | [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. Owns the **win condition**. |
 | [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
+| [`game/BusinessDesk.sleela`](game/BusinessDesk.sleela) | **The Business Desk (Edition 2).** Where the player makes a move/transaction while flying planes. Starts empty; opens parallel **Casino** and **Investment** side games (modelled as Chemistry), accrues **IQ**, and fires the **Level-5 Great Assimilation** that rakes in Major-Eastern money. Java mirror: `BusinessDesk.java`; self-demo: `make desk`. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
 | [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |

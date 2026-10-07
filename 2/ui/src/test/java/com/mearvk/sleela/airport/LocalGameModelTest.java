@@ -41,6 +41,13 @@ public final class LocalGameModelTest {
         testSnapshotCarriesEdition2Readouts();
         testSnapshotBackwardCompatibleDefaults();
         testAutoAssistProtectsHeaviesOnNearTie();
+        // --- Edition 2: the Business Desk ---
+        testDeskStartsEmpty();
+        testDeskOpensParallelVentures();
+        testDeskVenturesAccrueIqAndFireLevel5();
+        testGreatAssimilationRakesInMoney();
+        testDeskIsDeterministic();
+        testDeskSnapshotRoundTrips();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -411,5 +418,103 @@ public final class LocalGameModelTest {
         // tick closer to timeout still beats a heavy.
         check(m.scoreFor(39, 0) < m.scoreFor(40, 2),
                 "more-urgent small plane still beats a comfortable heavy");
+    }
+
+    // --- Edition 2: the Business Desk (side ventures + Level-5 moves) --------
+
+    private static void testDeskStartsEmpty() {
+        // "The business desk is empty as you've merely tried on your Genius."
+        BusinessDesk desk = new BusinessDesk();
+        check(desk.isEmpty(), "a fresh business desk is empty");
+        check(desk.ventureCount() == 0, "empty desk has no ventures");
+        check(desk.majorMoves() == 0, "empty desk has fired no major moves");
+    }
+
+    private static void testDeskOpensParallelVentures() {
+        // The player can run Casino Management and Investment Management in
+        // parallel while flying planes.
+        BusinessDesk desk = new BusinessDesk();
+        desk.openCasino(400000);
+        desk.openInvestment(600000);
+        check(!desk.isEmpty(), "opening a venture fills the desk");
+        check(desk.ventureCount() == 2, "two parallel ventures are open");
+        BusinessDesk.Venture casino = desk.ventures().get(0);
+        BusinessDesk.Venture invest = desk.ventures().get(1);
+        check(casino.reaction() == BusinessDesk.REACTION_EXOTHERMIC,
+                "casino is an exothermic Chemistry reaction");
+        check(invest.reaction() == BusinessDesk.REACTION_TITRATION,
+                "investment is a titration Chemistry reaction");
+    }
+
+    private static void testDeskVenturesAccrueIqAndFireLevel5() {
+        // Sustained good weeks drive IQ up to the major level, firing the
+        // Level-5 move exactly once per venture.
+        BusinessDesk desk = new BusinessDesk();
+        desk.openInvestment(600000); // the steady one reliably reaches level 5
+        for (int w = 0; w < 40; w++) {
+            desk.settleWeek();
+        }
+        BusinessDesk.Venture v = desk.ventures().get(0);
+        check(v.iq() >= BusinessDesk.MAJOR_MOVE_LEVEL,
+                "a steady venture accrues IQ to the major level");
+        check(v.majorFired(), "the venture fired its Level-5 major move");
+        check(desk.majorMoves() >= 1, "the desk recorded at least one major move");
+    }
+
+    private static void testGreatAssimilationRakesInMoney() {
+        // When a Level-5 move fires, the Great Assimilation multiplies
+        // Major-Eastern revenue (3x) for a run of weeks: the money-raking
+        // stretch. Outside those weeks revenue is unchanged.
+        BusinessDesk desk = new BusinessDesk();
+        desk.openInvestment(600000);
+        boolean sawRake = false;
+        int rakedEast = 0;
+        for (int w = 0; w < 40 && !sawRake; w++) {
+            desk.settleWeek();
+            if (desk.assimilationActive()) {
+                sawRake = true;
+                rakedEast = desk.applyAssimilation(24_000_000);
+            }
+        }
+        check(sawRake, "the Great Assimilation activates after a Level-5 move");
+        check(rakedEast == 24_000_000 * BusinessDesk.ASSIMILATION_EAST_PCT / 100,
+                "assimilation multiplies Eastern revenue 3x while active");
+        // Run the assimilation out; afterwards revenue is passed through 1:1.
+        for (int w = 0; w < BusinessDesk.ASSIMILATION_WEEKS + 2; w++) {
+            desk.settleWeek();
+        }
+        check(!desk.assimilationActive(), "assimilation expires after its weeks");
+        check(desk.applyAssimilation(24_000_000) == 24_000_000,
+                "outside assimilation, Eastern revenue is unchanged");
+    }
+
+    private static void testDeskIsDeterministic() {
+        // Same seed => identical campaign, like the rest of the game.
+        BusinessDesk a = new BusinessDesk(4242);
+        BusinessDesk b = new BusinessDesk(4242);
+        a.openCasino(400000);
+        a.openInvestment(600000);
+        b.openCasino(400000);
+        b.openInvestment(600000);
+        for (int w = 0; w < 30; w++) {
+            a.settleWeek();
+            b.settleWeek();
+        }
+        check(a.deskProfitCents() == b.deskProfitCents(),
+                "same seed yields the same desk profit");
+        check(a.majorMoves() == b.majorMoves(),
+                "same seed fires the same number of major moves");
+    }
+
+    private static void testDeskSnapshotRoundTrips() {
+        // The desk snapshot is a readable, pipe-delimited line the UI can show.
+        BusinessDesk desk = new BusinessDesk();
+        desk.openCasino(400000);
+        desk.settleWeek();
+        String snap = desk.snapshot();
+        check(snap.startsWith("DESK|week=1"), "desk snapshot header is present");
+        check(snap.contains("empty=no"), "snapshot reports the desk is no longer empty");
+        check(snap.contains("VEN|name=Casino Management"),
+                "snapshot lists the open venture");
     }
 }
