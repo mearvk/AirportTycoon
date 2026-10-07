@@ -1,0 +1,317 @@
+#sleela 1.6
+//
+// Moria — the Scoreboard Lighting layer
+// =====================================
+// Lighting effects that come OUT OF the game's text: each Font instance on the
+// Moria scoreboard radiates a small coloured light, like a struck torch behind
+// the letters. The model is faithful to SLeeLa's real font-effect vocabulary
+// (lib/user-interface/SLFontEffect: a GLOW/LIGHT/EMITTER with an 0xRRGGBBAA
+// colour, an emitter radius, and an intensity) so a SleelaUI build can bind
+// these descriptors straight onto an SLFont; here they also render as text so
+// the game reads with no display.
+//
+// What the colours mean (the Providence of a place, and who is playing):
+//   * a GREAT city       -> ORANGE light   (a proud, warm beacon)
+//   * an EXCELLENT city  -> GREEN light     (the best places burn green)
+//   * the TRUSTED PLAYER -> PURPLE light    (royal, unmistakable, theirs alone)
+//   * anything ordinary  -> a dim WHITE light
+//
+// A city's Providence is not guessed: it is LEARNED by reaching out to a Source
+// of Information — a rated website or a trusted search result. Only a source
+// that clears the trust threshold is allowed to set a city's tier; below it,
+// the city stays ordinary and its light stays dim. GeoLocation (lat/lon) is
+// carried alongside so the scoreboard can place a city on the world it governs.
+//
+// Light SIZE is given in MILLIMETRES, clamped to the scoreboard's 2..4 mm band,
+// then converted to an emitter radius in px for the font effect.
+
+// A city learned from a Source of Information (intrusive linked-list node).
+struct CitySource {
+    String name;        // the city's name
+    int    latMilli;    // latitude  * 1000 (geolocation, integer-safe)
+    int    lonMilli;    // longitude * 1000
+    int    tier;        // TIER_ORDINARY / TIER_GREAT / TIER_EXCELLENT
+    String sourceName;  // the rated website / trusted search result
+    int    sourceTrust; // 0..100 — how trusted that source is
+    boolean verified;   // true once a trusted source set the tier
+    CitySource next;
+}
+
+class CityLights {
+
+    // ---- City Providence tiers --------------------------------------------
+    static int TIER_ORDINARY  = 0;
+    static int TIER_GREAT     = 1;   // orange
+    static int TIER_EXCELLENT = 2;   // green
+
+    // ---- Light effect kinds (mirror SLFontEffect) --------------------------
+    static int FX_GLOW    = 2;
+    static int FX_LIGHT   = 3;
+    static int FX_EMITTER = 4;
+
+    // ---- Role colours, as 8-bit RGB components (packed on demand the same
+    // arithmetic way SLColor.rgba() packs 0xRRGGBBAA, so no hex literal is
+    // needed and the value drops straight into an SLFontEffect/SLColor). ------
+    //   GREAT cities      -> orange   (255,160, 48)
+    //   EXCELLENT cities  -> green    ( 61,214,140)
+    //   Trusted Player    -> purple   (155, 92,255)
+    //   ordinary          -> dim white(200,200,200), low alpha
+    static int ROLE_ORANGE = 1;
+    static int ROLE_GREEN   = 2;
+    static int ROLE_PURPLE  = 3;
+    static int ROLE_DIM     = 4;
+
+    // ---- The scoreboard light-size band, in millimetres -------------------
+    static int MM_MIN = 2;   // smallest light on the scoreboard
+    static int MM_MAX = 4;   // largest light on the scoreboard
+    // Millimetre -> pixel scale for the emitter radius (96 dpi ~ 3.78 px/mm).
+    static int PX_PER_MM = 4;
+
+    // ---- Trust gate: a source must clear this to set a city's tier ---------
+    static int TRUST_THRESHOLD = 70;
+
+    // ---- The learned-city list --------------------------------------------
+    CitySource cities;      // head of the list (newest first)
+    int cityCount;
+
+    // ---- The player ("the Trusted Player" lights purple) -------------------
+    String playerName;
+    boolean playerTrusted;
+
+    // =======================================================================
+    // Lifecycle
+    // =======================================================================
+
+    void begin(String player) {
+        cities = null;
+        cityCount = 0;
+        playerName = player;
+        if (playerName == null) { playerName = "Adventurer"; }
+        playerTrusted = false;
+    }
+
+    // The player becomes trusted (e.g. verified identity / standing). Their
+    // scoreboard Font then radiates the purple light reserved for them.
+    void trustPlayer(boolean trusted) { playerTrusted = trusted; }
+    boolean isPlayerTrusted() { return playerTrusted; }
+
+    // =======================================================================
+    // Learning a city's Providence from a Source of Information
+    // =======================================================================
+
+    // Reach out to a rated website / trusted search result and record what it
+    // says about a city. The claimed tier is ACCEPTED only if the source clears
+    // the trust threshold; otherwise the city is kept as ordinary (unverified),
+    // so an untrusted source can never promote a city to great/excellent.
+    CitySource learnCity(String name, int latMilli, int lonMilli,
+                         int claimedTier, String sourceName, int sourceTrust) {
+        CitySource c = new CitySource();
+        c.name = name;
+        c.latMilli = latMilli;
+        c.lonMilli = lonMilli;
+        c.sourceName = sourceName;
+        c.sourceTrust = clampTrust(sourceTrust);
+        if (c.sourceTrust >= TRUST_THRESHOLD
+                && claimedTier >= TIER_ORDINARY && claimedTier <= TIER_EXCELLENT) {
+            c.tier = claimedTier;
+            c.verified = true;
+        } else {
+            c.tier = TIER_ORDINARY;
+            c.verified = false;
+        }
+        c.next = cities;
+        cities = c;
+        cityCount = cityCount + 1;
+        return c;
+    }
+
+    int clampTrust(int t) {
+        if (t < 0) { return 0; }
+        if (t > 100) { return 100; }
+        return t;
+    }
+
+    // Look up a city by name (newest match wins), or null.
+    CitySource findCity(String name) {
+        if (name == null) { return null; }
+        CitySource c = cities;
+        while (c != null) {
+            if (c.name == name) { return c; }
+            c = c.next;
+        }
+        return null;
+    }
+
+    int count() { return cityCount; }
+
+    // =======================================================================
+    // The light that comes out of a city's text
+    // =======================================================================
+
+    // The role for a city's Font light, by its (verified) Providence.
+    int cityLightRole(CitySource c) {
+        if (c == null || !c.verified) { return ROLE_DIM; }
+        if (c.tier == TIER_EXCELLENT) { return ROLE_GREEN; }
+        if (c.tier == TIER_GREAT)     { return ROLE_ORANGE; }
+        return ROLE_DIM;
+    }
+
+    // The role for the player's own Font: purple when trusted, else dim.
+    int playerLightRole() {
+        if (playerTrusted) { return ROLE_PURPLE; }
+        return ROLE_DIM;
+    }
+
+    // --- Role -> packed 0xRRGGBBAA colour (same packing as SLColor.rgba) -----
+    int roleRed(int role) {
+        if (role == ROLE_ORANGE) { return 255; }
+        if (role == ROLE_GREEN)  { return 61; }
+        if (role == ROLE_PURPLE) { return 155; }
+        return 200;
+    }
+    int roleGreen(int role) {
+        if (role == ROLE_ORANGE) { return 160; }
+        if (role == ROLE_GREEN)  { return 214; }
+        if (role == ROLE_PURPLE) { return 92; }
+        return 200;
+    }
+    int roleBlue(int role) {
+        if (role == ROLE_ORANGE) { return 48; }
+        if (role == ROLE_GREEN)  { return 140; }
+        if (role == ROLE_PURPLE) { return 255; }
+        return 200;
+    }
+    int roleAlpha(int role) {
+        if (role == ROLE_DIM) { return 96; }   // ordinary burns faint
+        return 255;
+    }
+
+    // Pack a role into a single 0xRRGGBBAA word, exactly as SLColor.rgba does,
+    // so this value can be handed straight to an SLFontEffect emitter colour.
+    int roleColor(int role) {
+        int rr = roleRed(role) & 255;
+        int gg = roleGreen(role) & 255;
+        int bb = roleBlue(role) & 255;
+        int aa = roleAlpha(role) & 255;
+        return (rr * 16777216) + (gg * 65536) + (bb * 256) + aa;
+    }
+
+    // Clamp a requested millimetre size into the scoreboard's 2..4 mm band.
+    int clampMillimetres(int mm) {
+        if (mm < MM_MIN) { return MM_MIN; }
+        if (mm > MM_MAX) { return MM_MAX; }
+        return mm;
+    }
+
+    // Emitter radius in px for a given millimetre size (what SLFontEffect wants).
+    int emitterRadiusPx(int mm) { return clampMillimetres(mm) * PX_PER_MM; }
+
+    // Brighter places (excellent) burn a touch larger within the band; great
+    // next; ordinary smallest. The result is always within 2..4 mm.
+    int cityMillimetres(CitySource c) {
+        if (c == null || !c.verified) { return MM_MIN; }
+        if (c.tier == TIER_EXCELLENT) { return MM_MAX; }      // 4 mm
+        if (c.tier == TIER_GREAT)     { return MM_MIN + 1; }  // 3 mm
+        return MM_MIN;                                         // 2 mm
+    }
+
+    // =======================================================================
+    // Textual rendering of the light (so it reads with no display, and so the
+    // GUI can show the same words beside the lit label).
+    // =======================================================================
+
+    String roleName(int role) {
+        if (role == ROLE_ORANGE) { return "orange"; }
+        if (role == ROLE_GREEN)  { return "green"; }
+        if (role == ROLE_PURPLE) { return "purple"; }
+        return "dim";
+    }
+
+    String tierName(int tier) {
+        if (tier == TIER_EXCELLENT) { return "Excellent"; }
+        if (tier == TIER_GREAT)     { return "Great"; }
+        return "Ordinary";
+    }
+
+    // A geolocation read, e.g. "40.713N, 74.006W", from the milli coordinates.
+    String geo(CitySource c) {
+        if (c == null) { return "(unlocated)"; }
+        return coord(c.latMilli, "N", "S") + ", " + coord(c.lonMilli, "E", "W");
+    }
+
+    String coord(int milli, String pos, String neg) {
+        int v = milli;
+        String hemi = pos;
+        if (v < 0) { v = 0 - v; hemi = neg; }
+        int whole = v / 1000;
+        int frac = v - whole * 1000;
+        return "" + whole + "." + pad3(frac) + hemi;
+    }
+
+    // Pad a 0..999 fraction to three digits, as text.
+    String pad3(int frac) {
+        if (frac < 10)  { return "00" + frac; }
+        if (frac < 100) { return "0" + frac; }
+        return "" + frac;
+    }
+
+    // One scoreboard line for a city: its name, Providence, geolocation, and the
+    // light its Font radiates (colour + size in mm + emitter radius in px).
+    String cityScoreboardLine(CitySource c) {
+        if (c == null) { return ""; }
+        int role = cityLightRole(c);
+        int mm = cityMillimetres(c);
+        String src = "unverified";
+        if (c.verified) { src = c.sourceName + " (trust " + c.sourceTrust + ")"; }
+        return c.name + "  [" + tierName(c.tier) + "]  " + geo(c)
+             + "  light=" + roleName(role) + " " + mm + "mm/"
+             + emitterRadiusPx(mm) + "px  src=" + src;
+    }
+
+    // The player's scoreboard line + their purple (or dim) light.
+    String playerScoreboardLine() {
+        int role = playerLightRole();
+        int mm = MM_MAX;                 // the player's beacon runs at the top of the band
+        String trust = "untrusted";
+        if (playerTrusted) { trust = "TRUSTED"; }
+        return playerName + "  [" + trust + " Player]  light="
+             + roleName(role) + " " + mm + "mm/" + emitterRadiusPx(mm) + "px";
+    }
+
+    // The whole scoreboard lighting block, newest city first, player last.
+    String renderScoreboard() {
+        String out = "Scoreboard — lights out of the text (2..4 mm):";
+        CitySource c = cities;
+        while (c != null) {
+            out = out + "\n  " + cityScoreboardLine(c);
+            c = c.next;
+        }
+        out = out + "\n  " + playerScoreboardLine();
+        return out;
+    }
+
+    // =======================================================================
+    // A self-contained demo / headless read.
+    // =======================================================================
+
+    void main() {
+        begin("Avery");
+        trustPlayer(true);   // the Trusted Player -> purple
+
+        // Learn cities from Sources of Information (rated sites / trusted search).
+        // Trusted sources (>= 70) may set Great/Excellent; a weak source cannot.
+        learnCity("Rivendell",   40713, -74006, TIER_EXCELLENT, "atlas.example (rated 4.8)", 92);
+        learnCity("Minas Tirith", 51507,  -0127, TIER_GREAT,     "trusted-search:gondor",     81);
+        learnCity("Bree",         48856,   2352, TIER_GREAT,     "rumor-blog",                 35); // too weak -> ordinary
+        learnCity("Moria Gate",   37774,-122419, TIER_EXCELLENT, "survey.example (rated 4.6)", 88);
+
+        print("Moria — Scoreboard Lighting");
+        print("===========================");
+        print(renderScoreboard());
+        print("");
+        print("Legend: Great=orange, Excellent=green, Trusted Player=purple, "
+            + "ordinary=dim. Light size clamped to " + MM_MIN + ".." + MM_MAX
+            + " mm. Tiers are set only by sources with trust >= "
+            + TRUST_THRESHOLD + ".");
+    }
+}

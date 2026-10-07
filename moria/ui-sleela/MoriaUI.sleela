@@ -36,11 +36,22 @@ class MoriaUI {
         dungeon.begin("Adventurer", 1428);
         dungeon.autoDescend(600);
 
+        // The scoreboard lighting: cities learned from trusted sources, each
+        // Font radiating a 2..4 mm coloured light (great=orange, excellent=green),
+        // and the Trusted Player's own purple beacon.
+        CityLights lights = new CityLights();
+        lights.begin(dungeon.name());
+        lights.trustPlayer(true);
+        lights.learnCity("Rivendell",    40713,  -74006, 2, "atlas.example (rated 4.8)", 92);
+        lights.learnCity("Minas Tirith", 51507,    -127, 1, "trusted-search:gondor",     81);
+        lights.learnCity("Moria Gate",   37774, -122419, 2, "survey.example (rated 4.6)", 88);
+        lights.learnCity("Bree",         48856,    2352, 1, "rumor-blog",                 35);
+
         SLUserInterface ui = new SLUserInterface();
         ui.configure("com.mearvk.moria");
 
         if (!ui.open()) {
-            printTextRead(dungeon, "headless");
+            printTextRead(dungeon, lights, "headless");
             return;
         }
 
@@ -85,6 +96,9 @@ class MoriaUI {
 
         // --- The chronicle (scrollback log) pane --------------------------
         buildChronicle(col, dungeon);
+
+        // --- The scoreboard: lit city Fonts (2..4 mm lights) --------------
+        buildScoreboard(col, lights);
 
         // --- The result banner --------------------------------------------
         buildResult(col, dungeon);
@@ -196,6 +210,33 @@ class MoriaUI {
         bar.createIn(box, SLWidget.ORIENT_HORIZONTAL, 1.0, 0.25);
     }
 
+    // The SCOREBOARD: each lit city Font + the Trusted Player's beacon. The
+    // light that "comes out of" each text run is shown as a badge (its colour
+    // role) plus the 2..4 mm size and emitter radius — the exact values a full
+    // SleelaUI build binds onto an SLFontEffect emitter on the label's SLFont.
+    void buildScoreboard(SLBox parent, CityLights lights) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 5);
+        box.setMarginAll(12);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Scoreboard — City Lights (2–4 mm)", 15);
+
+        SLLabel caption = new SLLabel();
+        caption.createIn(box, "Great cities glow orange · Excellent cities glow "
+            + "green · the Trusted Player glows purple · ordinary stays dim. "
+            + "Providence is set only by trusted sources.");
+
+        // The composed scoreboard: one lit Font instance per city, the Trusted
+        // Player's purple beacon last. Each line carries its 2–4 mm light + the
+        // emitter radius a full SleelaUI build binds onto the label's SLFont.
+        SLLabel board = new SLLabel();
+        board.createIn(box, lights.renderScoreboard());
+        board.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+    }
+
     // The result banner: win, death, or ongoing — as an inline notice.
     void buildResult(SLBox parent, MoriaDungeon d) {
         SLInfoBar bar = new SLInfoBar();
@@ -211,14 +252,16 @@ class MoriaUI {
         }
     }
 
-    // Headless fallback: the same read the model prints, so the game always
-    // "reads" without a display.
-    void printTextRead(MoriaDungeon d, String why) {
+    // Headless fallback: the same read the GUI shows, so the game always
+    // "reads" without a display — map, HUD, chronicle, and the city lights.
+    void printTextRead(MoriaDungeon d, CityLights lights, String why) {
         print("Moria — Dungeon Crawler (SleelaUI, " + why + ")");
         print("================================================");
         print(d.renderGrid());
         print("");
         print(d.statusLine());
+        print("");
+        print(lights.renderScoreboard());
         print("");
         print("Chronicle (recent):");
         print(d.recentLog(8));

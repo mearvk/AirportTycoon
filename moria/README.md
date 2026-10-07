@@ -18,6 +18,7 @@ game is fully playable **headless** too — the same text read drives both.
 | Path | Contents |
 |---|---|
 | [`game/MoriaDungeon.sleela`](game/MoriaDungeon.sleela) | The crawler core: map generation, the hero, monsters, combat, descent, the scrollback chronicle, and the authoritative text rendering. A single `#sleela 1.6` game Wrapper. |
+| [`game/CityLights.sleela`](game/CityLights.sleela) | The **scoreboard lighting** layer: lights that come out of the game's text, coloured by a city's Providence (learned from trusted sources) and sized 2–4 mm. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
@@ -46,6 +47,47 @@ primitives — and layers the "excellent text" on top in SLeeLa:
 - **A themed result banner.** Victory, a fall in the dark, or an ongoing
   descent, as an inline notice.
 
+## Scoreboard lighting — lights out of the text
+
+The scoreboard's Font instances **radiate light**, like torches struck behind
+the letters. The model ([`game/CityLights.sleela`](game/CityLights.sleela)) is
+faithful to SLeeLa's real font-effect vocabulary (`lib/user-interface/SLFontEffect`:
+a `GLOW` / `LIGHT` / `EMITTER` with a packed `0xRRGGBBAA` colour, an emitter
+radius, and an intensity), so a full SleelaUI build can bind these descriptors
+straight onto an `SLFont`; here they also render as text so the game reads with
+no display.
+
+**Colour by Providence and by who's playing:**
+
+| What | Light |
+|---|---|
+| A **Great** city | **orange** |
+| An **Excellent** city | **green** |
+| The **Trusted Player** | **purple** |
+| Anything ordinary | dim white |
+
+**GeoLocation & City Providence.** Each city carries its geolocation
+(latitude/longitude) and a Providence tier. A city's tier is **not guessed** —
+it is **learned by reaching out to a Source of Information**: a rated website or
+a trusted search result. Only a source that clears the trust threshold (≥ 70)
+may set a city to Great or Excellent; a weak source (e.g. a rumour blog) leaves
+the city ordinary and its light dim. So the lights on the board reflect
+*verified* standing, not hearsay.
+
+**Size — 2 to 4 mm.** Every scoreboard light is sized in millimetres, clamped to
+the board's **2–4 mm** band (ordinary 2 mm, great 3 mm, excellent and the
+player's beacon 4 mm), then converted to an emitter radius in px for the font
+effect.
+
+```
+Scoreboard — lights out of the text (2..4 mm):
+  Moria Gate     [Excellent]  37.774N, 122.419W  light=green  4mm/16px  src=survey.example (rated 4.6) (trust 88)
+  Bree           [Ordinary]   48.856N, 2.352E     light=dim    2mm/8px   src=unverified
+  Minas Tirith   [Great]      51.507N, 0.127W     light=orange 3mm/12px  src=trusted-search:gondor (trust 81)
+  Rivendell      [Excellent]  40.713N, 74.006W    light=green  4mm/16px  src=atlas.example (rated 4.8) (trust 92)
+  Avery          [TRUSTED Player]                  light=purple 4mm/16px
+```
+
 ## Theatrics — the glyph alphabet
 
 ```
@@ -67,6 +109,7 @@ final depth, the same alive state, and the same gold.
 ```sh
 make game    # type/parse-check the Wrappers with Sleelvac (if installed)
 make run     # headless self-descent: prints the final map, HUD, and chronicle
+make lights  # the scoreboard city-lights demo (orange/green/purple, 2-4 mm)
 make ui      # open the native SleelaUI text-pane window (X11 / Cocoa / Win32)
 make test    # run the deterministic self-check
 ```

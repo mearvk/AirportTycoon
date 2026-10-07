@@ -15,6 +15,7 @@
 
 SLEELA ?= sleela
 GAME_SRC := game/MoriaDungeon.sleela
+LIGHTS_SRC := game/CityLights.sleela
 TEST_SRC := game/MoriaTest.sleela
 UI_SRC   := ui-sleela/MoriaUI.sleela
 
@@ -22,14 +23,14 @@ UI_SRC   := ui-sleela/MoriaUI.sleela
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run ui test help
+.PHONY: all game run lights ui test help
 
 all: game test
 
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(TEST_SRC) $(UI_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -38,6 +39,10 @@ game:
 # Headless self-descent: prints the final map, HUD, and chronicle.
 run:
 	$(SLEELA) run $(GAME_SRC)
+
+# The scoreboard city-lights demo (great=orange, excellent=green, player=purple).
+lights:
+	$(SLEELA) run $(LIGHTS_SRC)
 
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
@@ -51,6 +56,7 @@ help:
 	@echo "Moria — Dungeon Crawler (SLeeLa)"
 	@echo "  make game   Type/parse-check the Wrappers (Sleelvac)"
 	@echo "  make run    Headless self-descent (prints map + HUD + chronicle)"
+	@echo "  make lights Scoreboard city-lights demo (orange/green/purple, 2-4 mm)"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"
