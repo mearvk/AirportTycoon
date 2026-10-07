@@ -99,6 +99,9 @@ The window presents the whole program readably, using the real widgets:
   `SLLevelBar`s;
 - an `SLInfoBar` showing the **win status** (Major-Eastern revenue above
   $240,000, rising);
+- an `SLCard` **media center / route board** (the mid :: center area) — each
+  Asia and Euro-American focus route's region `SLBadge`, luxury tier, fare, and
+  on-time %, with the Boss's (Reporter, IQ 220) `SLInfoBar` headline;
 - an `SLCard` of **travelers** (`SLLabel` + `SLBadge` home-district pills);
 - an `SLCard` for the **Author Path**, with the one accent `SLButton`
   (`setSuggested(true)`) — *wins in 1001 moves, every time*;
@@ -166,7 +169,9 @@ fusing **your ways and ideas (the Author viewpoint)** with **Asia, modelled as
   prices, demand, and the headline fare index move calmly — the cushioning that
   keeps the First Edition enjoyable.
 
-Run the self-demos with **`make media`**.
+Run the self-demos with **`make media`**. In the native SleelaUI window the
+center area shows a **live route board** — each focus route's region, luxury
+tier, fare, and on-time % — with the **Boss's (Reporter) headline** below it.
 
 ## Both ends of the economy — Character & Citizen
 
