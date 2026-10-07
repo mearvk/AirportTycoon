@@ -16,10 +16,13 @@ Nothing outside the version folders is required to build or run a version.
 To cut a new version, copy the latest version folder to the next number and
 evolve it there; older versions remain frozen for reference and comparison.
 
-| Version | Path | Contents |
-|---|---|---|
-| **1** | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md). |
-| **2** | [`2/`](2/) | **Latest.** Edition 2 — the improvement line. Starts as a complete carry-forward of the Edition 1 Base Concepts and evolves from there. See [`2/README.md`](2/README.md). |
+Every Edition also carries a **superb name** drawn from a wealth of vocabulary,
+recorded in a `VERSION.NAME.md` inside its folder.
+
+| Version | Name | Path | Contents |
+|---|---|---|---|
+| **1** | *Keystone Meridian* | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md) · [`1/VERSION.NAME.md`](1/VERSION.NAME.md). |
+| **2** | *Golden Assimilation* | [`2/`](2/) | **Latest.** The improvement line: the reputation-driven service premium, the on-time combo, and the Business Desk whose Level-5 **Great Assimilation** rakes in Major-Eastern money. See [`2/README.md`](2/README.md) · [`2/VERSION.NAME.md`](2/VERSION.NAME.md). |
 
 > The latest version is the highest-numbered folder. Start at
 > [`2/README.md`](2/README.md) for the current edition, or
