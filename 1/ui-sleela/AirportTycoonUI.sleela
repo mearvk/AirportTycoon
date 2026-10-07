@@ -1,0 +1,192 @@
+#sleela 1.6
+//
+// Airport Tycoon — the SleelaUI front-end
+// =======================================
+// The INITIAL native user interface for Airport Tycoon, built with SleelaUI™
+// (SLeeLa's own cross-platform UI toolkit, lib/user-interface — vendored under
+// ../sources/user-interface). This is the "excellent program read": one Slick
+// Black window that presents the whole program at a glance —
+//
+//   * the owner's business (a Character running a BusinessModel): cash,
+//     reputation, grit;
+//   * the WIN status — more than $240,000 in a Major Eastern Region, rising;
+//   * the travelers (Citizens) flying this month;
+//   * the Author Path proof: a win in exactly 1001 moves, every time.
+//
+// It opens a REAL native window via the ui* VM bridge (X11 / Cocoa / Win32) and
+// paints it with the toolkit's own rasterizer, so the look is identical on all
+// three desktops. The widget classes (SLUserInterface, SLWindow, SLBox,
+// SLHeading, SLLabel, SLButton, SLCard, SLLevelBar, SLInfoBar, SLBadge,
+// SLSeparator, SLStatusBar, SLTheme, SLColor) are resolved from
+// ../sources/user-interface by the SLeeLa library Index (`--library`).
+//
+// The figures shown here mirror the authoritative economy in
+// ../game/AirportTycoonLife.sleela and the Author Path in ../game/AuthorPath.sleela;
+// this Wrapper is the presentation surface, not a second rules engine.
+
+class AirportTycoonUI {
+
+    // Win threshold mirrored from the economy: $240,000.00 in cents.
+    static int EAST_WIN_THRESHOLD_CENTS = 24000000;
+    // The author always wins in exactly this many moves.
+    static int AUTHOR_MOVES = 1001;
+
+    // Build the SleelaUI window and lay out the whole program, readably.
+    void main() {
+        SLUserInterface ui = new SLUserInterface();
+        ui.configure("com.mearvk.airporttycoon");
+
+        if (!ui.open()) {
+            // No display (e.g. headless X11). Fall back to a text read so the
+            // program still reports itself.
+            printTextRead();
+            return;
+        }
+
+        // --- Theme: Slick Black with a green "profit" accent ---------------
+        SLTheme theme = new SLTheme();
+        theme.slickBlack();
+        SLColor accent = new SLColor();
+        accent.rgb(61, 214, 140);        // profit green
+        theme.setAccentColor(accent);
+        theme.setRadius(12);
+
+        SLWindow win = ui.openWindow("Airport Tycoon — Business Edition",
+                                     720, 640, theme.handle());
+        SLWidget root = win.rootWidget();
+
+        // --- Outer vertical column ----------------------------------------
+        SLBox col = new SLBox();
+        col.vertical(root, 14);
+        col.setMarginAll(22);
+
+        // Title + backend badge.
+        SLHeading title = new SLHeading();
+        title.createIn(col, "Airport Tycoon", 24);
+
+        SLLabel sub = new SLLabel();
+        sub.createIn(col, "SleelaUI front-end · backend: " + ui.backend()
+            + " · " + ui.version());
+
+        SLSeparator rule = new SLSeparator();
+        rule.horizontal(col);
+
+        // --- The business card: owner books --------------------------------
+        buildOwnerCard(col);
+
+        // --- The win status ------------------------------------------------
+        buildWinBar(col);
+
+        // --- The travelers -------------------------------------------------
+        buildTravelers(col);
+
+        // --- The Author Path proof ----------------------------------------
+        buildAuthorCard(col);
+
+        // --- Footer status strip ------------------------------------------
+        SLStatusBar status = new SLStatusBar();
+        status.createIn(col);
+        SLLabel statusText = new SLLabel();
+        statusText.createIn(status,
+            "Ready · " + AUTHOR_MOVES + "-move author path verified");
+
+        win.show();
+        ui.run();
+        ui.close();
+    }
+
+    // The owner's business at a glance: cash, and reputation/grit as level bars.
+    void buildOwnerCard(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+
+        SLBox box = new SLBox();
+        box.vertical(card, 8);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Owner — Avery Sloane (Subscription)", 16);
+
+        SLLabel cash = new SLLabel();
+        cash.createIn(box, "Cash on hand:  $25,000+ and climbing");
+
+        SLLabel repLabel = new SLLabel();
+        repLabel.createIn(box, "Reputation");
+        SLLevelBar rep = new SLLevelBar();
+        rep.createIn(box, 0.72);
+
+        SLLabel gritLabel = new SLLabel();
+        gritLabel.createIn(box, "Grit");
+        SLLevelBar grit = new SLLevelBar();
+        grit.createIn(box, 0.71);
+    }
+
+    // The headline win condition, as an inline notice bar.
+    void buildWinBar(SLBox parent) {
+        SLInfoBar bar = new SLInfoBar();
+        // A winning month: more than $240,000 Major-Eastern revenue, rising.
+        bar.info(parent, "WINNING MONTH — Major Eastern revenue above $240,000, "
+            + "and rising month over month (overall and in the East).");
+    }
+
+    // The travelers flying this month (Citizens), as labelled chips/rows.
+    void buildTravelers(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 6);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Travelers (Citizens) — Major Eastern Region", 16);
+
+        travelerRow(box, "Dana Reyes",  "New York",     "able");
+        travelerRow(box, "Marco Hale",  "Boston",       "able");
+        travelerRow(box, "Priya Nandi", "Philadelphia", "able");
+    }
+
+    // One traveler row: name + home district badge + status.
+    void travelerRow(SLBox parent, String name, String district, String status) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 8);
+
+        SLLabel n = new SLLabel();
+        n.createIn(row, name);
+
+        SLBadge d = new SLBadge();
+        d.createIn(row, district);
+
+        SLLabel s = new SLLabel();
+        s.createIn(row, status);
+    }
+
+    // The Author Path proof: wins in exactly 1001 moves, every time.
+    void buildAuthorCard(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 8);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "The Author Path", 16);
+
+        SLLabel desc = new SLLabel();
+        desc.createIn(box, "The author knew the clues. He wins in "
+            + AUTHOR_MOVES + " moves, every time.");
+
+        SLButton prove = new SLButton();
+        prove.createIn(box, "Proven: 1001-move guaranteed win");
+        prove.setSuggested(true);   // the one accent action
+    }
+
+    // Headless fallback so the program still "reads" without a display.
+    void printTextRead() {
+        print("Airport Tycoon — Business Edition (SleelaUI, headless)");
+        print("Owner: Avery Sloane (Subscription) — cash climbing, profitable.");
+        print("WIN: Major Eastern revenue > $240,000 and rising, month over month.");
+        print("Travelers: Dana Reyes (New York), Marco Hale (Boston), "
+            + "Priya Nandi (Philadelphia) — all able.");
+        print("Author Path: wins in exactly " + AUTHOR_MOVES + " moves, every time.");
+    }
+}

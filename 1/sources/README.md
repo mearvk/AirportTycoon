@@ -4,13 +4,30 @@ Vendored SLeeLa standard-library packages that Airport Tycoon builds on. These
 files are **imported verbatim** from
 [`mearvk/SLeeLa`](https://github.com/mearvk/SLeeLa) (branch `master`) and are
 byte-for-byte identical to upstream (verified by git blob SHA at import time).
-They are kept here so the game resolves its `Character` and `Citizen` vocabulary
-without requiring a full SLeeLa checkout on the build path.
+They are kept here so the game resolves its `Character`, `Citizen`, and SleelaUI
+widget vocabulary without requiring a full SLeeLa checkout on the build path.
 
 | Local path | Upstream path |
 |---|---|
 | `sources/character/` | `lib/character/` |
 | `sources/citizen/` | `lib/citizen/` |
+| `sources/user-interface/` | `lib/user-interface/` |
+
+## `user-interface/` — the SleelaUI widget toolkit
+
+The SLeeLa-source surface of **SleelaUI™**, SLeeLa's own cross-platform native
+UI toolkit (not GTK/Qt). Opening a window and adding widgets bottoms out in the
+`ui*` VM built-ins, which call the genuine SleelaUI C ABI and drive the real
+host window system (X11 / Cocoa / Win32). The front-end
+[`ui-sleela/AirportTycoonUI.sleela`](../ui-sleela/AirportTycoonUI.sleela) builds
+on these classes:
+
+- `SLUserInterface` (open the app, report backend, run the loop), `SLWindow`,
+  `SLWidget` (the base: margins, alignment, accents).
+- Containers/content: `SLBox`, `SLCard`, `SLGrid`, `SLHeaderBar`, `SLStatusBar`,
+  `SLSeparator`, `SLHeading`, `SLLabel`, `SLButton`, `SLBadge`, `SLInfoBar`,
+  `SLLevelBar`, `SLProgressBar`, and the rest of the catalogue.
+- Theming: `SLTheme` (`slickBlack()` + role colours, radius, font) and `SLColor`.
 
 ## `character/` — the business-owner vocabulary
 
