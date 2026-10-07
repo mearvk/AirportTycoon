@@ -1,0 +1,235 @@
+package com.mearvk.sleela.airport;
+
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * An immutable frame of game state, as produced by the SLeeLa Wrapper's
+ * {@code snapshot()} and consumed by the JavaFX renderer.
+ *
+ * <p>The wire format mirrors {@code game/AirportTycoon.sleela}'s
+ * {@code snapshot()}: a pipe-delimited header line followed by one
+ * {@code structPack}-style JSON object per live plane. This class owns parsing
+ * that form so both the process-backed runtime and the local model emit the
+ * same thing.
+ */
+public final class GameSnapshot {
+
+    /** Plane lifecycle states, matching the PLANE_* constants in the Wrapper. */
+    public static final int INBOUND = 1;
+    public static final int LANDING = 2;
+    public static final int TAXI_IN = 3;
+    public static final int AT_GATE = 4;
+    public static final int DEPARTING = 6;
+
+    public final int tick;
+    public final int cash;
+    public final int reputation;
+    public final int served;
+    public final int lost;
+    public final int openGates;
+    public final int openRunways;
+    public final int planeCount;
+    public final boolean gameOver;
+    public final List<PlaneView> planes;
+
+    public GameSnapshot(int tick, int cash, int reputation, int served, int lost,
+                        int openGates, int openRunways, int planeCount,
+                        boolean gameOver, List<PlaneView> planes) {
+        this.tick = tick;
+        this.cash = cash;
+        this.reputation = reputation;
+        this.served = served;
+        this.lost = lost;
+        this.openGates = openGates;
+        this.openRunways = openRunways;
+        this.planeCount = planeCount;
+        this.gameOver = gameOver;
+        this.planes = planes;
+    }
+
+    /** A single plane as the UI needs it for animation. */
+    public static final class PlaneView {
+        public final int id;
+        public final String flight;
+        public final int state;
+        public final int sizeClass;
+        public final int patience;
+        public final int maxPatience;
+        public final int serviceLeft;
+        public final double posX;
+        public final double posY;
+
+        public PlaneView(int id, String flight, int state, int sizeClass,
+                         int patience, int maxPatience, int serviceLeft,
+                         double posX, double posY) {
+            this.id = id;
+            this.flight = flight;
+            this.state = state;
+            this.sizeClass = sizeClass;
+            this.patience = patience;
+            this.maxPatience = maxPatience;
+            this.serviceLeft = serviceLeft;
+            this.posX = posX;
+            this.posY = posY;
+        }
+
+        public double patienceFraction() {
+            if (maxPatience <= 0) {
+                return 1.0;
+            }
+            double f = (double) patience / (double) maxPatience;
+            if (f < 0) {
+                return 0;
+            }
+            if (f > 1) {
+                return 1;
+            }
+            return f;
+        }
+    }
+
+    /**
+     * Parse the Wrapper's snapshot wire format. Tolerant of missing fields so
+     * the UI never crashes on a partially written frame.
+     */
+    public static GameSnapshot parse(String text) {
+        int tick = 0, cash = 0, rep = 0, served = 0, lost = 0;
+        int gates = 0, runways = 0, planeCount = 0;
+        boolean over = false;
+        List<PlaneView> planes = new ArrayList<>();
+
+        if (text == null || text.isBlank()) {
+            return new GameSnapshot(0, 0, 0, 0, 0, 0, 0, 0, false, planes);
+        }
+
+        String[] lines = text.split("\n");
+        for (String raw : lines) {
+            String line = raw.trim();
+            if (line.isEmpty()) {
+                continue;
+            }
+            if (line.startsWith("ATC|")) {
+                for (String kv : line.substring(4).split("\\|")) {
+                    int eq = kv.indexOf('=');
+                    if (eq < 0) {
+                        continue;
+                    }
+                    String k = kv.substring(0, eq);
+                    String v = kv.substring(eq + 1);
+                    switch (k) {
+                        case "tick" -> tick = parseInt(v);
+                        case "cash" -> cash = parseInt(v);
+                        case "rep" -> rep = parseInt(v);
+                        case "served" -> served = parseInt(v);
+                        case "lost" -> lost = parseInt(v);
+                        case "gates" -> gates = parseInt(v);
+                        case "runways" -> runways = parseInt(v);
+                        case "planes" -> planeCount = parseInt(v);
+                        case "over" -> over = Boolean.parseBoolean(v);
+                        default -> { /* ignore unknown keys */ }
+                    }
+                }
+            } else if (line.startsWith("{")) {
+                PlaneView p = parsePlane(line);
+                if (p != null) {
+                    planes.add(p);
+                }
+            }
+        }
+        return new GameSnapshot(tick, cash, rep, served, lost, gates, runways,
+                planeCount, over, planes);
+    }
+
+    /** Minimal, dependency-free parse of a flat structPack JSON object. */
+    private static PlaneView parsePlane(String json) {
+        String body = json.trim();
+        if (body.startsWith("{")) {
+            body = body.substring(1);
+        }
+        if (body.endsWith("}")) {
+            body = body.substring(0, body.length() - 1);
+        }
+        int id = 0, state = 0, sizeClass = 0, patience = 0, maxP = 0, svc = 0;
+        double x = 0, y = 0;
+        String flight = "";
+
+        for (String field : splitTopLevel(body)) {
+            int colon = field.indexOf(':');
+            if (colon < 0) {
+                continue;
+            }
+            String key = unquote(field.substring(0, colon).trim());
+            String val = field.substring(colon + 1).trim();
+            switch (key) {
+                case "id" -> id = parseInt(val);
+                case "flight" -> flight = unquote(val);
+                case "state" -> state = parseInt(val);
+                case "sizeClass" -> sizeClass = parseInt(val);
+                case "patience" -> patience = parseInt(val);
+                case "maxPatience" -> maxP = parseInt(val);
+                case "serviceLeft" -> svc = parseInt(val);
+                case "posX" -> x = parseDouble(val);
+                case "posY" -> y = parseDouble(val);
+                default -> { /* __type and links ignored */ }
+            }
+        }
+        if (id == 0) {
+            return null;
+        }
+        return new PlaneView(id, flight, state, sizeClass, patience, maxP, svc, x, y);
+    }
+
+    private static List<String> splitTopLevel(String body) {
+        List<String> out = new ArrayList<>();
+        int depth = 0;
+        boolean inStr = false;
+        StringBuilder cur = new StringBuilder();
+        for (int i = 0; i < body.length(); i++) {
+            char c = body.charAt(i);
+            if (c == '"' && (i == 0 || body.charAt(i - 1) != '\\')) {
+                inStr = !inStr;
+            }
+            if (!inStr && (c == '{' || c == '[')) {
+                depth++;
+            }
+            if (!inStr && (c == '}' || c == ']')) {
+                depth--;
+            }
+            if (!inStr && c == ',' && depth == 0) {
+                out.add(cur.toString());
+                cur.setLength(0);
+            } else {
+                cur.append(c);
+            }
+        }
+        if (cur.length() > 0) {
+            out.add(cur.toString());
+        }
+        return out;
+    }
+
+    private static String unquote(String s) {
+        String t = s.trim();
+        if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
+            return t.substring(1, t.length() - 1);
+        }
+        return t;
+    }
+
+    private static int parseInt(String s) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private static double parseDouble(String s) {
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return 0.0;
+        }
+    }
+}
