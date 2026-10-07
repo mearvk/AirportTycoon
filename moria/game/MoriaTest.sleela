@@ -1,0 +1,74 @@
+#sleela 1.6
+//
+// Moria — self-check Wrapper
+// ==========================
+// A tiny, deterministic self-test for the Moria crawler. It runs a scripted
+// descent on a fixed seed and asserts the invariants a careful Adventurer (and
+// a careful maintainer) relies on: the map is the right size, the hero stays in
+// bounds, the chronicle records the descent, and a known seed produces a
+// consistent, terminating run. Prints PASS/FAIL lines; no display needed.
+//
+class MoriaTest {
+
+    int passed;
+    int failed;
+
+    void check(String label, boolean ok) {
+        if (ok) {
+            passed = passed + 1;
+            print("PASS  " + label);
+        } else {
+            failed = failed + 1;
+            print("FAIL  " + label);
+        }
+    }
+
+    void main() {
+        passed = 0;
+        failed = 0;
+
+        MoriaDungeon d = new MoriaDungeon();
+        d.begin("Tester", 1428);
+
+        // Map geometry.
+        check("map width is 40", d.width() == 40);
+        check("map height is 18", d.height() == 18);
+        check("hero starts alive", d.isAlive());
+        check("hero starts at depth 1", d.currentDepth() == 1);
+        check("hero starts in bounds",
+            d.heroCol() >= 0 && d.heroCol() < d.width()
+            && d.heroRow() >= 0 && d.heroRow() < d.height());
+        check("full HP at start", d.hp() == d.hpMax());
+        check("the top row renders as a non-empty wall line",
+            d.renderRow(0) != "" && d.renderRow(0) != null);
+        check("opening chronicle has lines", d.logLines() > 0);
+
+        // Run the scripted descent and check it terminates sanely.
+        d.autoDescend(600);
+        check("game is over or still valid after the run",
+            d.over() || d.isAlive());
+        check("hero remained in bounds after the run",
+            d.heroCol() >= 0 && d.heroCol() < d.width()
+            && d.heroRow() >= 0 && d.heroRow() < d.height());
+        check("chronicle grew during the descent", d.logLines() > 2);
+        check("depth never below 1 and never above 8",
+            d.currentDepth() >= 1 && d.currentDepth() <= 8);
+
+        // Determinism: a second identical run reaches the same outcome.
+        MoriaDungeon e = new MoriaDungeon();
+        e.begin("Tester", 1428);
+        e.autoDescend(600);
+        check("same seed => same final depth",
+            d.currentDepth() == e.currentDepth());
+        check("same seed => same alive state",
+            d.isAlive() == e.isAlive());
+        check("same seed => same gold",
+            d.goldCount() == e.goldCount());
+
+        print("");
+        print("Moria self-check: " + passed + " passed, " + failed + " failed.");
+        if (failed == 0) {
+            print("All clear. The descent is deterministic and in-bounds.");
+        }
+    }
+}
