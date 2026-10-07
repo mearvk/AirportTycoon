@@ -1,0 +1,213 @@
+#sleela 1.3
+//
+// Airport Tycoon — Lighting Effects (a loadable MODULE)
+// =====================================================
+// Edition 1.0 may now USE LIGHT EFFECTS on your text/words. This is a MODULE
+// (not a Wrapper): a loadable unit that shares the SLeeLa common module contract
+// (load / loaded / moduleName / describe), exactly like lib/gameplay/GameMove.
+// A host asks the Loader (LightingLoader.sleela) to load it, then calls its
+// effect methods to light up words.
+//
+// WHY A MODULE + LOADER. The light effects are optional flavour, so they are
+// kept out of the always-on game logic and loaded on demand. The Loader finds
+// the module, verifies the contract, and only then is lighting enabled — the
+// same discovery pattern the SLeeLa compiler, Loader, and Nordshrift use for a
+// package facade (see sources/user-interface/SLPackage.sleela).
+//
+// WHAT IT LIGHTS. You can SEE YOUR MAYOR'S CLUES/EXCELLENTS: pass a line of text
+// and the module shines the important words. On a real terminal the effects are
+// true ANSI light (bold, colour, blink, reverse-video spotlight); the module
+// also emits a structured [[fx:...]] markup so a GUI can render the same glow.
+//
+// COLOURS. Each effect carries a packed 0xRRGGBBAA colour, exactly as
+// SLColor.sleela packs it, so a GUI theme can read the intended glow colour.
+
+class LightingEffects {
+
+  static final String MODULE = "LightingEffects";
+
+  // --- The light effects this module can cast on a word ---
+  static final int FX_NONE      = 0; // no light
+  static final int FX_GLOW      = 1; // bold + bright colour (a steady glow)
+  static final int FX_HIGHLIGHT = 2; // reverse-video marker (a highlighter)
+  static final int FX_PULSE     = 3; // blink (a pulsing light)
+  static final int FX_SPOTLIGHT = 4; // bold + reverse (a bright spotlight)
+  static final int FX_DIM       = 5; // faint (lights lowered)
+
+  // --- Named glow colours, packed 0xRRGGBBAA like SLColor (set in load()) ---
+  int clrAmber;    // the Mayor's clue colour (warm amber)
+  int clrExcellent;// the "excellent" colour (bright gold)
+  int clrCool;     // a cool blue glow
+  int clrAlarm;    // an alarm red
+
+  // --- loadable-module contract ------------------------------------------
+  int loadedFlag;
+  String moduleTitle;
+  int lastCount;   // how many words the last call lit (for the host/tests)
+
+  void load() {
+    loadedFlag = 1;
+    moduleTitle = MODULE;
+    lastCount = 0;
+    // Pack the palette (0xRRGGBBAA). Alpha is 255 (opaque).
+    clrAmber     = pack(255, 191,  0, 255); // amber   — a Mayor's clue
+    clrExcellent = pack(255, 215,  0, 255); // gold    — an excellent!
+    clrCool      = pack( 80, 170, 255, 255); // blue    — a cool glow
+    clrAlarm     = pack(230,  60,  40, 255); // red     — an alarm
+  }
+  boolean loaded() { return loadedFlag == 1; }
+  String moduleName() { return MODULE; }
+  String describe() {
+    return MODULE + " (loaded=" + loadedFlag + ", lastLit=" + lastCount + ")";
+  }
+
+  int pack(int r, int g, int b, int a) {
+    int rr = r & 255; int gg = g & 255; int bb = b & 255; int aa = a & 255;
+    return (rr * 16777216) + (gg * 65536) + (bb * 256) + aa;
+  }
+
+  // The packed glow colour an effect uses (so a GUI can read it).
+  int colorFor(int fx) {
+    if (fx == FX_GLOW)      { return clrAmber; }
+    if (fx == FX_HIGHLIGHT) { return clrExcellent; }
+    if (fx == FX_PULSE)     { return clrAlarm; }
+    if (fx == FX_SPOTLIGHT) { return clrCool; }
+    return clrAmber;
+  }
+
+  // -----------------------------------------------------------------------
+  // ANSI light: wrap text in the escape sequence for the chosen effect, so a
+  // real terminal lights it up. Returns the text unchanged for FX_NONE.
+  // -----------------------------------------------------------------------
+  String ansiOpen(int fx) {
+    String esc = "" + charEsc();
+    if (fx == FX_GLOW)      { return esc + "[1;33m"; }      // bold yellow
+    if (fx == FX_HIGHLIGHT) { return esc + "[1;30;103m"; }  // black on bright yellow
+    if (fx == FX_PULSE)     { return esc + "[5;31m"; }      // blinking red
+    if (fx == FX_SPOTLIGHT) { return esc + "[1;7;36m"; }    // bold reverse cyan
+    if (fx == FX_DIM)       { return esc + "[2m"; }         // faint
+    return "";
+  }
+  String ansiReset(int fx) {
+    if (fx == FX_NONE) { return ""; }
+    return "" + charEsc() + "[0m";
+  }
+
+  // SLeeLa string of the ESC control char (0x1B).
+  String charEsc() { return "\u001b"; }
+
+  // Light a single word with an effect (true ANSI for a terminal).
+  String light(String word, int fx) {
+    if (fx == FX_NONE) { return word; }
+    return ansiOpen(fx) + word + ansiReset(fx);
+  }
+
+  // Structured markup form for a GUI: [[fx:NAME:#RRGGBB|word]].
+  String markup(String word, int fx) {
+    if (fx == FX_NONE) { return word; }
+    return "[[fx:" + fxName(fx) + ":" + hex6(colorFor(fx)) + "|" + word + "]]";
+  }
+
+  String fxName(int fx) {
+    if (fx == FX_GLOW)      { return "glow"; }
+    if (fx == FX_HIGHLIGHT) { return "highlight"; }
+    if (fx == FX_PULSE)     { return "pulse"; }
+    if (fx == FX_SPOTLIGHT) { return "spotlight"; }
+    if (fx == FX_DIM)       { return "dim"; }
+    return "none";
+  }
+
+  // 0xRRGGBBAA -> "#RRGGBB"
+  String hex6(int packed) {
+    int r = (packed / 16777216) & 255;
+    int g = (packed / 65536) & 255;
+    int b = (packed / 256) & 255;
+    return "#" + hex2(r) + hex2(g) + hex2(b);
+  }
+  String hex2(int v) {
+    int hi = (v / 16) & 15;
+    int lo = v & 15;
+    return "" + hexDigit(hi) + hexDigit(lo);
+  }
+  String hexDigit(int d) {
+    if (d < 10) { return "" + d; }
+    if (d == 10) { return "a"; }
+    if (d == 11) { return "b"; }
+    if (d == 12) { return "c"; }
+    if (d == 13) { return "d"; }
+    if (d == 14) { return "e"; }
+    return "f";
+  }
+
+  // -----------------------------------------------------------------------
+  // SEE YOUR MAYOR'S CLUES/EXCELLENTS. Scan a line and light the clue words:
+  // a word is a CLUE when it is marked with a leading '*' (the Mayor's star) or
+  // ends with '!' (an "excellent"). Clues GLOW; excellents are SPOTLIT. Returns
+  // the lit line and records how many words it lit in lastCount.
+  // -----------------------------------------------------------------------
+  String lightClues(String line) {
+    lastCount = 0;
+    if (line == null) { return ""; }
+    String out = "";
+    String word = "";
+    int i = 0;
+    int n = strlen(line);
+    while (i <= n) {
+      String ch = "";
+      if (i < n) { ch = charAt(line, i); }
+      boolean boundary = (i == n) || eq(ch, " ");
+      if (boundary) {
+        if (strlen(word) > 0) {
+          out = out + lightWordByClue(word);
+        }
+        if (i < n) { out = out + " "; }
+        word = "";
+      } else {
+        word = word + ch;
+      }
+      i = i + 1;
+    }
+    return out;
+  }
+
+  // Decide the clue effect for one word, update lastCount, return it lit.
+  String lightWordByClue(String word) {
+    int fx = clueEffect(word);
+    if (fx != FX_NONE) { lastCount = lastCount + 1; }
+    return light(word, fx);
+  }
+
+  // The clue rule: '*' prefix => GLOW (a Mayor's clue); '!' suffix => SPOTLIGHT
+  // (an excellent!); otherwise no light.
+  int clueEffect(String word) {
+    int n = strlen(word);
+    if (n == 0) { return FX_NONE; }
+    String first = charAt(word, 0);
+    String last = charAt(word, n - 1);
+    if (eq(first, "*")) { return FX_GLOW; }
+    if (eq(last, "!"))  { return FX_SPOTLIGHT; }
+    return FX_NONE;
+  }
+
+  // --- tiny string helpers --------------------------------------------------
+  // SLeeLa Strings are Java-style: length() and substring() are INSTANCE
+  // methods (no char type), and equality is the `==` operator on Strings —
+  // exactly as sources/citizen/FederalReserveID.sleela uses them.
+  int strlen(String s) { if (s == null) { return 0; } return s.length(); }
+  String charAt(String s, int i) { return s.substring(i, i + 1); }
+  boolean eq(String a, String b) { return a == b; }
+
+  // -----------------------------------------------------------------------
+  // Headless demo: load the module and light the Mayor's clue line.
+  // -----------------------------------------------------------------------
+  void main() {
+    print("Airport Tycoon — Lighting Effects module");
+    load();
+    print(describe());
+    String line = "The *Author knew the clues and wins in 1001 moves. Excellent!";
+    print("plain : " + line);
+    print("lit   : " + lightClues(line));
+    print("lit " + lastCount + " clue word(s).");
+    print("markup: " + markup("Excellent!", FX_SPOTLIGHT));
+  }
+}

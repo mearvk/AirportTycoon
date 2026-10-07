@@ -34,6 +34,12 @@ public final class LocalGameModelTest {
         testMediaFlightsMainlyOnTime();
         testMediaReporterFusesAuthorAndEast();
         testMediaSoftPad();
+        // --- the Lighting Effects module + Loader ---
+        testLightingModuleContract();
+        testLightingLoaderVerifiesAndEnables();
+        testLightingClueScan();
+        testLightingAnsiAndMarkup();
+        testLightingDisabledPassthrough();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -323,5 +329,74 @@ public final class LocalGameModelTest {
         check(padded > 100 && padded < 200, "soft pad moves gently toward target");
         // With a 35% pad, a 100->200 step should move 65 of the 100 gap.
         check(padded == 165, "soft pad applies the configured 35% cushion");
+    }
+
+    // --- the Lighting Effects module + Loader -------------------------------
+
+    private static void testLightingModuleContract() {
+        // The module follows the SLeeLa common module contract.
+        LightingEffects m = new LightingEffects();
+        check(!m.loaded(), "module is not loaded before load()");
+        m.load();
+        check(m.loaded(), "module reports loaded after load()");
+        check(m.moduleName().equals("LightingEffects"), "module names itself");
+        check(m.describe().contains("loaded=1"), "describe() reports loaded state");
+    }
+
+    private static void testLightingLoaderVerifiesAndEnables() {
+        // The Loader loads the module, verifies the contract, and enables it.
+        LightingEffects.Loader loader = new LightingEffects.Loader();
+        check(!loader.enabled(), "loader starts disabled");
+        loader.loadModule();
+        check(loader.enabled(), "loader enables after loading a verified module");
+        check(loader.loadStatus().contains("verified"),
+                "loader reports the module verified");
+    }
+
+    private static void testLightingClueScan() {
+        // See the Mayor's clues: a *starred word glows, an !excellent is spotlit.
+        LightingEffects.Loader loader = new LightingEffects.Loader();
+        loader.loadModule();
+        String lit = loader.findAndLightClues("Mayor says: *land first. Excellent!");
+        check(loader.lastCluesLit() == 2, "two clue words were lit");
+        // Ordinary words are untouched (no escape codes around them).
+        check(lit.contains("Mayor") && lit.contains("says:"), "plain words survive");
+        // The clue effect decisions themselves:
+        LightingEffects m = new LightingEffects();
+        m.load();
+        check(m.clueEffect("*land") == LightingEffects.FX_GLOW,
+                "a *starred word glows");
+        check(m.clueEffect("Excellent!") == LightingEffects.FX_SPOTLIGHT,
+                "an !excellent is spotlit");
+        check(m.clueEffect("plain") == LightingEffects.FX_NONE,
+                "an ordinary word gets no light");
+    }
+
+    private static void testLightingAnsiAndMarkup() {
+        LightingEffects m = new LightingEffects();
+        m.load();
+        String esc = "\u001b";
+        String glow = m.light("clue", LightingEffects.FX_GLOW);
+        check(glow.startsWith(esc + "[") && glow.endsWith(esc + "[0m"),
+                "an effect wraps the word in ANSI open/reset");
+        check(m.light("plain", LightingEffects.FX_NONE).equals("plain"),
+                "FX_NONE leaves the word untouched");
+        // GUI markup carries the effect name and a #RRGGBB colour.
+        String mk = m.markup("clue", LightingEffects.FX_GLOW);
+        check(mk.startsWith("[[fx:glow:#") && mk.endsWith("|clue]]"),
+                "markup carries effect name, colour, and word");
+        // Palette packs 0xRRGGBBAA like SLColor and renders to #RRGGBB.
+        check(LightingEffects.hex6(LightingEffects.pack(255, 191, 0, 255))
+                .equals("#ffbf00"), "amber packs/renders correctly");
+    }
+
+    private static void testLightingDisabledPassthrough() {
+        // A Loader that never loaded must pass text through unlit (never crash).
+        LightingEffects.Loader loader = new LightingEffects.Loader();
+        check(loader.findAndLightClues("Excellent!").equals("Excellent!"),
+                "disabled loader passes clues through unlit");
+        check(loader.light("word", LightingEffects.FX_GLOW).equals("word"),
+                "disabled loader passes a word through unlit");
+        check(loader.lastCluesLit() == 0, "disabled loader lit nothing");
     }
 }

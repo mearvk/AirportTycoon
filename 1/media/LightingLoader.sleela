@@ -1,0 +1,108 @@
+#sleela 1.3
+//
+// Airport Tycoon — Lighting Loader (loads the Lighting Effects MODULE)
+// ===================================================================
+// The LOADER for the LightingEffects module. A host does not touch the module
+// directly: it asks the Loader to find and load it, exactly as the SLeeLa
+// compiler, Loader, and Nordshrift bring a package facade online (see
+// sources/user-interface/SLPackage.sleela). The Loader:
+//
+//   1. constructs the module and calls its load() entry;
+//   2. VERIFIES the common module contract (loaded() is true and the
+//      moduleName() is the expected one) — only then is lighting ENABLED;
+//   3. exposes a thin surface so the host can light text and, in particular,
+//      FIND THE CLUES in a line and light them (see your Mayor's clues).
+//
+// If verification fails the Loader stays disabled and passes text through
+// unlit, so a missing or broken module can never crash the program — the same
+// graceful-fallback discipline the rest of Airport Tycoon uses.
+
+class LightingLoader {
+
+  static final String WANT_MODULE = "LightingEffects";
+
+  LightingEffects fx;   // the module instance, once loaded
+  int enabledFlag;      // 1 when the module is loaded AND verified
+  String status;        // human-readable load status
+
+  // -----------------------------------------------------------------------
+  // Find and load the module, then verify its contract.
+  // -----------------------------------------------------------------------
+  void loadModule() {
+    enabledFlag = 0;
+    status = "not loaded";
+
+    LightingEffects m = new LightingEffects();
+    m.load();
+
+    // Verify the common module contract before enabling anything.
+    if (!m.loaded()) {
+      status = "module failed to load";
+      return;
+    }
+    if (!(m.moduleName() == WANT_MODULE)) {
+      status = "unexpected module: " + m.moduleName();
+      return;
+    }
+
+    fx = m;
+    enabledFlag = 1;
+    status = "loaded + verified: " + m.describe();
+  }
+
+  boolean enabled() { return enabledFlag == 1; }
+  String loadStatus() { return status; }
+
+  // -----------------------------------------------------------------------
+  // Light one word with a named effect. When the module is not enabled the
+  // Loader passes the word through unlit (graceful fallback).
+  // -----------------------------------------------------------------------
+  String light(String word, int effect) {
+    if (enabledFlag != 1) { return word; }
+    return fx.light(word, effect);
+  }
+
+  // FIND THE CLUES in a line and light them (the Mayor's clues/excellents).
+  // Returns the lit line; unlit passthrough when the module is not enabled.
+  String findAndLightClues(String line) {
+    if (enabledFlag != 1) { if (line == null) { return ""; } return line; }
+    return fx.lightClues(line);
+  }
+
+  // How many clue words the last findAndLightClues(...) lit.
+  int lastCluesLit() {
+    if (enabledFlag != 1) { return 0; }
+    return fx.lastCount;
+  }
+
+  // GUI markup for one word, via the module.
+  String markup(String word, int effect) {
+    if (enabledFlag != 1) { return word; }
+    return fx.markup(word, effect);
+  }
+
+  // Effect-name constants surfaced through the Loader for host convenience.
+  int glow()      { return LightingEffects.FX_GLOW; }
+  int highlight() { return LightingEffects.FX_HIGHLIGHT; }
+  int pulse()     { return LightingEffects.FX_PULSE; }
+  int spotlight() { return LightingEffects.FX_SPOTLIGHT; }
+  int dim()       { return LightingEffects.FX_DIM; }
+
+  // -----------------------------------------------------------------------
+  // Headless demo: load the module through the Loader and light a clue line.
+  // -----------------------------------------------------------------------
+  void main() {
+    print("Airport Tycoon — Lighting Loader");
+    loadModule();
+    print("status: " + loadStatus());
+    print("enabled: " + enabled());
+
+    if (enabled()) {
+      String line = "Mayor says: *land the heavies first, keep rep high. Excellent!";
+      print("clues : " + findAndLightClues(line));
+      print("lit " + lastCluesLit() + " clue word(s).");
+    } else {
+      print("Lighting disabled — text shown plain.");
+    }
+  }
+}

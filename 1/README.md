@@ -41,6 +41,7 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
 | [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |
 | [`media/EventsCenter.sleela`](media/EventsCenter.sleela) · [`media/Reporter.sleela`](media/Reporter.sleela) | **The media / events center** (the mid :: center area). A 300-rated events engine driving the focus routes (Asia + Euro-American), with 6 real price tiers and a soft economic pad; and the 220-rated **Reporter** (your Boss) who fuses the Author viewpoint with **East 5.0** (Asia). Java mirror: `MediaCenter.java`. |
+| [`media/LightingEffects.sleela`](media/LightingEffects.sleela) · [`media/LightingLoader.sleela`](media/LightingLoader.sleela) | **Lighting Effects — a loadable module + loader.** Optional **light effects on your text/words** (glow, highlight, pulse, spotlight, dim) via true ANSI light and a GUI `[[fx:…]]` markup. The **Loader** finds the module, verifies the module contract, and only then enables lighting; its headline trick is to **see your Mayor's clues/excellents** — a `*`-starred word glows, an `!`-ended word is spotlit. Java mirror: `LightingEffects.java`; self-demo: `make lights`. |
 | [`sources/`](sources/) | **Imported SLeeLa library sources** — `character/` + `citizen/` (the economy), `user-interface/` (the SleelaUI toolkit), and `os/` (host OS surface), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
 | [`ui/`](ui/) | The **JavaFX Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. (A playable stand-in; the native front-end is `ui-sleela/`.) |
 | [`config/airport.conf`](config/airport.conf) | SLeeLa VM settings + gameplay tuning (economy, capacity, pace, RNG seed). |
@@ -109,6 +110,40 @@ The window presents the whole program readably, using the real widgets:
 
 Run it with `make ui-sleela` (needs the SLeeLa toolchain). With no display it
 falls back to a text read so the program still reports itself.
+
+### Lighting Effects — a loadable module with a Loader
+
+Edition 1.0 may now **use light effects** on your text/words. Lighting is an
+optional, loadable **module** ([`media/LightingEffects.sleela`](media/LightingEffects.sleela))
+that shares SLeeLa's common module contract (`load` / `loaded` / `moduleName` /
+`describe`), exactly like `lib/gameplay/GameMove`. It is brought online by a
+**Loader** ([`media/LightingLoader.sleela`](media/LightingLoader.sleela)) that
+**finds the module, verifies the contract, and only then enables lighting** —
+the same discovery/verify pattern the SLeeLa compiler, Loader, and Nordshrift
+use for a package facade. If verification fails the Loader stays disabled and
+passes text through unlit, so a missing or broken module can never crash the
+program.
+
+The module casts five light effects on a word — **glow**, **highlight**,
+**pulse**, **spotlight**, and **dim** — each with a packed `0xRRGGBBAA` colour
+(the same packing as [`SLColor`](sources/user-interface/SLColor.sleela)). On a
+real terminal the effects are true **ANSI light** (bold, colour, blink,
+reverse-video spotlight); a GUI can instead read the structured
+`[[fx:name:#RRGGBB|word]]` markup and render the same glow.
+
+Its headline feature: **you can see your Mayor's clues/excellents.** Pass a line
+of text and the module lights the important words — a `*`-starred word (a
+Mayor's clue) **glows**, and an `!`-ended word (an *excellent*) is **spotlit**:
+
+```
+plain : Mayor says: *land the heavies first, keep rep high. Excellent!
+lit   : Mayor says: ⟨glow⟩*land⟨/⟩ the heavies first, keep rep high. ⟨spotlight⟩Excellent!⟨/⟩
+```
+
+Run the self-demo with **`make lights`** — it drives the real SLeeLa Loader when
+the toolchain is present, and otherwise runs the faithful Java mirror
+(`LightingEffects.java`), whose behaviour is locked in by the `make check`
+test suite.
 
 ### The Author Terminal (text input + basic OS)
 

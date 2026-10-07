@@ -24,6 +24,8 @@ TEST_SRC := game/AirportTycoonTest.sleela
 UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
 TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
+# The Lighting Effects MODULE and its LOADER (optional light on text/words).
+LIGHTS_SRC := media/LightingEffects.sleela media/LightingLoader.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
 #   gameplay          -> the three-move turn system (help index / ask help / new desire)
@@ -33,7 +35,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media test ui ui-run check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media lights test ui ui-run check clean help
 
 all: game check ui
 
@@ -41,7 +43,7 @@ game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
-			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) \
+			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(LIGHTS_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
@@ -71,6 +73,19 @@ terminal:
 media:
 	$(SLEELA) run media/EventsCenter.sleela
 	$(SLEELA) run media/Reporter.sleela
+
+# Light effects on text/words: load the module via its Loader and light the
+# Mayor's clues. Uses the SLeeLa Loader when present; otherwise the Java mirror.
+lights:
+	@if command -v $(SLEELA) >/dev/null 2>&1; then \
+		$(SLEELA) run media/LightingLoader.sleela --library media; \
+	else \
+		echo "SLeeLa toolchain not found — running the Java mirror demo:"; \
+		mkdir -p ui/target/lights && \
+		javac -d ui/target/lights \
+		  ui/src/main/java/com/mearvk/sleela/airport/LightingEffects.java && \
+		java -cp ui/target/lights com.mearvk.sleela.airport.LightingEffects; \
+	fi
 
 # Launch the INTERACTIVE text terminal (reads real stdin via the Java host).
 terminal-run:
@@ -104,6 +119,7 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/AuthorPath.java \
 	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/main/java/com/mearvk/sleela/airport/MediaCenter.java \
+	    src/main/java/com/mearvk/sleela/airport/LightingEffects.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 
@@ -121,6 +137,7 @@ help:
 	@echo "  make terminal     Author Terminal self-demo (SLeeLa toolchain)"
 	@echo "  make terminal-run Interactive text terminal (reads real stdin)"
 	@echo "  make media        Events center (300) + Reporter (220) self-demos"
+	@echo "  make lights       Light effects on text — load the module, light the Mayor's clues"
 	@echo "  make test      Run the SLeeLa self-check Wrapper"
 	@echo "  make ui      Build the JavaFX Sleela UI"
 	@echo "  make ui-run  Launch the JavaFX game window"
