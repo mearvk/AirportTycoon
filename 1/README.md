@@ -40,6 +40,7 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
 | [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |
+| [`media/EventsCenter.sleela`](media/EventsCenter.sleela) · [`media/Reporter.sleela`](media/Reporter.sleela) | **The media / events center** (the mid :: center area). A 300-rated events engine driving the focus routes (Asia + Euro-American), with 6 real price tiers and a soft economic pad; and the 220-rated **Reporter** (your Boss) who fuses the Author viewpoint with **East 5.0** (Asia). Java mirror: `MediaCenter.java`. |
 | [`sources/`](sources/) | **Imported SLeeLa library sources** — `character/` + `citizen/` (the economy), `user-interface/` (the SleelaUI toolkit), and `os/` (host OS surface), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
 | [`ui/`](ui/) | The **JavaFX Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. (A playable stand-in; the native front-end is `ui-sleela/`.) |
 | [`config/airport.conf`](config/airport.conf) | SLeeLa VM settings + gameplay tuning (economy, capacity, pace, RNG seed). |
@@ -132,6 +133,40 @@ console classes are stubs), the Wrapper exposes a **pure decision core**
 reads real `stdin` and prints what it returns — the same split used throughout
 this project. Run the interactive terminal with **`make terminal-run`**, or the
 SLeeLa self-demo with **`make terminal`**.
+
+### The media / events center (the mid :: center area)
+
+The center of the program is a background **events engine** rated at a **300**
+model — the sharpest in the program ([`media/EventsCenter.sleela`](media/EventsCenter.sleela)).
+Above it sits the **Reporter — your Boss** — rated at a **220** model
+([`media/Reporter.sleela`](media/Reporter.sleela)), who interprets the center,
+fusing **your ways and ideas (the Author viewpoint)** with **Asia, modelled as
+`East 5.0`**. Java mirror for the UI/tests: `MediaCenter.java`.
+
+**First Edition focus — real routes, real values:**
+
+- **Asia routes** (the Great area the game focuses on): `Shanghai ↔ Tokyo`.
+  East 5.0 leads the Boss's read here.
+- **Euro-American routes** — Northern Europe + Chinese-influence hubs near the
+  **UK** and **France**, feeding the **Americas (AM)**:
+  `London → Santiago`, `Paris → Santiago`, `Shanghai → London`,
+  `Shanghai → Paris`. The Author viewpoint leads the Boss's read here.
+
+**The real model values:**
+
+- **Countries, each contained by exactly 3 national theories** — an *On-Time
+  Doctrine* (punctuality ceiling), a *Containment Theory* (delay damping), and a
+  *Market Theory* (baseline luxury tier). China, Japan, the UK, France, and a
+  Chile/Americas gateway.
+- **Six real price tiers, 1.0 – 6.0** (6 = most luxurious): fares
+  `$120 · $200 · $320 · $520 · $840 · $1360`.
+- **Flights are mainly on time** (≈ 92–99% raw), then **measured and contained**
+  by each origin country's theories — capped at its ceiling and damped toward it.
+- **A soft economic pad** (35%) blends every figure gently toward its target, so
+  prices, demand, and the headline fare index move calmly — the cushioning that
+  keeps the First Edition enjoyable.
+
+Run the self-demos with **`make media`**.
 
 ## Both ends of the economy — Character & Citizen
 

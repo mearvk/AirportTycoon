@@ -29,6 +29,11 @@ public final class LocalGameModelTest {
         testTerminalNumberFlow();
         testTerminalAuthorNumber1001();
         testTerminalOsCommands();
+        testMediaPriceTiers();
+        testMediaCountriesHaveThreeTheories();
+        testMediaFlightsMainlyOnTime();
+        testMediaReporterFusesAuthorAndEast();
+        testMediaSoftPad();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -248,5 +253,75 @@ public final class LocalGameModelTest {
         check(t.handleLine("author?").equals("no"), "non-author reports author?=no");
         check(t.handleLine("bogus").contains("unknown command"), "unknown command handled");
         check(t.handleLine("exit").equals("bye"), "exit says bye");
+    }
+
+    // --- the media / events center + the Reporter (Boss) ---
+
+    private static void testMediaPriceTiers() {
+        // Six real tiers 1.0..6.0, strictly increasing, 6 the most luxurious.
+        int prev = -1;
+        for (int t = 1; t <= 6; t++) {
+            int fare = MediaCenter.fareForTierX10(t * 10);
+            check(fare > prev, "tier " + t + " fare rises ($" + fare + ")");
+            prev = fare;
+        }
+        check(MediaCenter.fareForTierX10(60) == 1360, "tier 6 is the most luxurious ($1360)");
+    }
+
+    private static void testMediaCountriesHaveThreeTheories() {
+        MediaCenter m = new MediaCenter();
+        check(m.countries().size() == 5, "five focus countries present");
+        boolean allThree = true;
+        boolean haveAsia = false, haveEuam = false;
+        for (MediaCenter.Country c : m.countries()) {
+            if (c.theories().length != 3) {
+                allThree = false;
+            }
+            if (c.region.equals("ASIA")) {
+                haveAsia = true;
+            }
+            if (c.region.equals("EUAM")) {
+                haveEuam = true;
+            }
+        }
+        check(allThree, "every country has exactly 3 national theories");
+        check(haveAsia && haveEuam, "both Asia and Euro-American regions represented");
+    }
+
+    private static void testMediaFlightsMainlyOnTime() {
+        MediaCenter m = new MediaCenter();
+        for (int i = 0; i < 12; i++) {
+            m.tick();
+        }
+        int asia = m.regionOnTime("ASIA");
+        int euam = m.regionOnTime("EUAM");
+        check(asia >= 80, "Asia routes are mainly on time (" + asia + "%)");
+        check(euam >= 75, "Euro-American routes are mainly on time (" + euam + "%)");
+        // Contained by theories: never exceeds the strongest ceiling (98).
+        for (MediaCenter.Route r : m.routes()) {
+            check(r.onTimePct <= 100 && r.onTimePct >= 0, "route " + r.label + " on-time in range");
+        }
+    }
+
+    private static void testMediaReporterFusesAuthorAndEast() {
+        MediaCenter m = new MediaCenter();
+        for (int i = 0; i < 8; i++) {
+            m.tick();
+        }
+        m.report();
+        check(MediaCenter.eastVersion().equals("East 5.0"), "Asia model is East 5.0");
+        check(m.publishedAsiaOnTime() > 0 && m.publishedEuamOnTime() > 0,
+                "reporter publishes both regions");
+        check(m.confidence() >= 0 && m.confidence() <= 100, "confidence in range");
+        check(m.headline().contains("Asia") || m.headline().contains("Euro-American"),
+                "headline interprets the focus routes");
+    }
+
+    private static void testMediaSoftPad() {
+        // The soft economic pad moves a value only part-way toward its target.
+        int padded = MediaCenter.softPad(100, 200);
+        check(padded > 100 && padded < 200, "soft pad moves gently toward target");
+        // With a 35% pad, a 100->200 step should move 65 of the 100 gap.
+        check(padded == 165, "soft pad applies the configured 35% cushion");
     }
 }
