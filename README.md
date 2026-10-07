@@ -34,11 +34,13 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 
 | Path | What it is |
 |------|------------|
-| [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
+| [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The tower game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
+| [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
-| [`ui/`](ui/) | The **Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state and animates it. Maven project, mirroring SLeeLa's Audio GUI `pom`. |
+| [`sources/`](sources/) | **Imported SLeeLa library sources** (`character/` + `citizen/`), vendored verbatim from `mearvk/SLeeLa`. See [`sources/README.md`](sources/README.md). |
+| [`ui/`](ui/) | The **Sleela UI** — a JavaFX 21 host (`AirportTycoonApp`) that renders the Wrapper's state, animates planes, and shows the live business/traveler economy panel. Maven project, mirroring SLeeLa's Audio GUI `pom`. |
 | [`config/airport.conf`](config/airport.conf) | SLeeLa VM settings + gameplay tuning (economy, capacity, pace, RNG seed). |
-| [`Makefile`](Makefile) | Top-level dispatcher (`game`, `run`, `test`, `ui`, `ui-run`, `check`). |
+| [`Makefile`](Makefile) | Top-level dispatcher (`game`, `run`, `run-life`, `test`, `ui`, `ui-run`, `check`). |
 
 ### Inside the SLeeLa Wrapper
 
@@ -76,6 +78,34 @@ Written to the normative SLeeLa 1.6 grammar
   before the SLeeLa compiler is installed — and a reviewer can diff the two to
   confirm they match.
 
+## Both ends of the economy — Character & Citizen
+
+Beyond the fast tower game, Airport Tycoon models the airport from **both ends**
+using SLeeLa's economy Master Classes, imported into [`sources/`](sources/):
+
+- **The owner's end — `Character`.** The airport operator is a SLeeLa
+  `Character` who adopts one `BusinessModel` (here a `SubscriptionModel` for
+  recurring gate leases). Each in-game month the owner realizes the model's
+  profit, which moves their **cash, reputation, and grit** — a losing month
+  really takes it out of you.
+- **The traveler's end — `Citizen`.** Passengers are SLeeLa `Citizen`s: able,
+  employed in an `Industry`, paid into a `BankAccount`, taxed by their
+  `FederalReserveID` district, and — on a good month — willing to
+  `treatYourself(...)` to a ticket. A Citizen only flies when `isAble()` and
+  solvent.
+
+The two ends balance: raise ticket prices or taxes and travelers stop flying;
+neglect the business model and the owner goes under. The tower game's fare
+income is folded onto the owner's book each month. In the Sleela UI this is the
+right-hand **"The Business & The Travelers"** panel, with live ticket-price and
+tax levers; `game/AirportTycoonLife.sleela` is the authoritative Wrapper and
+`LifeEconomy` is its faithful Java mirror for the UI.
+
+> **On "both ends of Adult Fantasy".** This is the mature business/life-sim
+> layer — the game is played simultaneously from the proprietor's balance sheet
+> and the traveler's wallet. It is a civic/economic simulation built directly on
+> the shipped SLeeLa `Character` and `Citizen` classes.
+
 ## Controls
 
 | Key / Button | Action |
@@ -84,7 +114,8 @@ Written to the normative SLeeLa 1.6 grammar
 | **Space** / Pause | Pause / resume the shift |
 | **G** / Buy gate | Open the next gate (costs cash) |
 | **R** / Buy runway | Open the next runway (costs cash) |
-| Restart | Begin a fresh shift |
+| Restart | Begin a fresh shift (resets the economy too) |
+| Ticket ± / Tax ± (panel) | Set the traveler ticket price and civic tax rate between months |
 
 ## Build & run
 

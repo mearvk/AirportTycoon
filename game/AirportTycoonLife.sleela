@@ -1,0 +1,244 @@
+#sleela 1.6
+//
+// Airport Tycoon — Life & Business layer
+// ======================================
+// This Wrapper(TM) connects the fast-paced tower game (AirportTycoon.sleela) to
+// the SLeeLa economy's two Master Classes, imported verbatim under ../sources:
+//
+//   * Character (sources/character/Character.sleela)  — the OWNER end.
+//     The airport operator is a Character who adopts a BusinessModel and lives
+//     or dies by its monthly profit (grit, reputation, cash).
+//
+//   * Citizen  (sources/citizen/Citizen.sleela)       — the TRAVELER end.
+//     Passengers are Citizens: able, employed, paid, taxed, and — on a good
+//     month — willing to treatYourself(...) to a plane ticket.
+//
+// "Both ends of Adult Fantasy" is the mature business/life-sim framing: the
+// game is played simultaneously from the proprietor's books and the traveler's
+// wallet. Money the airport earns from the tower game feeds the owner's
+// Character; fares come from Citizens who can only fly when they are solvent and
+// isAble(). The two ends balance each other — squeeze travelers too hard and
+// they stop flying; neglect the business model and the owner goes under.
+//
+// RESOLUTION: Character, BusinessModel (+ the concrete model classes), Citizen,
+// Industry, BankAccount and FederalReserveID are resolved by the SLeeLa library
+// Index as separate one-class-per-file units (they are #sleela 1.3 and use
+// `extends`). This Wrapper is the single executable class that orchestrates
+// them, exactly as citizen/sleela/CitizenDemo.sleela orchestrates Citizen.
+
+class AirportTycoonLife {
+
+    // --- The owner (business end) ---
+    Character owner;              // the tycoon running the airport
+
+    // --- A small rotating population of travelers (passenger end) ---
+    // SLeeLa 1.6 has no arrays; we hold a fixed roster as individual fields and
+    // walk them with a helper that maps an index -> the right Citizen.
+    Citizen pax0;
+    Citizen pax1;
+    Citizen pax2;
+    Citizen pax3;
+    Citizen pax4;
+    int paxCount;
+
+    // --- Shared economy figures the UI reads ---
+    int month;                    // in-game month counter
+    int ownerCashCents;           // owner's cash on hand (cents)
+    int ownerReputation;          // owner's reputation 0..100
+    int ownerGrit;                // owner's grit 0..100
+    int ticketPriceCents;         // what a seat costs a Citizen this month
+    int seatsSold;                // tickets Citizens could actually afford
+    int seatsOffered;             // seats put up for sale this month
+    int taxRatePercent;           // civic tax applied to travelers each month
+
+    // ---------------------------------------------------------------------
+    // Setup: stand up the owner with a Subscription-style gate-lease business,
+    // and seed a handful of Citizens with jobs and bank accounts.
+    // ---------------------------------------------------------------------
+    void setup() {
+        month = 0;
+        ticketPriceCents = 24000;   // $240.00 a seat
+        seatsOffered = 20;
+        taxRatePercent = 18;
+
+        // Owner end --------------------------------------------------------
+        owner = new Character();
+        owner.load();
+        owner.introduce("Avery Sloane", "We land planes and expectations.",
+                        70, 500000);   // grit 70, $5,000.00 starting cash
+
+        // The airport's business is recurring gate leases: a SubscriptionModel.
+        SubscriptionModel biz = new SubscriptionModel();
+        biz.setUp(20, 90000, 5, 30000); // 20 seats, $900/mo, 5% churn, $300 cost
+        owner.adopt(biz);
+
+        // Traveler end -----------------------------------------------------
+        pax0 = makeCitizen("Dana Reyes",   Industry.SECTOR_TECHNOLOGY, 650000);
+        pax1 = makeCitizen("Marco Hale",   Industry.SECTOR_FINANCE,    720000);
+        pax2 = makeCitizen("Priya Nandi",  Industry.SECTOR_HEALTHCARE, 580000);
+        pax3 = makeCitizen("Sam Okafor",   Industry.SECTOR_EDUCATION,  300000);
+        pax4 = makeCitizen("Lin Zhou",     Industry.SECTOR_RETAIL,     260000);
+        paxCount = 5;
+
+        syncOwnerFigures();
+    }
+
+    // Build one able, employed Citizen with a monthly wage.
+    Citizen makeCitizen(String who, int sector, int monthlyWageCents) {
+        Citizen c = new Citizen();
+        c.load();
+        c.beBorn(who);
+        // Age them into the working years so they can hold a job and fly.
+        int b = 0;
+        while (b < 30) { c.haveABirthday(); b = b + 1; }
+        c.getAJob(sector, monthlyWageCents);
+        return c;
+    }
+
+    // Index -> citizen (SLeeLa 1.6 has no arrays, so this is the accessor).
+    Citizen paxAt(int i) {
+        if (i == 0) { return pax0; }
+        if (i == 1) { return pax1; }
+        if (i == 2) { return pax2; }
+        if (i == 3) { return pax3; }
+        if (i == 4) { return pax4; }
+        return null;
+    }
+
+    // ---------------------------------------------------------------------
+    // Advance one in-game month across BOTH ends.
+    //   fareIncomeCents is the cash the tower game earned this month (from
+    //   AirportTycoon.sleela's served flights); it is folded into the owner's
+    //   book on top of the business model's own profit.
+    // Returns total seats sold this month.
+    // ---------------------------------------------------------------------
+    int liveAMonth(int fareIncomeCents) {
+        month = month + 1;
+
+        // --- Traveler end: each Citizen earns, is taxed, and maybe flies ---
+        seatsSold = 0;
+        int i = 0;
+        while (i < paxCount) {
+            Citizen c = paxAt(i);
+            if (c != null) {
+                c.getPaid();                 // wages into the bank
+                c.payTaxes(taxRatePercent);  // civic duty, dents the mood
+                // A Citizen flies only if able and the ticket is affordable.
+                if (c.isAble() && c.netWorthCents() >= ticketPriceCents) {
+                    if (seatsSold < seatsOffered) {
+                        if (c.treatYourself(ticketPriceCents)) {
+                            seatsSold = seatsSold + 1;
+                        }
+                    }
+                }
+            }
+            i = i + 1;
+        }
+
+        // Ticket revenue the travelers just paid, plus the tower game's fares.
+        int ticketRevenue = seatsSold * ticketPriceCents;
+
+        // --- Owner end: realize the business model + add this month's cash ---
+        owner.liveAMonth();                  // moves grit/reputation/cash by model
+        creditOwner(ticketRevenue + fareIncomeCents);
+
+        syncOwnerFigures();
+        return seatsSold;
+    }
+
+    // Credit the owner's Character cash. Character exposes cash() for reads; we
+    // keep an explicit mirror field the UI can show without reaching inside.
+    void creditOwner(int cents) {
+        // Character has no public deposit, so we track add-on cash alongside its
+        // own model cash and present the sum. (The model's monthlyProfit already
+        // moved owner.cash(); this adds the operating fare/ticket income.)
+        ownerCashCents = owner.cash() + cents;
+    }
+
+    void syncOwnerFigures() {
+        ownerReputation = owner.reputationScore();
+        ownerGrit = owner.gritScore();
+        if (ownerCashCents == 0) { ownerCashCents = owner.cash(); }
+    }
+
+    // ---------------------------------------------------------------------
+    // Player levers the UI can pull between months.
+    // ---------------------------------------------------------------------
+    boolean setTicketPrice(int cents) {
+        if (cents < 0) { return false; }
+        ticketPriceCents = cents;
+        return true;
+    }
+
+    boolean setTaxRate(int percent) {
+        if (percent < 0 || percent > 100) { return false; }
+        taxRatePercent = percent;
+        return true;
+    }
+
+    boolean ownerStillStanding() { return owner.stillStanding(); }
+    boolean ownerThriving() { return owner.thriving(); }
+
+    // ---------------------------------------------------------------------
+    // Snapshot for the Sleela UI — a compact economy line it parses alongside
+    // the tower snapshot. Each Citizen is emitted via structPack-equivalent
+    // describe() so the UI can show per-traveler state.
+    // ---------------------------------------------------------------------
+    String snapshot() {
+        String out = "LIFE|month=" + month
+            + "|ownerName=" + owner.characterName()
+            + "|ownerModel=" + owner.modelName()
+            + "|ownerCash=" + ownerCashCents
+            + "|ownerRep=" + ownerReputation
+            + "|ownerGrit=" + ownerGrit
+            + "|thriving=" + yn(owner.thriving())
+            + "|standing=" + yn(owner.stillStanding())
+            + "|ticket=" + ticketPriceCents
+            + "|tax=" + taxRatePercent
+            + "|seatsOffered=" + seatsOffered
+            + "|seatsSold=" + seatsSold
+            + "|pax=" + paxCount;
+        int i = 0;
+        while (i < paxCount) {
+            Citizen c = paxAt(i);
+            if (c != null) { out = out + "\nPAX|" + c.describe(); }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+
+    // ---------------------------------------------------------------------
+    // Headless demo: run a year, with made-up tower fares, and print the books.
+    // ---------------------------------------------------------------------
+    void main() {
+        print("Airport Tycoon — Life & Business layer");
+        print("Owner (Character) + Travelers (Citizen) — both ends of the economy");
+
+        setup();
+        print("owner: " + owner.describe());
+
+        int m = 0;
+        while (m < 12 && owner.stillStanding()) {
+            // Pretend the tower game earned a growing amount of fare cash.
+            int towerFares = 40000 + m * 5000;   // cents
+            int sold = liveAMonth(towerFares);
+            print("month " + month + ": seatsSold=" + sold
+                + " ownerCash=" + ownerCashCents
+                + " rep=" + ownerReputation
+                + " grit=" + ownerGrit);
+            m = m + 1;
+        }
+
+        print("=== YEAR-END ===");
+        print("owner: " + owner.describe());
+        int i = 0;
+        while (i < paxCount) {
+            Citizen c = paxAt(i);
+            if (c != null) { print("pax" + i + ": " + c.describe()); }
+            i = i + 1;
+        }
+        if (!owner.stillStanding()) { print("The airport operator went under."); }
+    }
+}

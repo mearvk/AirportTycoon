@@ -18,6 +18,9 @@ public final class LocalGameModelTest {
         testAutoAssistServesPlanes();
         testIdleAirportLosesReputation();
         testBuyGate();
+        testLifeOwnerEarnsFromBusinessModel();
+        testLifeTravelersBuySeats();
+        testLifeHighTaxGroundsTravelers();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -86,5 +89,40 @@ public final class LocalGameModelTest {
         check(bought, "can buy a gate with starting cash");
         check(after.openGates == before.openGates + 1, "gate count increased");
         check(after.cash < before.cash, "buying a gate costs cash");
+    }
+
+    // --- business/life layer (Character owner + Citizen travelers) ---
+
+    private static void testLifeOwnerEarnsFromBusinessModel() {
+        LifeEconomy life = new LifeEconomy();
+        int before = life.ownerCashCents();
+        life.liveAMonth(0); // no tower fares; pure business-model profit
+        int after = life.ownerCashCents();
+        // SubscriptionModel(20,90000,5,30000): retained=19 -> rev 1,710,000;
+        // cost 20*30000=600,000; profit 1,110,000. Plus travelers buying seats.
+        check(after > before, "owner cash grows from a profitable month");
+        check(life.month() == 1, "month advanced");
+        // reputation starts at 50 and climbs +3 per profitable month, so
+        // "thriving" (needs reputation >= 60) takes a few good months, exactly
+        // as the vendored Character.sleela specifies.
+        for (int i = 0; i < 5; i++) {
+            life.liveAMonth(0);
+        }
+        check(life.ownerThriving(), "owner thrives after sustained profit");
+    }
+
+    private static void testLifeTravelersBuySeats() {
+        LifeEconomy life = new LifeEconomy();
+        int sold = life.liveAMonth(0);
+        check(sold > 0, "able, solvent travelers buy seats");
+        check(sold <= life.seatsOffered(), "seats sold never exceed offered");
+    }
+
+    private static void testLifeHighTaxGroundsTravelers() {
+        LifeEconomy life = new LifeEconomy();
+        life.setTaxRate(100);               // confiscatory tax
+        life.setTicketPrice(1_000_000);     // $10,000 ticket nobody can afford
+        int sold = life.liveAMonth(0);
+        check(sold == 0, "unaffordable tickets ground every traveler");
     }
 }
