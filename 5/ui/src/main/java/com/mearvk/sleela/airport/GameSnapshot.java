@@ -262,6 +262,55 @@ public final class GameSnapshot {
         return new PlaneView(id, flight, state, sizeClass, patience, maxP, svc, x, y);
     }
 
+    /** Serialize this immutable frame into the SLeeLa-compatible wire format. */
+    public String toWire() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("ATC|tick=").append(tick)
+          .append("|cash=").append(cash)
+          .append("|rep=").append(reputation)
+          .append("|served=").append(served)
+          .append("|lost=").append(lost)
+          .append("|gates=").append(openGates)
+          .append("|runways=").append(openRunways)
+          .append("|planes=").append(planeCount)
+          .append("|over=").append(gameOver)
+          .append("|streak=").append(streak)
+          .append("|premium=").append(servicePremiumPct)
+          .append("|contractTarget=").append(contractTargetSize)
+          .append("|contractProgress=").append(contractProgress)
+          .append("|contractGoal=").append(contractGoal)
+          .append("|contractLeft=").append(contractTicksLeft)
+          .append("|contracts=").append(contractsCompleted)
+          .append("|contractEarlyWindow=").append(contractEarlyWindow)
+          .append("|contractEarlyBonus=").append(contractEarlyBonus)
+          .append("|contractChain=").append(contractChain)
+          .append("|contractLadderStep=").append(contractLadderStep)
+          .append("|contractLadderCap=").append(contractLadderCap)
+          .append("|reserveFloor=").append(reserveFloor)
+          .append("|reserveTicks=").append(reserveTicks)
+          .append("|reserveGoal=").append(reserveGoal)
+          .append("|reserveBonus=").append(reserveBonus)
+          .append("|reserveAwards=").append(reserveAwards)
+          .append("\\n");
+        for (PlaneView p : planes) {
+            sb.append("{\"__type\":\"Plane\",\"id\":").append(p.id)
+              .append(",\"flight\":\"").append(jsonEscape(p.flight)).append("\"")
+              .append(",\"state\":").append(p.state)
+              .append(",\"sizeClass\":").append(p.sizeClass)
+              .append(",\"patience\":").append(p.patience)
+              .append(",\"maxPatience\":").append(p.maxPatience)
+              .append(",\"serviceLeft\":").append(p.serviceLeft)
+              .append(",\"posX\":").append(p.posX)
+              .append(",\"posY\":").append(p.posY).append("}\\n");
+        }
+        return sb.toString();
+    }
+
+    private static String jsonEscape(String value) {
+        if (value == null) return "";
+        return value.replace("\\\\", "\\\\\\\\").replace("\"", "\\\\\"");
+    }
+
     private static List<String> splitTopLevel(String body) {
         List<String> out = new ArrayList<>();
         int depth = 0;
