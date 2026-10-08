@@ -20,6 +20,7 @@
 #   make help    This message
 
 SLEELA ?= sleela
+BUILD_DIR := ../build/dungeons-of-moria
 GAME_SRC := game/MoriaDungeon.sleela
 LIGHTS_SRC := game/CityLights.sleela
 TEST_SRC := game/MoriaTest.sleela
@@ -59,9 +60,13 @@ RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC)
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites ui test help
+.PHONY: build-dir all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites ui test help
 
 all: game test
+
+# Standardized repository build location.
+build-dir:
+	@mkdir -p $(BUILD_DIR)
 
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
