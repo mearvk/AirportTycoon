@@ -19,6 +19,10 @@ game is fully playable **headless** too — the same text read drives both.
 |---|---|
 | [`game/MoriaDungeon.sleela`](game/MoriaDungeon.sleela) | The crawler core: map generation, the hero, monsters, combat, descent, the scrollback chronicle, the authoritative text rendering, and the **figuring pieces** (the Original Characters that roam the board). A single `#sleela 1.6` game Wrapper. |
 | [`game/CityLights.sleela`](game/CityLights.sleela) | The **scoreboard lighting** layer: lights that come out of the game's text, coloured by a city's Providence (learned from trusted sources) and sized 2–4 mm. |
+| [`game/MoriaStats.sleela`](game/MoriaStats.sleela) | **The six ability scores** — Strength, Dexterity, **Constitution**, Intelligence, Wisdom, and **Character (the Number)**. Owns the modifiers and the Character-Number *truth model*. |
+| [`game/MoriaSpells.sleela`](game/MoriaSpells.sleela) | **The Spellbook** — a name-forge of **18,432** dressed-up spells, and the signature **Fireball = 1d28 + 6 per level**. |
+| [`game/MoriaWeapons.sleela`](game/MoriaWeapons.sleela) | **The Armoury** — a name-forge of **13,440** dressed-up weapons, **many +4 or greater**, the deep levels minting the legendary. |
+| [`game/MoriaSave.sleela`](game/MoriaSave.sleela) | **Save / Load / Alter** for creatures and character stats, plus the **saved previous leveling work** (a persisted level-up ledger). |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
@@ -115,6 +119,52 @@ deterministic**: the same seed replays the same wandering, step for step. The
 GUI gets a dedicated **"The Fellowship — Figuring Pieces"** panel (glyph badge +
 name + role + live position); the headless read prints the same roster. Run
 `make figures` (or `make run`) to see it.
+
+## The RPG layer — stats, spells, weapons, and the saved book
+
+The Adventurer (and the creatures of the Mines) now carry a full character
+system, composed into the crawler core and persisted through a save book.
+
+### The six ability scores — with Constitution and the Character Number
+
+Every sheet carries **Strength, Dexterity, Constitution, Intelligence, Wisdom,**
+and **Character (CHR#) — the Number** ([`game/MoriaStats.sleela`](game/MoriaStats.sleela)).
+Constitution drives hit points (a base plus CON per level, so the body endures
+the long descent). The **Character Number is not vanity — it is how TRUE the
+rest of the numbers are:** at a high Character Number the sheet reads exactly as
+written, but a low Character Number *blurs* the apparent scores away from their
+true values and reads a life and its choices less honestly. **The higher the
+Character the Number, the truer his numbers will be about his life and his
+actual choices.** The sheet shows a live *truth %*.
+
+### The Fireball — 1d28 + 6 per level
+
+The signature spell, by decree: **Fireball = 1d28 + 6 per level** (plus the
+caster's Intelligence power). At level 5 with a die of 19 and +2 INT that is
+`19 + 30 + 2 = 51` damage. See `castFireball()` in the dungeon core.
+
+### Thousands of spells, thousands of weapons — dressed up
+
+- The **Spellbook** forges **18,432** distinct spell names from a deterministic
+  grammar `[Adjunct] [Root] of [Epithet]` across eight schools and nine tiers —
+  *Greater Fireball of Khazad-dûm*, *Abyssal Scourge of Durin's Bane*, and so on.
+- The **Armoury** forges **13,440** distinct weapon names from `[Material]
+  [Form] of [Legend]`, each with a **+N enchantment**. **Many are +4 or
+  greater**, and the deeper levels of Moria mint the legendary (up to +9) —
+  *Mithril Greatsword of the Balrog-slayer +7*.
+
+Every name is **stable for its index**, so a given find always reads the same
+(determinism — the Careful Years of Time).
+
+### Save / Load / Alter — and the saved leveling work
+
+[`game/MoriaSave.sleela`](game/MoriaSave.sleela) persists the dungeon's
+**creatures** and the Adventurer's **overall stats** to a compact, line-oriented
+save blob, restores from it, and lets you **alter** a creature's position, hit
+points, or whole stat block in place. It also keeps a **ledger of previous
+leveling work** — every level-up records the HP it granted and the stat it
+raised, so a character's history survives a save and reads back on the sheet.
+Run the demos with `make stats`, `make spells`, `make weapons`, and `make save`.
 
 ## Theatrics — the glyph alphabet
 

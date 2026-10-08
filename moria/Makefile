@@ -10,6 +10,7 @@
 #   make run     Headless self-descent of the dungeon model
 #   make lights  Scoreboard city-lights demo (orange/green/purple, 2-4 mm)
 #   make figures The figuring pieces — Original Characters roaming the board
+#   make stats / spells / weapons / save   The RPG layer self-demos
 #   make ui      Open the native SleelaUI text-pane front-end (real window)
 #   make test    Run the deterministic self-check Wrapper
 #   make all     game + test
@@ -20,19 +21,26 @@ GAME_SRC := game/MoriaDungeon.sleela
 LIGHTS_SRC := game/CityLights.sleela
 TEST_SRC := game/MoriaTest.sleela
 UI_SRC   := ui-sleela/MoriaUI.sleela
+# The RPG layer: stats (incl. Constitution + Character#), the spellbook (the
+# Fireball = 1d28 + 6/level), the armoury (+4 or greater), and Save/Load/Alter.
+STATS_SRC   := game/MoriaStats.sleela
+SPELLS_SRC  := game/MoriaSpells.sleela
+WEAPONS_SRC := game/MoriaWeapons.sleela
+SAVE_SRC    := game/MoriaSave.sleela
+RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC)
 
 # The SleelaUI widget toolkit, reused from the Edition 1 vendor drop. These are
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures ui test help
+.PHONY: all game run lights figures stats spells weapons save ui test help
 
 all: game test
 
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -51,6 +59,19 @@ lights:
 figures:
 	$(SLEELA) run $(GAME_SRC)
 
+# The RPG-layer self-demos.
+stats:
+	$(SLEELA) run $(STATS_SRC)
+
+spells:
+	$(SLEELA) run $(SPELLS_SRC)
+
+weapons:
+	$(SLEELA) run $(WEAPONS_SRC)
+
+save:
+	$(SLEELA) run $(SAVE_SRC)
+
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
 	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
@@ -65,6 +86,10 @@ help:
 	@echo "  make run    Headless self-descent (prints map + HUD + chronicle)"
 	@echo "  make lights Scoreboard city-lights demo (orange/green/purple, 2-4 mm)"
 	@echo "  make figures The figuring pieces — Original Characters roaming the board"
+	@echo "  make stats   The six ability scores (incl. Constitution + Character#)"
+	@echo "  make spells  The spellbook — the Fireball (1d28+6/level) + thousands named"
+	@echo "  make weapons The armoury — thousands named, many +4 or greater"
+	@echo "  make save    Save / Load / Alter demo (+ the leveling ledger)"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"

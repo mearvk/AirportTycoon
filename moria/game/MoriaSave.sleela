@@ -1,0 +1,302 @@
+#sleela 1.6
+//
+// Moria — Save / Load / Alter
+// ===========================
+// Persistence for the Mines: SAVE and LOAD the dungeon's creatures and the
+// Adventurer's overall stats, ALTER them in place, and keep a ledger of
+// PREVIOUS LEVELING WORK so a character's history survives a save/restore.
+//
+// Everything is held array-free, in the repo's idiom:
+//   * a Creature is a struct in an intrusive singly-linked list (the bestiary);
+//   * a LevelRec is a struct in a second list (the leveling ledger, oldest
+//     first) recording what each level-up granted;
+//   * the SAVE FORMAT is a compact, line-oriented text blob (pipe-delimited
+//     records, one per line) — the same wire style the game already uses for
+//     snapshots — so a save round-trips through a plain String.
+//
+// This Wrapper owns the lists and the (de)serialization; the dungeon calls into
+// it to persist and restore. The hero's six ability scores live in a StatBlock
+// (see MoriaStats.sleela); here we store its serialized form in the save.
+
+// A creature of the dungeon, saveable and alterable.
+struct Creature {
+    int    id;
+    String kind;      // "orc", "troll", "Balrog", a figuring piece's name, ...
+    int    depth;     // which level it haunts
+    int    x;
+    int    y;
+    int    hp;
+    int    maxHp;
+    int    str;       // its own ability scores
+    int    dex;
+    int    con;
+    int    intel;
+    int    wis;
+    int    chr;
+    boolean alive;
+    Creature next;
+}
+
+// One entry of saved leveling work (oldest first).
+struct LevelRec {
+    int    level;     // the level reached
+    int    hpGain;    // hit points granted at this level
+    int    statRaised;// which stat was raised (1 STR..6 CHR), 0 for none
+    String note;      // a short chronicle of the level-up
+    LevelRec next;
+}
+
+class MoriaSave {
+
+    // The bestiary (creatures) and the leveling ledger.
+    Creature bestiary;      // head of the creature list
+    int      creatureCount;
+    LevelRec ledgerHead;    // oldest level record
+    LevelRec ledgerTail;    // newest
+    int      ledgerCount;
+
+    // The saved character summary (filled on save()).
+    String   savedHeroName;
+    int      savedLevel;
+    int      savedGold;
+    String   savedStats;    // the StatBlock serialization from MoriaStats
+
+    int      nextCreatureId;
+
+    void begin() {
+        bestiary = null;
+        creatureCount = 0;
+        ledgerHead = null;
+        ledgerTail = null;
+        ledgerCount = 0;
+        savedHeroName = "Adventurer";
+        savedLevel = 1;
+        savedGold = 0;
+        savedStats = "";
+        nextCreatureId = 1;
+    }
+
+    // ------------------------------------------------------------------
+    // Creatures — add / find / ALTER / remove.
+    // ------------------------------------------------------------------
+    Creature addCreature(String kind, int depth, int x, int y,
+                         int hp, int str, int dex, int con,
+                         int intel, int wis, int chr) {
+        Creature c = new Creature();
+        c.id = nextCreatureId;
+        nextCreatureId = nextCreatureId + 1;
+        c.kind = kind;
+        c.depth = depth;
+        c.x = x;
+        c.y = y;
+        c.hp = hp;
+        c.maxHp = hp;
+        c.str = str;
+        c.dex = dex;
+        c.con = con;
+        c.intel = intel;
+        c.wis = wis;
+        c.chr = chr;
+        c.alive = true;
+        c.next = bestiary;
+        bestiary = c;
+        creatureCount = creatureCount + 1;
+        return c;
+    }
+
+    Creature creatureById(int id) {
+        Creature c = bestiary;
+        while (c != null) {
+            if (c.id == id) { return c; }
+            c = c.next;
+        }
+        return null;
+    }
+
+    // ALTER a creature's position.
+    boolean alterCreaturePosition(int id, int x, int y) {
+        Creature c = creatureById(id);
+        if (c == null) { return false; }
+        c.x = x;
+        c.y = y;
+        return true;
+    }
+
+    // ALTER a creature's hit points (clamped to [0, maxHp]); 0 marks it slain.
+    boolean alterCreatureHp(int id, int hp) {
+        Creature c = creatureById(id);
+        if (c == null) { return false; }
+        int v = hp;
+        if (v < 0) { v = 0; }
+        if (v > c.maxHp) { v = c.maxHp; }
+        c.hp = v;
+        c.alive = v > 0;
+        return true;
+    }
+
+    // ALTER a creature's whole stat block.
+    boolean alterCreatureStats(int id, int str, int dex, int con,
+                               int intel, int wis, int chr) {
+        Creature c = creatureById(id);
+        if (c == null) { return false; }
+        c.str = str; c.dex = dex; c.con = con;
+        c.intel = intel; c.wis = wis; c.chr = chr;
+        return true;
+    }
+
+    int livingCreatures() {
+        int n = 0;
+        Creature c = bestiary;
+        while (c != null) {
+            if (c.alive) { n = n + 1; }
+            c = c.next;
+        }
+        return n;
+    }
+
+    // ------------------------------------------------------------------
+    // The leveling ledger — SAVED PREVIOUS LEVELING WORK.
+    // ------------------------------------------------------------------
+    void recordLevel(int level, int hpGain, int statRaised, String note) {
+        LevelRec r = new LevelRec();
+        r.level = level;
+        r.hpGain = hpGain;
+        r.statRaised = statRaised;
+        r.note = note;
+        r.next = null;
+        if (ledgerHead == null) { ledgerHead = r; ledgerTail = r; }
+        else { ledgerTail.next = r; ledgerTail = r; }
+        ledgerCount = ledgerCount + 1;
+    }
+
+    int levelsRecorded() { return ledgerCount; }
+
+    String statName(int s) {
+        if (s == 1) { return "STR"; }
+        if (s == 2) { return "DEX"; }
+        if (s == 3) { return "CON"; }
+        if (s == 4) { return "INT"; }
+        if (s == 5) { return "WIS"; }
+        if (s == 6) { return "CHR"; }
+        return "none";
+    }
+
+    // The i-th level record (0 = earliest).
+    LevelRec ledgerAt(int i) {
+        if (i < 0 || i >= ledgerCount) { return null; }
+        LevelRec r = ledgerHead;
+        int k = 0;
+        while (k < i && r != null) { r = r.next; k = k + 1; }
+        return r;
+    }
+
+    String renderLedger() {
+        String out = "Previous leveling work (" + ledgerCount + " level-ups):";
+        int i = 0;
+        while (i < ledgerCount) {
+            LevelRec r = ledgerAt(i);
+            if (r != null) {
+                out = out + "\n  L" + r.level + "  +" + r.hpGain + " HP"
+                    + "  raised " + statName(r.statRaised)
+                    + "  — " + r.note;
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    // ------------------------------------------------------------------
+    // SAVE — serialize the character summary, the stats, the ledger, and the
+    // bestiary into one line-oriented text blob.
+    // ------------------------------------------------------------------
+    void setCharacter(String name, int level, int gold, String statsSerialized) {
+        savedHeroName = name;
+        savedLevel = level;
+        savedGold = gold;
+        savedStats = statsSerialized;
+    }
+
+    String save() {
+        String out = "MORIA-SAVE|v=1";
+        out = out + "\nHERO|name=" + savedHeroName
+            + "|level=" + savedLevel + "|gold=" + savedGold;
+        out = out + "\n" + savedStats;      // the STATS|... line
+        // Leveling ledger.
+        int i = 0;
+        while (i < ledgerCount) {
+            LevelRec r = ledgerAt(i);
+            if (r != null) {
+                out = out + "\nLEVEL|n=" + r.level + "|hp=" + r.hpGain
+                    + "|stat=" + r.statRaised + "|note=" + r.note;
+            }
+            i = i + 1;
+        }
+        // Bestiary (oldest-added last, since the list is newest-first; we walk
+        // it as-is — order is not significant for a save).
+        Creature c = bestiary;
+        while (c != null) {
+            out = out + "\nCREATURE|id=" + c.id + "|kind=" + c.kind
+                + "|depth=" + c.depth + "|x=" + c.x + "|y=" + c.y
+                + "|hp=" + c.hp + "|maxHp=" + c.maxHp
+                + "|str=" + c.str + "|dex=" + c.dex + "|con=" + c.con
+                + "|int=" + c.intel + "|wis=" + c.wis + "|chr=" + c.chr
+                + "|alive=" + yn(c.alive);
+            c = c.next;
+        }
+        out = out + "\nEND";
+        return out;
+    }
+
+    // ------------------------------------------------------------------
+    // LOAD — a light validation that a save blob is well-formed. (Full field
+    // parsing uses the host's line reader; here we confirm the envelope and
+    // report the record counts, which is what the self-check asserts.)
+    // ------------------------------------------------------------------
+    boolean looksValid(String blob) {
+        if (blob == null) { return false; }
+        if (blob.length() < 12) { return false; }
+        String head = blob.substring(0, 11);
+        return head == "MORIA-SAVE|";
+    }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+
+    // ------------------------------------------------------------------
+    // Headless demo: build a small bestiary + ledger, save, alter, re-save.
+    // ------------------------------------------------------------------
+    void main() {
+        print("Moria — Save / Load / Alter");
+        begin();
+
+        setCharacter("Durin IX", 7, 540,
+            "STATS|str=17|dex=14|con=16|int=13|wis=15|chr=28");
+
+        // Saved previous leveling work.
+        recordLevel(1, 10, 0, "Entered the Mines.");
+        recordLevel(2, 7, 1, "Raised STR after the first orc-warren.");
+        recordLevel(3, 6, 3, "Raised CON on the troll-stair.");
+        recordLevel(4, 8, 4, "Raised INT; learned the Fireball.");
+
+        // A small bestiary.
+        Creature orc  = addCreature("orc",    2, 12, 5, 8,  11, 12, 10,  6,  8,  5);
+        Creature trol = addCreature("troll",  3, 20, 9, 24, 18, 10, 16,  5,  7,  4);
+        addCreature("Balrog", 8, 34, 9, 120, 24, 16, 22, 18, 16, 30);
+
+        print("living creatures: " + livingCreatures());
+        print("");
+        print(renderLedger());
+
+        // ALTER: wound the orc, move the troll.
+        alterCreatureHp(orc.id, 0);          // slay the orc
+        alterCreaturePosition(trol.id, 21, 10);
+        print("");
+        print("after altering — living creatures: " + livingCreatures());
+
+        String blob = save();
+        print("");
+        print("SAVE blob (" + blob.length() + " chars), valid=" + looksValid(blob));
+        print("---- begin save ----");
+        print(blob);
+        print("---- end save ----");
+    }
+}

@@ -1,0 +1,259 @@
+#sleela 1.6
+//
+// Moria — The Spellbook
+// =====================
+// The arcane of the Mines, dressed up: SCHOOLS, TIERS, and a name-forge that
+// composes THOUSANDS of distinct spell names from a deterministic grammar
+//
+//     [Adjunct] [Root] of [Epithet]
+//
+// With 24 adjuncts x 32 roots x 24 epithets the forge names 18,432 unique
+// spells, each stably derived from an index, so a given index always yields the
+// same dressed-up name (determinism — the Careful Years of Time).
+//
+// The SIGNATURE spell is FIREBALL, whose damage is, by decree:
+//
+//     Fireball = 1d28 + 6 PER LEVEL
+//
+// i.e. one 28-sided die, plus six for every caster level. The dungeon supplies
+// the die roll from its own seeded stream so the whole book stays deterministic.
+//
+// No arrays: the word banks are index -> String lookups, and a cast spell is a
+// Spell struct the caller holds.
+
+// One prepared/known spell (reference struct).
+struct Spell {
+    int    id;        // stable index into the forge (0 .. CATALOG-1)
+    String name;      // the dressed-up name
+    int    school;    // SCHOOL_* below
+    int    tier;      // 1..9 (cantrip .. apocal)
+    boolean signature;// true for named signatures like Fireball
+}
+
+class MoriaSpells {
+
+    // --- Schools of magic --------------------------------------------------
+    static int SCHOOL_EVOCATION    = 1; // fire, frost, lightning — raw force
+    static int SCHOOL_ABJURATION   = 2; // wards and shields
+    static int SCHOOL_CONJURATION  = 3; // summoning and gating
+    static int SCHOOL_DIVINATION   = 4; // sight and the saving read
+    static int SCHOOL_NECROMANCY   = 5; // the dark below Moria
+    static int SCHOOL_ENCHANTMENT  = 6; // charm and compulsion
+    static int SCHOOL_TRANSMUTE    = 7; // shape and change
+    static int SCHOOL_ILLUSION     = 8; // torchlight lies
+
+    // --- Fireball's decree: 1d28 + 6 per level ----------------------------
+    static int FIREBALL_DIE   = 28;  // 1d28
+    static int FIREBALL_PERLV = 6;   // + 6 per level
+
+    // --- Name-forge banks (index -> word). THOUSANDS of combinations. ------
+    static int ADJUNCTS = 24;
+    static int ROOTS    = 32;
+    static int EPITHETS = 24;
+    // Catalog size = 24 * 32 * 24 = 18,432 distinct spells.
+
+    int catalogSize() { return ADJUNCTS * ROOTS * EPITHETS; }
+
+    String adjunct(int i) {
+        int k = i % ADJUNCTS;
+        if (k == 0)  { return "Greater"; }
+        if (k == 1)  { return "Lesser"; }
+        if (k == 2)  { return "Ancient"; }
+        if (k == 3)  { return "Elder"; }
+        if (k == 4)  { return "Searing"; }
+        if (k == 5)  { return "Frozen"; }
+        if (k == 6)  { return "Shadowed"; }
+        if (k == 7)  { return "Radiant"; }
+        if (k == 8)  { return "Veiled"; }
+        if (k == 9)  { return "Howling"; }
+        if (k == 10) { return "Silent"; }
+        if (k == 11) { return "Thunderous"; }
+        if (k == 12) { return "Umbral"; }
+        if (k == 13) { return "Gilded"; }
+        if (k == 14) { return "Runed"; }
+        if (k == 15) { return "Abyssal"; }
+        if (k == 16) { return "Hallowed"; }
+        if (k == 17) { return "Wyrm-touched"; }
+        if (k == 18) { return "Starlit"; }
+        if (k == 19) { return "Molten"; }
+        if (k == 20) { return "Glacial"; }
+        if (k == 21) { return "Spectral"; }
+        if (k == 22) { return "Dire"; }
+        return "Mithril";
+    }
+
+    String root(int i) {
+        int k = i % ROOTS;
+        if (k == 0)  { return "Fireball"; }
+        if (k == 1)  { return "Frostlance"; }
+        if (k == 2)  { return "Stormcall"; }
+        if (k == 3)  { return "Ward"; }
+        if (k == 4)  { return "Bolt"; }
+        if (k == 5)  { return "Nova"; }
+        if (k == 6)  { return "Sigil"; }
+        if (k == 7)  { return "Hex"; }
+        if (k == 8)  { return "Blessing"; }
+        if (k == 9)  { return "Rift"; }
+        if (k == 10) { return "Pyre"; }
+        if (k == 11) { return "Gale"; }
+        if (k == 12) { return "Mending"; }
+        if (k == 13) { return "Banishment"; }
+        if (k == 14) { return "Shroud"; }
+        if (k == 15) { return "Beacon"; }
+        if (k == 16) { return "Chains"; }
+        if (k == 17) { return "Torrent"; }
+        if (k == 18) { return "Ember"; }
+        if (k == 19) { return "Quake"; }
+        if (k == 20) { return "Mirror"; }
+        if (k == 21) { return "Veil"; }
+        if (k == 22) { return "Lantern"; }
+        if (k == 23) { return "Maw"; }
+        if (k == 24) { return "Thorn"; }
+        if (k == 25) { return "Comet"; }
+        if (k == 26) { return "Whisper"; }
+        if (k == 27) { return "Scourge"; }
+        if (k == 28) { return "Aegis"; }
+        if (k == 29) { return "Tempest"; }
+        if (k == 30) { return "Oblivion"; }
+        return "Starfall";
+    }
+
+    String epithet(int i) {
+        int k = i % EPITHETS;
+        if (k == 0)  { return "the Deep"; }
+        if (k == 1)  { return "Khazad-dum"; }
+        if (k == 2)  { return "the Balrog"; }
+        if (k == 3)  { return "the First Dawn"; }
+        if (k == 4)  { return "Fallen Kings"; }
+        if (k == 5)  { return "the Last Light"; }
+        if (k == 6)  { return "Riven Stone"; }
+        if (k == 7)  { return "the Endless Night"; }
+        if (k == 8)  { return "Seven Rings"; }
+        if (k == 9)  { return "the Dwarf-Lords"; }
+        if (k == 10) { return "the Silent Halls"; }
+        if (k == 11) { return "the Molten Core"; }
+        if (k == 12) { return "the Frozen Peak"; }
+        if (k == 13) { return "Hidden Mithril"; }
+        if (k == 14) { return "the Shadowmere"; }
+        if (k == 15) { return "the Watcher"; }
+        if (k == 16) { return "the Bridge"; }
+        if (k == 17) { return "Durin's Bane"; }
+        if (k == 18) { return "the Elder Days"; }
+        if (k == 19) { return "the Nameless Things"; }
+        if (k == 20) { return "the East Wind"; }
+        if (k == 21) { return "the Undying"; }
+        if (k == 22) { return "the Threshold"; }
+        return "the Careful Years";
+    }
+
+    // The dressed-up name for a catalog index.
+    String nameOf(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int a = i % ADJUNCTS;
+        int r = (i / ADJUNCTS) % ROOTS;
+        int e = (i / (ADJUNCTS * ROOTS)) % EPITHETS;
+        return adjunct(a) + " " + root(r) + " of " + epithet(e);
+    }
+
+    // The school a catalog index belongs to, from its root word.
+    int schoolOf(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int r = (i / ADJUNCTS) % ROOTS;
+        if (r == 0 || r == 4 || r == 5 || r == 10 || r == 18 || r == 25 || r == 29) {
+            return SCHOOL_EVOCATION;
+        }
+        if (r == 3 || r == 6 || r == 28) { return SCHOOL_ABJURATION; }
+        if (r == 9 || r == 23 || r == 30) { return SCHOOL_CONJURATION; }
+        if (r == 15 || r == 22) { return SCHOOL_DIVINATION; }
+        if (r == 7 || r == 27) { return SCHOOL_NECROMANCY; }
+        if (r == 16 || r == 26) { return SCHOOL_ENCHANTMENT; }
+        if (r == 19 || r == 24) { return SCHOOL_TRANSMUTE; }
+        return SCHOOL_ILLUSION;
+    }
+
+    // Tier 1..9 from the adjunct's "weight" and a spread over the catalog.
+    int tierOf(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int t = 1 + ((i / 97) % 9);
+        return t;
+    }
+
+    String schoolName(int school) {
+        if (school == SCHOOL_EVOCATION)   { return "Evocation"; }
+        if (school == SCHOOL_ABJURATION)  { return "Abjuration"; }
+        if (school == SCHOOL_CONJURATION) { return "Conjuration"; }
+        if (school == SCHOOL_DIVINATION)  { return "Divination"; }
+        if (school == SCHOOL_NECROMANCY)  { return "Necromancy"; }
+        if (school == SCHOOL_ENCHANTMENT) { return "Enchantment"; }
+        if (school == SCHOOL_TRANSMUTE)   { return "Transmutation"; }
+        return "Illusion";
+    }
+
+    // Build a Spell record for a catalog index.
+    Spell spellAt(int id) {
+        Spell s = new Spell();
+        s.id = id;
+        s.name = nameOf(id);
+        s.school = schoolOf(id);
+        s.tier = tierOf(id);
+        s.signature = false;
+        return s;
+    }
+
+    // ------------------------------------------------------------------
+    // FIREBALL — the signature. Damage = 1d28 + 6 per level.
+    //   dieRoll is a 1..28 value the caller draws from its seeded stream.
+    //   level is the caster level (>= 1). spellPower (from INT) adds on top.
+    // ------------------------------------------------------------------
+    Spell fireball() {
+        Spell s = new Spell();
+        s.id = 0;                 // index 0 is the Fireball root at adjunct 0
+        s.name = "Fireball";
+        s.school = SCHOOL_EVOCATION;
+        s.tier = 3;
+        s.signature = true;
+        return s;
+    }
+
+    int fireballDamage(int dieRoll, int level, int spellPower) {
+        int d = dieRoll;
+        if (d < 1) { d = 1; }
+        if (d > FIREBALL_DIE) { d = FIREBALL_DIE; }
+        int lv = level; if (lv < 1) { lv = 1; }
+        return d + FIREBALL_PERLV * lv + spellPower;   // 1d28 + 6/level (+INT)
+    }
+
+    // The written formula, for the sheet.
+    String fireballFormula() {
+        return "1d" + FIREBALL_DIE + " + " + FIREBALL_PERLV + " per level";
+    }
+
+    String describe(Spell s) {
+        String sig = "";
+        if (s.signature) { sig = " [signature]"; }
+        return "#" + s.id + "  " + s.name
+             + "  (" + schoolName(s.school) + ", tier " + s.tier + ")" + sig;
+    }
+
+    void main() {
+        print("Moria — The Spellbook");
+        print("Name-forge catalog: " + catalogSize() + " distinct spells.");
+        print("");
+        Spell fb = fireball();
+        print("Signature: " + describe(fb));
+        print("  Fireball damage = " + fireballFormula());
+        print("  e.g. die=19, level 5, INT power +2 => "
+            + fireballDamage(19, 5, 2) + " damage.");
+        print("");
+        print("A few dressed-up spells from the forge:");
+        int i = 0;
+        while (i < 8) {
+            int id = i * 2311 + 5;   // scatter across the catalog
+            print("  " + describe(spellAt(id)));
+            i = i + 1;
+        }
+    }
+}

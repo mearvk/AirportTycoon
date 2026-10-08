@@ -1,0 +1,203 @@
+#sleela 1.6
+//
+// Moria — Character Statistics
+// ============================
+// The six ability scores every Adventurer and creature of the Mines carries:
+//
+//   Strength (STR)      — the arm: melee damage and the heavy door.
+//   Dexterity (DEX)     — the hand: the swift strike and the dodge.
+//   Constitution (CON)  — the body: hit points and the long descent.
+//   Intelligence (INT)  — the mind: spell power and the arcane roll.
+//   Wisdom (WIS)        — the eye: perception, torch-sense, the saving throw.
+//   Character (CHR#)    — THE NUMBER. Not a vanity score: it is how TRUE the
+//                         rest of the numbers are. The higher the Character
+//                         Number, the smaller the gap between what a stat
+//                         APPEARS to be and what it TRULY is — and the more
+//                         honestly the sheet reads a life and its real choices.
+//
+// A single #sleela 1.6 struct holds a stat block; the StatBook class is the
+// behaviour (modifiers, the Character-Number truth model, rolls, and a compact
+// serialization for the save system). No arrays — scalars and structs only.
+
+// One ability-score block (reference struct, array-free).
+struct StatBlock {
+    int str;
+    int dex;
+    int con;
+    int intel;   // "int" is reserved as a type; the field is intel.
+    int wis;
+    int chr;     // Character — the Number
+}
+
+class MoriaStats {
+
+    // Ability-score bounds. Classic 3..18 at the low end, but heroes and the
+    // deep things of Moria climb far past mortal 18.
+    static int STAT_MIN = 1;
+    static int STAT_MAX = 40;
+
+    // The Character Number's own ceiling. At CHR_TRUE_FLOOR the sheet is wholly
+    // honest (no deviation); below it, apparent numbers drift from the truth.
+    static int CHR_TRUE_FLOOR = 25;   // at/above this, numbers are fully true
+
+    // ------------------------------------------------------------------
+    // Construction
+    // ------------------------------------------------------------------
+    StatBlock make(int str, int dex, int con, int intel, int wis, int chr) {
+        StatBlock s = new StatBlock();
+        s.str   = clampStat(str);
+        s.dex   = clampStat(dex);
+        s.con   = clampStat(con);
+        s.intel = clampStat(intel);
+        s.wis   = clampStat(wis);
+        s.chr   = clampStat(chr);
+        return s;
+    }
+
+    // A rolled stat block from a seed-advancing roller supplied by the caller.
+    // (The dungeon passes its own RNG value in; this keeps determinism in one
+    // place — the dungeon's seeded stream.)
+    StatBlock fromSeeded(int a, int b, int c, int d, int e, int f) {
+        return make(statFromRaw(a), statFromRaw(b), statFromRaw(c),
+                    statFromRaw(d), statFromRaw(e), statFromRaw(f));
+    }
+
+    // Fold a raw seeded int into a 3..18-ish ability score (4d6-drop-low feel).
+    int statFromRaw(int raw) {
+        int v = raw; if (v < 0) { v = 0 - v; }
+        int d1 = 1 + (v % 6); v = v / 6;
+        int d2 = 1 + (v % 6); v = v / 6;
+        int d3 = 1 + (v % 6); v = v / 6;
+        int d4 = 1 + (v % 6);
+        int lo = d1;
+        if (d2 < lo) { lo = d2; }
+        if (d3 < lo) { lo = d3; }
+        if (d4 < lo) { lo = d4; }
+        return d1 + d2 + d3 + d4 - lo;   // drop the lowest die -> 3..18
+    }
+
+    int clampStat(int v) {
+        if (v < STAT_MIN) { return STAT_MIN; }
+        if (v > STAT_MAX) { return STAT_MAX; }
+        return v;
+    }
+
+    // ------------------------------------------------------------------
+    // Modifiers — the classic (score - 10) / 2.
+    // ------------------------------------------------------------------
+    int modifier(int score) {
+        int d = score - 10;
+        if (d < 0) { return (d - 1) / 2; }   // floor toward negative
+        return d / 2;
+    }
+
+    int strMod(StatBlock s) { return modifier(s.str); }
+    int dexMod(StatBlock s) { return modifier(s.dex); }
+    int conMod(StatBlock s) { return modifier(s.con); }
+    int intMod(StatBlock s) { return modifier(s.intel); }
+    int wisMod(StatBlock s) { return modifier(s.wis); }
+
+    // ------------------------------------------------------------------
+    // THE CHARACTER NUMBER — the truth model.
+    // The deviation band is how far an apparent number may stray from its true
+    // value. At CHR >= CHR_TRUE_FLOOR the band is 0 (fully true). Below it, the
+    // band widens one point for roughly every ~3 points of Character missing.
+    // ------------------------------------------------------------------
+    int truthBand(StatBlock s) {
+        int missing = CHR_TRUE_FLOOR - s.chr;
+        if (missing <= 0) { return 0; }      // a high Character Number: all true
+        int band = (missing + 2) / 3;        // widen gently as Character falls
+        if (band > 6) { band = 6; }          // never more than a wild guess
+        return band;
+    }
+
+    // How true the sheet is, as a 0..100 "truth percent" for display.
+    int truthPercent(StatBlock s) {
+        int band = truthBand(s);
+        int pct = 100 - band * 15;
+        if (pct < 10) { pct = 10; }
+        return pct;
+    }
+
+    boolean numbersAreTrue(StatBlock s) { return truthBand(s) == 0; }
+
+    // The APPARENT value of a stat: the true value nudged by a deterministic
+    // amount within the truth band (a low Character Number cannot read himself
+    // honestly). `salt` lets each stat deviate differently; `seedish` ties the
+    // nudge to the character so it is stable, not random noise.
+    int apparent(int trueValue, StatBlock s, int salt, int seedish) {
+        int band = truthBand(s);
+        if (band == 0) { return trueValue; }
+        int span = band * 2 + 1;
+        int h = seedish + salt * 2654435761;
+        if (h < 0) { h = 0 - h; }
+        int off = (h % span) - band;         // -band .. +band
+        int v = trueValue + off;
+        return clampStat(v);
+    }
+
+    // A life/choice read whose honesty scales with the Character Number.
+    String lifeRead(StatBlock s) {
+        if (numbersAreTrue(s)) {
+            return "Character " + s.chr + ": the sheet reads TRUE — his life and "
+                 + "his choices are exactly as the numbers say.";
+        }
+        return "Character " + s.chr + ": the sheet reads ~" + truthPercent(s)
+             + "% true — the numbers blur his real life and choices by up to +/- "
+             + truthBand(s) + ".";
+    }
+
+    // ------------------------------------------------------------------
+    // Derived helpers the dungeon uses.
+    // ------------------------------------------------------------------
+    // Hit points a Constitution score grants per level (the body endures).
+    int hpPerLevel(StatBlock s) {
+        int m = conMod(s);
+        int hp = 6 + m;                      // a d? base plus the CON modifier
+        if (hp < 1) { hp = 1; }
+        return hp;
+    }
+
+    // Spell power bonus from Intelligence (added to arcane damage/levels).
+    int spellPower(StatBlock s) {
+        int m = intMod(s);
+        if (m < 0) { return 0; }
+        return m;
+    }
+
+    // ------------------------------------------------------------------
+    // Serialization for the save system: a compact pipe field.
+    // ------------------------------------------------------------------
+    String serialize(StatBlock s) {
+        return "STATS|str=" + s.str + "|dex=" + s.dex + "|con=" + s.con
+             + "|int=" + s.intel + "|wis=" + s.wis + "|chr=" + s.chr;
+    }
+
+    String describe(StatBlock s) {
+        return "STR " + s.str + "  DEX " + s.dex + "  CON " + s.con
+             + "  INT " + s.intel + "  WIS " + s.wis + "  CHR# " + s.chr
+             + "   (truth " + truthPercent(s) + "%)";
+    }
+
+    void main() {
+        print("Moria — Character Statistics");
+        print("STR / DEX / CON / INT / WIS / CHR# (the Number)");
+
+        // A green recruit with a low Character Number: his sheet lies to him.
+        StatBlock recruit = make(13, 12, 11, 10, 9, 8);
+        print("");
+        print("Recruit:  " + describe(recruit));
+        print("  " + lifeRead(recruit));
+        print("  apparent STR he believes: "
+            + apparent(recruit.str, recruit, 1, 1428)
+            + " (true " + recruit.str + ")");
+
+        // A seasoned hero whose Character Number is high: every number is true.
+        StatBlock hero = make(17, 16, 16, 14, 15, 28);
+        print("");
+        print("Veteran:  " + describe(hero));
+        print("  " + lifeRead(hero));
+        print("  hp/level from CON: " + hpPerLevel(hero)
+            + "   spell power from INT: " + spellPower(hero));
+    }
+}

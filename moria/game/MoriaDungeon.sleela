@@ -113,6 +113,15 @@ class MoriaDungeon {
     boolean alive;
     boolean descended;       // crossed all eight levels and survived
 
+    // ---- RPG layer: stats, level, the Fireball, the saved book ------------
+    MoriaStats   statLib;    // the stat library (modifiers + Character-Number)
+    StatBlock    stats;      // the hero's six ability scores (incl. Constitution)
+    MoriaSpells  spellLib;   // the spellbook (names thousands; owns the Fireball)
+    MoriaWeapons armoury;    // the armoury (names thousands; many +4 or greater)
+    MoriaSave    book;       // Save / Load / Alter + the leveling ledger
+    int          level;      // the Adventurer's experience level (grows on descent)
+    Weapon       weapon;     // the hero's current weapon (forged on descent)
+
     // ---- Per-level derived geometry (computed in carveLevel) --------------
     int stairX;
     int stairY;
@@ -145,8 +154,6 @@ class MoriaDungeon {
         logCount = 0;
         turns = 0;
         depth = 1;
-        maxHealth = 30;
-        health = maxHealth;
         torch = 6;
         gold = 0;
         monstersSlain = 0;
@@ -154,10 +161,35 @@ class MoriaDungeon {
         descended = false;
         figures = null;
         figureCount = 0;
+
+        // --- RPG layer: roll the six stats, set the level, forge a weapon ---
+        statLib = new MoriaStats();
+        spellLib = new MoriaSpells();
+        armoury = new MoriaWeapons();
+        book = new MoriaSave();
+        book.begin();
+        level = 1;
+        // Roll the six ability scores from the seeded stream (STR DEX CON INT
+        // WIS CHR#). Each draw advances the deterministic RNG.
+        stats = statLib.fromSeeded(nextRng(), nextRng(), nextRng(),
+                                   nextRng(), nextRng(), nextRng());
+        // Hit points come from Constitution: a base plus CON per level.
+        maxHealth = 24 + statLib.hpPerLevel(stats);
+        health = maxHealth;
+        // A starting weapon, forged for depth 1.
+        weapon = armoury.forge(nextRng() % armoury.catalogSize(), 1);
+        // Record the first level in the saved leveling ledger.
+        book.recordLevel(1, maxHealth, 0, "Entered the Mines of Moria.");
+
         carveLevel();
         musterFellowship();
         say("You step into the Mines of Moria. The dark is patient.");
         say("Depth 1. Your torch throws a small, brave circle of light.");
+        say(heroName + ": " + statLib.describe(stats));
+        say(statLib.lifeRead(stats));
+        say("You carry the " + weapon.name + " (d" + weapon.dieSides
+            + " +" + weapon.bonus + ").");
+        say("You know the Fireball: " + spellLib.fireballFormula() + ".");
         say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
     }
 
@@ -470,19 +502,42 @@ class MoriaDungeon {
     // =======================================================================
 
     boolean fight(int x, int y, String kind, int threat) {
-        int hit = roll(1, 20);
-        int dmg = roll(1, threat);
+        // To-hit uses Dexterity; damage uses the forged weapon + Strength.
+        int hit = roll(1, 20) + statLib.dexMod(stats);
         if (hit >= 8) {
-            say("You strike the " + kind + " — it falls into the dust.");
+            int wdmg = armoury.damage(weapon, roll(1, weapon.dieSides),
+                                      statLib.strMod(stats));
+            say("You strike the " + kind + " with the " + weapon.name
+                + " for " + wdmg + " — it falls into the dust.");
             setChange(x, y, G_FLOOR);
             stepHeroTo(x, y);
             monstersSlain = monstersSlain + 1;
             return true;
         }
+        int dmg = roll(1, threat);
         health = health - dmg;
         say("The " + kind + " lands a blow for " + dmg + ". (" + health + " HP)");
         if (health <= 0) { die("the " + kind); }
         return false;
+    }
+
+    // =======================================================================
+    // The Fireball — the signature spell. Damage = 1d28 + 6 per level (+INT).
+    // Returns the damage dealt; a target monster at (x,y) is cleared if slain.
+    // =======================================================================
+    int castFireball(int x, int y) {
+        if (!alive) { return 0; }
+        int die = roll(1, spellLib.FIREBALL_DIE);        // 1d28
+        int dmg = spellLib.fireballDamage(die, level, statLib.spellPower(stats));
+        say("You cast FIREBALL (" + spellLib.fireballFormula()
+            + ") — a roaring bloom of flame for " + dmg + " damage.");
+        String there = cell(x, y);
+        if (there == G_ORC || there == G_TROLL || there == G_BALROG) {
+            setChange(x, y, G_FLOOR);
+            monstersSlain = monstersSlain + 1;
+            say("The flame takes the " + there + ". It is unmade.");
+        }
+        return dmg;
     }
 
     boolean fightBalrog(int x, int y) {
@@ -521,11 +576,28 @@ class MoriaDungeon {
             return;
         }
         depth = depth + 1;
-        int heal = roll(3, 8);
+
+        // --- Level up: the body endures by Constitution --------------------
+        level = level + 1;
+        int hpGain = statLib.hpPerLevel(stats);  // CON-driven HP per level
+        maxHealth = maxHealth + hpGain;
+        int heal = roll(3, 8) + hpGain;
         health = health + heal;
         if (health > maxHealth) { health = maxHealth; }
+        // A fresh weapon is scavenged from the deeper hall (often +4 or greater).
+        Weapon found = armoury.forge(nextRng() % armoury.catalogSize(), depth);
+        boolean upgraded = false;
+        if (found.bonus >= weapon.bonus) { weapon = found; upgraded = true; }
+        // Record this level-up in the SAVED leveling ledger.
+        book.recordLevel(level, hpGain, 3,
+            "Descended to depth " + depth + " (CON granted +" + hpGain + " HP).");
+
         say("You take the stair down. Depth " + depth
-            + ". You catch your breath (+" + heal + " HP).");
+            + ". Level " + level + " — you catch your breath (+" + heal + " HP).");
+        if (upgraded) {
+            say("Deep in the rubble you find the " + found.name
+                + " (d" + found.dieSides + " +" + found.bonus + ") — you take it up.");
+        }
         carveLevel();
         remusterForDepth();      // the Fellowship follows you down the Mines
         if (depth == 4) {
@@ -631,7 +703,8 @@ class MoriaDungeon {
 
     // The HUD status line.
     String statusLine() {
-        return heroName + "  depth " + depth + "/8   HP " + health + "/" + maxHealth
+        return heroName + "  L" + level + "   depth " + depth + "/8   HP "
+             + health + "/" + maxHealth
              + "   gold " + gold + "   slain " + monstersSlain
              + "   torch " + torch + "   turn " + turns;
     }
@@ -656,6 +729,57 @@ class MoriaDungeon {
     // the GUI and the self-check — no hero/figure overlay.
     String cellGlyph(int x, int y) { return cell(x, y); }
     boolean isAlive() { return alive; }
+
+    // --- RPG query accessors (stats, level, weapon, spell) -----------------
+    int level_() { return level; }
+    int statStr() { return stats.str; }
+    int statDex() { return stats.dex; }
+    int statCon() { return stats.con; }   // Constitution
+    int statInt() { return stats.intel; }
+    int statWis() { return stats.wis; }
+    int statChr() { return stats.chr; }   // Character — the Number
+    int truthPercent() { return statLib.truthPercent(stats); }
+    boolean numbersTrue() { return statLib.numbersAreTrue(stats); }
+    String statLine() { return statLib.describe(stats); }
+    String weaponName() { return weapon.name; }
+    int weaponBonus() { return weapon.bonus; }
+    boolean weaponFinePlus() { return weapon.bonus >= 4; }
+    String fireballFormula() { return spellLib.fireballFormula(); }
+    // The Fireball damage for a given die roll at the hero's current level.
+    int fireballDamageFor(int dieRoll) {
+        return spellLib.fireballDamage(dieRoll, level, statLib.spellPower(stats));
+    }
+
+    // =======================================================================
+    // Save / Load / Alter — persist the hero and the dungeon's creatures,
+    // keeping the saved previous leveling work.
+    // =======================================================================
+
+    // Sync the current hero + the live creatures (figures and the base
+    // monsters near the hero) into the save book, then serialize to a blob.
+    String saveGame() {
+        book.setCharacter(heroName, level, gold, statLib.serialize(stats));
+        // Record the figuring pieces as saveable creatures.
+        int i = 0;
+        while (i < figureCount) {
+            Figure f = figureIndex(i);
+            if (f != null && f.active) {
+                book.addCreature(f.name, depth, f.x, f.y, 20,
+                    12, 12, 12, 10, 10, 20);
+            }
+            i = i + 1;
+        }
+        return book.save();
+    }
+
+    // ALTER a saved creature's stats through the book (Save/Load/Alter).
+    boolean alterCreatureStats(int id, int s, int d, int c, int in, int w, int ch) {
+        return book.alterCreatureStats(id, s, d, c, in, w, ch);
+    }
+
+    int savedLevels() { return book.levelsRecorded(); }
+    String savedLedger() { return book.renderLedger(); }
+    boolean saveLooksValid(String blob) { return book.looksValid(blob); }
     boolean hasWon() { return descended; }
     boolean over() { return !alive || descended; }
 
@@ -743,6 +867,12 @@ class MoriaDungeon {
         print(renderGrid());
         print("");
         print(statusLine());
+        print("");
+        print("Character sheet — level " + level_());
+        print("  " + statLine());
+        print("  weapon: " + weaponName() + "   fireball: " + fireballFormula());
+        print("");
+        print(savedLedger());
         print("");
         print(renderRoster());
         print("");

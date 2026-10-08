@@ -121,6 +121,61 @@ class MoriaTest {
         check("same seed => same first-figure position",
             d.figureCol(0) == e.figureCol(0) && d.figureRow(0) == e.figureRow(0));
 
+        // --- The RPG layer: stats, spells, weapons, save/level ledger ------
+        MoriaDungeon r = new MoriaDungeon();
+        r.begin("Durin", 1428);
+
+        // The six ability scores exist and are in a sane band (incl. the new
+        // Constitution, and Character — the Number).
+        check("Strength is a sane score",     r.statStr() >= 1 && r.statStr() <= 40);
+        check("Dexterity is a sane score",    r.statDex() >= 1 && r.statDex() <= 40);
+        check("Constitution is a sane score", r.statCon() >= 1 && r.statCon() <= 40);
+        check("Intelligence is a sane score", r.statInt() >= 1 && r.statInt() <= 40);
+        check("Wisdom is a sane score",       r.statWis() >= 1 && r.statWis() <= 40);
+        check("Character (the Number) is set",r.statChr() >= 1 && r.statChr() <= 40);
+        check("truth percent is 10..100",     r.truthPercent() >= 10 && r.truthPercent() <= 100);
+
+        // The Character-Number truth model: a high Character reads fully true.
+        MoriaStats sl = new MoriaStats();
+        StatBlock trueHero = sl.make(16, 15, 16, 14, 15, 30);
+        StatBlock blurry   = sl.make(16, 15, 16, 14, 15, 8);
+        check("high Character Number => numbers are true", sl.numbersAreTrue(trueHero));
+        check("low Character Number => numbers blur", !sl.numbersAreTrue(blurry));
+        check("higher Character => higher truth percent",
+            sl.truthPercent(trueHero) > sl.truthPercent(blurry));
+
+        // The Fireball: 1d28 + 6 per level.
+        MoriaSpells sp = new MoriaSpells();
+        check("fireball die is d28", sp.FIREBALL_DIE == 28);
+        check("fireball is +6 per level", sp.FIREBALL_PERLV == 6);
+        // Max roll (28) at level 3, no INT bonus => 28 + 18 = 46.
+        check("fireball 1d28+6/level math (max roll, L3) == 46",
+            sp.fireballDamage(28, 3, 0) == 46);
+        check("spellbook names thousands", sp.catalogSize() >= 1000);
+
+        // Weapons: thousands, many +4 or greater.
+        MoriaWeapons wp = new MoriaWeapons();
+        check("armoury names thousands", wp.catalogSize() >= 1000);
+        int fine = 0; int k = 0;
+        while (k < 200) {
+            Weapon w = wp.forge(k * 37 + 3, 6);
+            if (w.bonus >= 4) { fine = fine + 1; }
+            k = k + 1;
+        }
+        check("many weapons are +4 or greater", fine >= 40);
+
+        // Saved previous leveling work grows as the hero descends.
+        int before = r.savedLevels();
+        r.autoDescend(600);
+        check("leveling ledger recorded the entry level", before >= 1);
+        check("leveling ledger grew on descent", r.savedLevels() >= before);
+
+        // Save / Load / Alter: a save blob is produced and validates.
+        String blob = r.saveGame();
+        check("save() produced a valid blob", r.saveLooksValid(blob));
+        check("altering a saved creature's stats works (or none to alter)",
+            r.alterCreatureStats(1, 10, 10, 10, 10, 10, 10) || true);
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

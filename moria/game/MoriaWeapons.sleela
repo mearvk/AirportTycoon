@@ -1,0 +1,225 @@
+#sleela 1.6
+//
+// Moria — The Armoury
+// ===================
+// The arms of the Mines, dressed up: a name-forge that composes THOUSANDS of
+// distinct weapon names from a deterministic grammar
+//
+//     [Material] [Form] of [Legend]   (+N)
+//
+// With 20 materials x 28 forms x 24 legends the forge names 13,440 base weapons,
+// each with an enchantment bonus (+N). MANY are +4 OR GREATER: the bonus is
+// derived so the upper tiers of the catalog are richly enchanted, and the finds
+// deep in Moria run +4..+9. Every name is stable for its index (determinism).
+//
+// No arrays: index -> String banks, and a forged weapon is a Weapon struct.
+
+// One weapon (reference struct).
+struct Weapon {
+    int    id;       // stable catalog index
+    String name;     // the dressed-up name, bonus included
+    int    dieSides; // damage die (d6, d8, d10, d12, ...)
+    int    bonus;    // the +N enchantment (0..9); many are +4 or greater
+    int    weight;   // a flavour weight class 1..5
+}
+
+class MoriaWeapons {
+
+    static int MATERIALS = 20;
+    static int FORMS     = 28;
+    static int LEGENDS   = 24;
+    // Catalog size = 20 * 28 * 24 = 13,440 distinct base weapons.
+
+    int catalogSize() { return MATERIALS * FORMS * LEGENDS; }
+
+    String material(int i) {
+        int k = i % MATERIALS;
+        if (k == 0)  { return "Mithril"; }
+        if (k == 1)  { return "Dwarf-steel"; }
+        if (k == 2)  { return "Star-iron"; }
+        if (k == 3)  { return "Black-iron"; }
+        if (k == 4)  { return "Elven-silver"; }
+        if (k == 5)  { return "Dragonbone"; }
+        if (k == 6)  { return "Adamant"; }
+        if (k == 7)  { return "Gold-runed"; }
+        if (k == 8)  { return "Frost-forged"; }
+        if (k == 9)  { return "Ember-forged"; }
+        if (k == 10) { return "Moonstone"; }
+        if (k == 11) { return "Obsidian"; }
+        if (k == 12) { return "Ancient-bronze"; }
+        if (k == 13) { return "Troll-cut"; }
+        if (k == 14) { return "Deep-delved"; }
+        if (k == 15) { return "Rune-etched"; }
+        if (k == 16) { return "Sun-tempered"; }
+        if (k == 17) { return "Shadow-quenched"; }
+        if (k == 18) { return "Hallowed"; }
+        return "Wyrmforged";
+    }
+
+    String form(int i) {
+        int k = i % FORMS;
+        if (k == 0)  { return "Longsword"; }
+        if (k == 1)  { return "Warhammer"; }
+        if (k == 2)  { return "Battleaxe"; }
+        if (k == 3)  { return "Greatsword"; }
+        if (k == 4)  { return "Mace"; }
+        if (k == 5)  { return "Dagger"; }
+        if (k == 6)  { return "Spear"; }
+        if (k == 7)  { return "Halberd"; }
+        if (k == 8)  { return "Flail"; }
+        if (k == 9)  { return "Glaive"; }
+        if (k == 10) { return "Mattock"; }
+        if (k == 11) { return "Warpick"; }
+        if (k == 12) { return "Scimitar"; }
+        if (k == 13) { return "Maul"; }
+        if (k == 14) { return "Rapier"; }
+        if (k == 15) { return "Cleaver"; }
+        if (k == 16) { return "Morningstar"; }
+        if (k == 17) { return "Trident"; }
+        if (k == 18) { return "Falchion"; }
+        if (k == 19) { return "Broadaxe"; }
+        if (k == 20) { return "Khopesh"; }
+        if (k == 21) { return "Partisan"; }
+        if (k == 22) { return "Zweihander"; }
+        if (k == 23) { return "Hatchet"; }
+        if (k == 24) { return "Longaxe"; }
+        if (k == 25) { return "Warblade"; }
+        if (k == 26) { return "Bardiche"; }
+        return "Greataxe";
+    }
+
+    String legend(int i) {
+        int k = i % LEGENDS;
+        if (k == 0)  { return "Durin"; }
+        if (k == 1)  { return "the Deep"; }
+        if (k == 2)  { return "the Balrog-slayer"; }
+        if (k == 3)  { return "Seven Fathers"; }
+        if (k == 4)  { return "Khazad-dum"; }
+        if (k == 5)  { return "the First Forge"; }
+        if (k == 6)  { return "the Lonely Mountain"; }
+        if (k == 7)  { return "Fallen Kings"; }
+        if (k == 8)  { return "the Last Stand"; }
+        if (k == 9)  { return "Riven Stone"; }
+        if (k == 10) { return "the Silent Deep"; }
+        if (k == 11) { return "the Molten Heart"; }
+        if (k == 12) { return "Hidden Veins"; }
+        if (k == 13) { return "the Watcher"; }
+        if (k == 14) { return "the Bridge of Moria"; }
+        if (k == 15) { return "the Elder Days"; }
+        if (k == 16) { return "the Nameless Dark"; }
+        if (k == 17) { return "the East Wind"; }
+        if (k == 18) { return "the Undying Flame"; }
+        if (k == 19) { return "the Threshold"; }
+        if (k == 20) { return "Mithril Hall"; }
+        if (k == 21) { return "the Dwarf-Lords"; }
+        if (k == 22) { return "the Careful Years"; }
+        return "Dawn's Edge";
+    }
+
+    // The enchantment bonus +N for a catalog index. Spread so MANY are +4 or
+    // greater: the top ~40% of the catalog carry +4..+9, and deeper finds skew
+    // high. 0..3 for the common, 4..9 for the fine and the legendary.
+    int bonusOf(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int band = (i * 10 / n);             // 0..9 position band
+        if (band <= 2) { return i % 4; }     // common: +0..+3
+        if (band <= 5) { return 4 + (i % 3); } // fine:   +4..+6
+        return 6 + (i % 4);                   // legendary: +6..+9
+    }
+
+    // Deeper levels of Moria upgrade a find's bonus — depth 8 can mint +9s.
+    int bonusAtDepth(int id, int depth) {
+        int b = bonusOf(id);
+        int bump = depth / 2;                 // +1 per two levels of descent
+        int v = b + bump;
+        if (v > 9) { v = 9; }
+        return v;
+    }
+
+    int dieOf(int id) {
+        int f = (id / MATERIALS) % FORMS;
+        // Heavier forms, bigger dice.
+        if (f == 3 || f == 13 || f == 22 || f == 27) { return 12; } // great weapons
+        if (f == 1 || f == 2 || f == 7 || f == 19 || f == 24) { return 10; }
+        if (f == 5) { return 4; }             // dagger
+        if (f == 0 || f == 12 || f == 14) { return 8; }
+        return 8;
+    }
+
+    int weightOf(int id) {
+        int f = (id / MATERIALS) % FORMS;
+        if (f == 3 || f == 22 || f == 27) { return 5; }
+        if (f == 5 || f == 23) { return 1; }
+        return 3;
+    }
+
+    // The dressed-up base name (no bonus suffix).
+    String baseName(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int m = i % MATERIALS;
+        int f = (i / MATERIALS) % FORMS;
+        int l = (i / (MATERIALS * FORMS)) % LEGENDS;
+        return material(m) + " " + form(f) + " of " + legend(l);
+    }
+
+    String plusTag(int bonus) {
+        if (bonus <= 0) { return ""; }
+        return " +" + bonus;
+    }
+
+    // Forge the weapon at a catalog index, enchanted for a given depth.
+    Weapon forge(int id, int depth) {
+        Weapon w = new Weapon();
+        w.id = id;
+        w.bonus = bonusAtDepth(id, depth);
+        w.dieSides = dieOf(id);
+        w.weight = weightOf(id);
+        w.name = baseName(id) + plusTag(w.bonus);
+        return w;
+    }
+
+    // Total melee damage of a weapon for a given die roll and Strength modifier.
+    int damage(Weapon w, int dieRoll, int strMod) {
+        int d = dieRoll;
+        if (d < 1) { d = 1; }
+        if (d > w.dieSides) { d = w.dieSides; }
+        int total = d + w.bonus + strMod;
+        if (total < 1) { total = 1; }
+        return total;
+    }
+
+    boolean isFinePlus(Weapon w) { return w.bonus >= 4; }   // +4 or greater
+
+    String serialize(Weapon w) {
+        return "WEAPON|id=" + w.id + "|die=" + w.dieSides
+             + "|bonus=" + w.bonus + "|weight=" + w.weight;
+    }
+
+    String describe(Weapon w) {
+        String fine = "";
+        if (isFinePlus(w)) { fine = "  <<+4 or greater>>"; }
+        return "#" + w.id + "  " + w.name
+             + "  (d" + w.dieSides + " +" + w.bonus + ", wt " + w.weight + ")" + fine;
+    }
+
+    void main() {
+        print("Moria — The Armoury");
+        print("Name-forge catalog: " + catalogSize() + " distinct weapons.");
+        print("Many are +4 or greater; the deep levels mint the legendary.");
+        print("");
+        print("A few forged arms (depth 6):");
+        int i = 0;
+        int finePlus = 0;
+        while (i < 10) {
+            int id = i * 1337 + 11;      // scatter across the catalog
+            Weapon w = forge(id, 6);
+            if (isFinePlus(w)) { finePlus = finePlus + 1; }
+            print("  " + describe(w));
+            i = i + 1;
+        }
+        print("");
+        print(finePlus + " of those 10 were +4 or greater.");
+    }
+}
