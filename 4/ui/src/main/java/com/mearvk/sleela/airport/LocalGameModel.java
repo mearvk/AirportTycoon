@@ -87,6 +87,19 @@ public final class LocalGameModel implements SleelaRuntime {
     private int nextPlaneId;
     private boolean gameOver;
 
+    // Edition 3: Platinum Ascension / Prosperity Contract.
+    static final int CONTRACT_GOAL = 5;
+    static final int CONTRACT_DEADLINE = 240;
+    static final int CONTRACT_BONUS = 500;
+    static final int CONTRACT_REP_BONUS = 2;
+    static final int CONTRACT_EARLY_TICKS = 120;
+    static final int CONTRACT_EARLY_BONUS = 250;
+    static final int CONTRACT_EARLY_REP_BONUS = 1;
+    private int contractTargetSize;
+    private int contractProgress;
+    private int contractDeadline;
+    private int contractsCompleted;
+
     // Edition 2 feedback-loop state.
     private int streak;        // consecutive on-time departures (resets on abandon)
     private int comboTips;     // cash earned from combo milestones this shift
@@ -113,6 +126,10 @@ public final class LocalGameModel implements SleelaRuntime {
         openRunways = 1;
         nextPlaneId = 1;
         gameOver = false;
+        contractTargetSize = 0;
+        contractProgress = 0;
+        contractDeadline = CONTRACT_DEADLINE;
+        contractsCompleted = 0;
         streak = 0;
         comboTips = 0;
 
@@ -392,6 +409,17 @@ public final class LocalGameModel implements SleelaRuntime {
         }
         tick++;
 
+        // Edition 3 contract deadline. Expiry rotates the target and resets
+        // progress; it does not directly damage reputation.
+        if (contractDeadline > 0) {
+            contractDeadline--;
+        }
+        if (contractDeadline <= 0) {
+            contractProgress = 0;
+            contractTargetSize = (contractTargetSize + 1) % 3;
+            contractDeadline = CONTRACT_DEADLINE;
+        }
+
         for (Runway r : runways) {
             if (r.cooldown > 0) {
                 r.cooldown--;
@@ -489,6 +517,25 @@ public final class LocalGameModel implements SleelaRuntime {
             }
             cash += fareFor(p.sizeClass);
             served++;
+
+            // Edition 3 Prosperity Contract.
+            if (p.sizeClass == contractTargetSize) {
+                contractProgress++;
+                if (contractProgress >= CONTRACT_GOAL) {
+                    cash += CONTRACT_BONUS;
+                    // Fast completion earns a quality bonus as well.
+                    if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
+                        cash += CONTRACT_EARLY_BONUS;
+                        reputation = Math.min(100, reputation + CONTRACT_EARLY_REP_BONUS);
+                    }
+                    reputation = Math.min(100, reputation + CONTRACT_REP_BONUS);
+                    contractsCompleted++;
+                    contractProgress = 0;
+                    contractTargetSize = (contractTargetSize + 1) % 3;
+                    contractDeadline = CONTRACT_DEADLINE;
+                }
+            }
+
             if (reputation < 100) {
                 reputation++;
             }
@@ -538,7 +585,10 @@ public final class LocalGameModel implements SleelaRuntime {
         }
         return new GameSnapshot(tick, cash, reputation, served, lost,
                 openGates, openRunways, planes.size(), gameOver, views,
-                streak, servicePremiumPct());
+                streak, servicePremiumPct(), contractTargetSize,
+                contractProgress, CONTRACT_GOAL, contractDeadline,
+                contractsCompleted, CONTRACT_EARLY_TICKS, CONTRACT_EARLY_BONUS,
+                contractChain, CONTRACT_LADDER_STEP, CONTRACT_LADDER_CAP);
     }
 
     @Override
@@ -566,4 +616,11 @@ public final class LocalGameModel implements SleelaRuntime {
     int comboTips() {
         return comboTips;
     }
+
+    int contractTargetSize() { return contractTargetSize; }
+    int contractProgress() { return contractProgress; }
+    int contractDeadline() { return contractDeadline; }
+    int contractsCompleted() { return contractsCompleted; }
+    int contractEarlyTicks() { return CONTRACT_EARLY_TICKS; }
+    int contractChain() { return contractChain; }
 }
