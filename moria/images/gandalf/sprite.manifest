@@ -1,0 +1,23 @@
+# sprite manifest for gandalf
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	gandalf-start.png	320x480
+frame	start	top	gandalf-start-top.png	320x480
+frame	start	down	gandalf-start-down.png	320x480
+frame	start	left	gandalf-start-left.png	320x480
+frame	start	right	gandalf-start-right.png	320x480
+frame	mid	gandalf-mid.png	320x480
+frame	mid	top	gandalf-mid-top.png	320x480
+frame	mid	down	gandalf-mid-down.png	320x480
+frame	mid	left	gandalf-mid-left.png	320x480
+frame	mid	right	gandalf-mid-right.png	320x480
+frame	end	gandalf-end.png	320x480
+frame	stop	gandalf-stop.png	320x480	(alias of end)
+frame	end	top	gandalf-end-top.png	320x480
+frame	end	down	gandalf-end-down.png	320x480
+frame	end	left	gandalf-end-left.png	320x480
+frame	stop	left	gandalf-stop-left.png	320x480	(alias of end)
+frame	end	right	gandalf-end-right.png	320x480
+frame	stop	right	gandalf-stop-right.png	320x480	(alias of end)
