@@ -1,3 +1,5 @@
+<img src="images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition
 
 A fun, fast-paced air-traffic game built to run on
