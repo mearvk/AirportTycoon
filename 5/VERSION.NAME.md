@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Edition 5 — *Imperial Horizons*
 
 > **Version:** 5
