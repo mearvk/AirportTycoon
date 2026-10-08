@@ -133,3 +133,17 @@ The named fleets are:
 23. World Meridian Fleet
 
 The registry intentionally calculates maintenance per aircraft rather than assigning one flat maintenance bill to an entire fleet. This lets a fleet contain aircraft at different ages, service intervals, and upcoming-cost positions.
+
+
+## Fleet management standard — Edition 2
+
+This edition carries a one-time source/config roll for its airline fleet. The values are stable until deliberately changed by management.
+
+- Rolled active planes: **198**
+- Rolled use rating: **76/100**
+- Maintenance Engineer threshold: **below 85/100**
+- Version-level growth rule: **+50 planes per airline per edition level**, subject to the 80–320 operating range.
+- Employee rule: stronger employees produce better results; higher-quality staffing carries higher operating cost, with the intended return being greater long-term airline value.
+- Management Software may adjust fleet size, use rating, employee quality, result quality, and cost assumptions during End-of-Day Review or a Top Brass discussion.
+
+The one-time roll is stored in game/FleetManagementStandards.sleela, so gameplay does not silently re-roll the airline every session.
