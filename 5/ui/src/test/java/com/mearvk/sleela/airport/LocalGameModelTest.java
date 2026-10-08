@@ -52,6 +52,9 @@ public final class LocalGameModelTest {
         testProsperityContractStarts();
         testProsperityContractCompletes();
         testProsperityContractExpiryRotates();
+        // --- Edition 5: Imperial Horizons / Imperial Reserve ---
+        testImperialReserveAppearsInSnapshot();
+        testImperialReserveCanAward();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -544,6 +547,27 @@ public final class LocalGameModelTest {
                 "same seed yields the same desk profit");
         check(a.majorMoves() == b.majorMoves(),
                 "same seed fires the same number of major moves");
+    }
+
+    private static void testImperialReserveAppearsInSnapshot() {
+        LocalGameModel m = new LocalGameModel();
+        GameSnapshot s = m.snapshot();
+        check(s.reserveFloor == 3000, "Imperial Reserve floor is 3000");
+        check(s.reserveGoal == 180, "Imperial Reserve goal is 180 ticks");
+        check(s.reserveBonus == 750, "Imperial Reserve bonus is 750");
+        check(s.reserveTicks == 0, "Imperial Reserve starts at zero progress");
+    }
+
+    private static void testImperialReserveCanAward() {
+        LocalGameModel m = new LocalGameModel();
+        // Deterministic auto-assist should eventually build enough capital to
+        // qualify for the reserve without special test-only state mutation.
+        for (int i = 0; i < 2200 && m.reserveAwards() == 0 && !m.snapshot().gameOver; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.reserveAwards() >= 1, "Imperial Reserve awards after sustained capital stability");
+        check(m.cash() >= 3000, "reserve award leaves working capital intact");
     }
 
     private static void testDeskSnapshotRoundTrips() {
