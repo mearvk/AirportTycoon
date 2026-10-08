@@ -24,6 +24,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaWeapons.sleela`](game/MoriaWeapons.sleela) | **The Armoury** — a name-forge of **13,440** dressed-up melee weapons (**many +4 or greater**) **plus crossbows and bows**: ranged arms that reach **≥ 8 squares**, enchant **+3 to +28**, and strike for **2d12 + 8**. |
 | [`game/MoriaSave.sleela`](game/MoriaSave.sleela) | **Save / Load / Alter** for creatures and character stats, plus the **saved previous leveling work** (a persisted level-up ledger). |
 | [`game/MoriaBestiary.sleela`](game/MoriaBestiary.sleela) | **The Legends Bestiary** — **24 named legends** (Tiamat, Vecna, Strahd, Drizzt, Elminster, …) keyed to **dungeon depth**: deeper is more experienced. Each is depth/tier-scaled into a full stat block. |
+| [`game/MoriaGrimoire.sleela`](game/MoriaGrimoire.sleela) | **The Grimoire of Castings** — every spell usable in Moria, by class (Mage/Cleric/Wizard; **Fighters get swords**), plus the **Lich obedience pact** (You must Agree / Obey — it **pauses** your character) resolved by the **Spelling Duo**. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
@@ -246,6 +247,39 @@ do not lie). A legend met **at or below its home depth** fights at full strength
 met as a rare **stray far above its home**, it is weakened — a shadow of itself.
 The dungeon names the **lord of the hero's current depth** on entry and on each
 descent. Run the roster demo with **`make bestiary`**.
+
+### The Grimoire of Castings — spells by class, lich pacts, and the Spelling Duo
+
+Every spell that can be **used in Moria** lives in the Grimoire
+([`game/MoriaGrimoire.sleela`](game/MoriaGrimoire.sleela)), with the classes
+that may cast each. The specially-named castings are all here —
+
+| Casting | Effect |
+|---|---|
+| **Heal** | restore hit points |
+| **Teleport** | move across the hall |
+| **Make Short Change** | alter small coin |
+| **Cast for Better Wood** | mend a haft or door |
+| **Heal Water** | purify a pool |
+| **Demystify Sound** | reveal a true noise |
+| **Call for Collegiance** | summon allies |
+
+— alongside the **standard spells** for the casters (Ward, Arcane Bolt, Conjure
+Light, Bless, Detect Evil, Identify). Each class knows a different set:
+**Fighters get their swords for now (no castings)**; **Mages** cast the arcane
+strikers, **Clerics** the divine heals and wards, and **Wizards** — the full
+scholars — command the widest book. Run `make grimoire` for the list and the
+per-class counts.
+
+**Lich obedience pacts.** A Lich (any lich/undead lord of a depth) may **request
+an obedience pact**. *You must Agree. You must Obey.* The **Obey pauses your
+character** — control is held, and you cannot act — until the pact is answered.
+To be freed you are prompted for a **Spelling Duo**: your character must usually
+be **right** — a pair of real-life events that **must have happened in the
+correct order**. Answer the order rightly and the pause lifts and you are freed;
+answer wrongly and the Lich keeps its hold (you stay Obey-bound until a later,
+right answer). In the dungeon, `characterPaused()` actually blocks movement
+while the pact is unresolved.
 
 ## Theatrics — the glyph alphabet
 

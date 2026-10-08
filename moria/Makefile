@@ -12,6 +12,7 @@
 #   make figures The figuring pieces — Original Characters roaming the board
 #   make stats / spells / weapons / save   The RPG layer self-demos
 #   make bestiary The Legends Bestiary — 24 named legends keyed to depth
+#   make grimoire The Grimoire — castings by class + lich pacts / Spelling Duo
 #   make ui      Open the native SleelaUI text-pane front-end (real window)
 #   make test    Run the deterministic self-check Wrapper
 #   make all     game + test
@@ -30,13 +31,15 @@ WEAPONS_SRC := game/MoriaWeapons.sleela
 SAVE_SRC    := game/MoriaSave.sleela
 # The Legends Bestiary: 24 named legends keyed to dungeon depth.
 BESTIARY_SRC := game/MoriaBestiary.sleela
-RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC)
+# The Grimoire: usable castings by class, lich obedience pacts, the Spelling Duo.
+GRIMOIRE_SRC := game/MoriaGrimoire.sleela
+RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC) $(GRIMOIRE_SRC)
 
 # The SleelaUI widget toolkit, reused from the Edition 1 vendor drop. These are
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures stats spells weapons save bestiary ui test help
+.PHONY: all game run lights figures stats spells weapons save bestiary grimoire ui test help
 
 all: game test
 
@@ -79,6 +82,10 @@ save:
 bestiary:
 	$(SLEELA) run $(BESTIARY_SRC)
 
+# The Grimoire: usable castings by class + the lich obedience pact / duo demo.
+grimoire:
+	$(SLEELA) run $(GRIMOIRE_SRC)
+
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
 	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
@@ -98,6 +105,7 @@ help:
 	@echo "  make weapons The armoury — thousands named, many +4 or greater"
 	@echo "  make save    Save / Load / Alter demo (+ the leveling ledger)"
 	@echo "  make bestiary The Legends Bestiary — 24 named legends keyed to depth"
+	@echo "  make grimoire The Grimoire — castings by class + lich pacts / Spelling Duo"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"

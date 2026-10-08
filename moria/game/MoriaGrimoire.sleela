@@ -1,0 +1,355 @@
+#sleela 1.6
+//
+// Moria — The Grimoire of Castings
+// ================================
+// Every spell that can be USED in Moria, by class, plus the Lich obedience
+// pact and the Spelling Duo that resolves it. This sits beside MoriaSpells
+// (the dressed-up name-forge + the Fireball); the Grimoire is the catalogue of
+// REAL, USABLE castings and who may cast them.
+//
+// NAMED castings (requested): Heal, Teleport, Make Short Change, Cast for
+// Better Wood, Heal Water, Demystify Sound, Call for Collegiance — plus the
+// STANDARD spells for Mages, Clerics and Wizards. FIGHTERS get their swords
+// for now (no castings).
+//
+// LICH OBEDIENCE PACTS. A Lich (see MoriaBestiary) may REQUEST an obedience
+// pact. You must AGREE. You must OBEY. The Obey PAUSES your character — control
+// is held until the pact is resolved. To be freed you are prompted for a
+// SPELLING DUO: your character must usually be RIGHT — real-life things must
+// have happened in the correct ORDER. Answer the order rightly and the pause
+// lifts; answer wrongly and the Lich keeps its hold (the character stays paused
+// until a later, right answer).
+//
+// No arrays: index -> field lookups, and a resolved pact is a Pact struct.
+
+// A usable casting (reference struct).
+struct Casting {
+    int    id;        // index into the grimoire
+    String name;      // "Heal", "Teleport", ...
+    int    kind;      // CAST_* below
+    int    classMask; // which classes may cast it (bitwise OR of CLS_*)
+    int    power;     // base magnitude (healing, range, etc.)
+    boolean named;    // true for the specially-named castings
+}
+
+// A lich obedience pact in flight (reference struct).
+struct Pact {
+    int     lichId;      // the bestiary id of the lich demanding the pact
+    boolean agreed;      // you must Agree
+    boolean obeyed;      // you must Obey (this pauses the character)
+    boolean resolved;    // true once the Spelling Duo is answered rightly
+    int     duoId;       // which Spelling Duo challenge was posed
+}
+
+class MoriaGrimoire {
+
+    // --- Classes. Fighters get swords (no castings). -----------------------
+    static int CLS_FIGHTER = 1;   // swords only — no castings
+    static int CLS_MAGE    = 2;   // arcane striker
+    static int CLS_CLERIC  = 4;   // divine healer/warder
+    static int CLS_WIZARD  = 8;   // the full arcane scholar
+
+    // --- Casting kinds -----------------------------------------------------
+    static int CAST_HEAL        = 1;  // restore hit points
+    static int CAST_TELEPORT    = 2;  // move across the hall
+    static int CAST_SHORTCHANGE = 3;  // "Make Short Change" — alter small coin
+    static int CAST_BETTERWOOD  = 4;  // "Cast for Better Wood" — mend a haft/door
+    static int CAST_HEALWATER   = 5;  // "Heal Water" — purify a pool
+    static int CAST_DEMYSTIFY   = 6;  // "Demystify Sound" — reveal a true noise
+    static int CAST_COLLEGIANCE = 7;  // "Call for Collegiance" — summon allies
+    static int CAST_WARD        = 8;  // standard: abjuration shield
+    static int CAST_BOLT        = 9;  // standard: arcane bolt (damage)
+    static int CAST_LIGHT       = 10; // standard: conjure light
+    static int CAST_BLESS       = 11; // standard cleric: bless
+    static int CAST_DETECT      = 12; // standard: detect/divine
+    static int CAST_IDENTIFY    = 13; // standard wizard: identify
+
+    static int GRIMOIRE_COUNT = 13;   // usable castings in the grimoire
+
+    // ------------------------------------------------------------------
+    // The grimoire roster: one accessor set, index 0..GRIMOIRE_COUNT-1.
+    // ------------------------------------------------------------------
+    String castName(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        if (k == 0)  { return "Heal"; }
+        if (k == 1)  { return "Teleport"; }
+        if (k == 2)  { return "Make Short Change"; }
+        if (k == 3)  { return "Cast for Better Wood"; }
+        if (k == 4)  { return "Heal Water"; }
+        if (k == 5)  { return "Demystify Sound"; }
+        if (k == 6)  { return "Call for Collegiance"; }
+        if (k == 7)  { return "Ward"; }
+        if (k == 8)  { return "Arcane Bolt"; }
+        if (k == 9)  { return "Conjure Light"; }
+        if (k == 10) { return "Bless"; }
+        if (k == 11) { return "Detect Evil"; }
+        return "Identify";
+    }
+
+    int castKind(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        if (k == 0)  { return CAST_HEAL; }
+        if (k == 1)  { return CAST_TELEPORT; }
+        if (k == 2)  { return CAST_SHORTCHANGE; }
+        if (k == 3)  { return CAST_BETTERWOOD; }
+        if (k == 4)  { return CAST_HEALWATER; }
+        if (k == 5)  { return CAST_DEMYSTIFY; }
+        if (k == 6)  { return CAST_COLLEGIANCE; }
+        if (k == 7)  { return CAST_WARD; }
+        if (k == 8)  { return CAST_BOLT; }
+        if (k == 9)  { return CAST_LIGHT; }
+        if (k == 10) { return CAST_BLESS; }
+        if (k == 11) { return CAST_DETECT; }
+        return CAST_IDENTIFY;
+    }
+
+    // Which classes may cast each. The named castings are shared across the
+    // casters; the standard spells follow their class. Fighters are never in a
+    // mask — they get swords for now.
+    int castClassMask(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        if (k == 0)  { return CLS_CLERIC + CLS_WIZARD; }               // Heal
+        if (k == 1)  { return CLS_MAGE + CLS_WIZARD; }                 // Teleport
+        if (k == 2)  { return CLS_MAGE + CLS_WIZARD; }                 // Short Change
+        if (k == 3)  { return CLS_CLERIC + CLS_WIZARD; }               // Better Wood
+        if (k == 4)  { return CLS_CLERIC + CLS_WIZARD; }               // Heal Water
+        if (k == 5)  { return CLS_MAGE + CLS_CLERIC + CLS_WIZARD; }    // Demystify Sound
+        if (k == 6)  { return CLS_CLERIC + CLS_WIZARD; }               // Collegiance
+        if (k == 7)  { return CLS_MAGE + CLS_WIZARD; }                 // Ward
+        if (k == 8)  { return CLS_MAGE + CLS_WIZARD; }                 // Arcane Bolt
+        if (k == 9)  { return CLS_MAGE + CLS_CLERIC + CLS_WIZARD; }    // Light
+        if (k == 10) { return CLS_CLERIC; }                           // Bless
+        if (k == 11) { return CLS_CLERIC + CLS_WIZARD; }               // Detect Evil
+        return CLS_WIZARD;                                             // Identify
+    }
+
+    int castPower(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        if (k == 0)  { return 24; }   // Heal: restore ~24 HP
+        if (k == 1)  { return 12; }   // Teleport: up to 12 squares
+        if (k == 2)  { return 1; }    // Short Change: small-coin shift
+        if (k == 3)  { return 1; }    // Better Wood: mend one haft/door
+        if (k == 4)  { return 1; }    // Heal Water: purify one pool
+        if (k == 5)  { return 1; }    // Demystify Sound: reveal one true noise
+        if (k == 6)  { return 3; }    // Collegiance: call ~3 allies
+        if (k == 7)  { return 10; }   // Ward: 10 points of shield
+        if (k == 8)  { return 14; }   // Bolt: ~14 damage
+        if (k == 9)  { return 6; }    // Light: +6 torch radius
+        if (k == 10) { return 4; }    // Bless: +4 to the next roll
+        if (k == 11) { return 1; }    // Detect Evil: reveal the lord
+        return 1;                      // Identify: name one weapon/spell
+    }
+
+    boolean castNamed(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        return k <= 6;                 // the seven specially-named castings
+    }
+
+    Casting castingAt(int i) {
+        int k = i % GRIMOIRE_COUNT;
+        Casting c = new Casting();
+        c.id = k;
+        c.name = castName(k);
+        c.kind = castKind(k);
+        c.classMask = castClassMask(k);
+        c.power = castPower(k);
+        c.named = castNamed(k);
+        return c;
+    }
+
+    // ------------------------------------------------------------------
+    // Classes.
+    // ------------------------------------------------------------------
+    String className(int cls) {
+        if (cls == CLS_FIGHTER) { return "Fighter"; }
+        if (cls == CLS_MAGE)    { return "Mage"; }
+        if (cls == CLS_CLERIC)  { return "Cleric"; }
+        if (cls == CLS_WIZARD)  { return "Wizard"; }
+        return "Adventurer";
+    }
+
+    // May a class cast a given grimoire entry? The class mask is a sum of
+    // distinct powers of two (CLS_FIGHTER=1, MAGE=2, CLERIC=4, WIZARD=8); a
+    // class is "in" the mask when its bit is set.
+    boolean classCanCast(int cls, int i) {
+        return hasBit(castClassMask(i), cls);
+    }
+
+    // Is the single power-of-two `bit` set within `mask`? Reduce the mask
+    // modulo (2*bit): the remainder holds the bits below 2*bit, and `bit` is
+    // present exactly when that remainder is at least `bit`. (SLeeLa 1.6 has no
+    // bit-ops, so this uses only arithmetic.)
+    boolean hasBit(int mask, int bit) {
+        if (bit <= 0) { return false; }
+        int lower = rem(mask, bit * 2);
+        return lower >= bit;
+    }
+
+    int rem(int a, int b) {
+        if (b <= 0) { return 0; }
+        return a - (a / b) * b;
+    }
+
+    // Fighters get swords for now — never a caster.
+    boolean isCaster(int cls) {
+        return cls == CLS_MAGE || cls == CLS_CLERIC || cls == CLS_WIZARD;
+    }
+
+    // Count how many grimoire castings a class may use.
+    int spellsForClass(int cls) {
+        if (!isCaster(cls)) { return 0; }     // Fighter: swords only
+        int n = 0;
+        int i = 0;
+        while (i < GRIMOIRE_COUNT) {
+            if (classCanCast(cls, i)) { n = n + 1; }
+            i = i + 1;
+        }
+        return n;
+    }
+
+    // ------------------------------------------------------------------
+    // THE LICH OBEDIENCE PACT.
+    // A lich requests the pact; you must Agree, then Obey (which pauses the
+    // character). Resolution is the Spelling Duo (see below).
+    // ------------------------------------------------------------------
+    Pact requestPact(int lichId, int duoId) {
+        Pact p = new Pact();
+        p.lichId = lichId;
+        p.agreed = false;
+        p.obeyed = false;
+        p.resolved = false;
+        p.duoId = duoId;
+        return p;
+    }
+
+    // You must Agree.
+    void agree(Pact p) { if (p != null) { p.agreed = true; } }
+
+    // You must Obey — this is what PAUSES the character (obeyed && !resolved).
+    void obey(Pact p) { if (p != null && p.agreed) { p.obeyed = true; } }
+
+    // The character is paused while obeying an unresolved pact.
+    boolean pausesCharacter(Pact p) {
+        if (p == null) { return false; }
+        return p.obeyed && !p.resolved;
+    }
+
+    // ------------------------------------------------------------------
+    // THE SPELLING DUO.
+    // The character must usually be RIGHT: a pair ("duo") of real-life events
+    // that must have happened in the correct ORDER. Answering the order
+    // rightly resolves the pact and lifts the pause.
+    // ------------------------------------------------------------------
+    static int DUO_COUNT = 8;
+
+    // The earlier real-life event of a duo.
+    String duoFirst(int i) {
+        int k = i % DUO_COUNT;
+        if (k == 0) { return "sunrise"; }
+        if (k == 1) { return "sow the seed"; }
+        if (k == 2) { return "strike the flint"; }
+        if (k == 3) { return "draw the breath"; }
+        if (k == 4) { return "forge the blade"; }
+        if (k == 5) { return "open the door"; }
+        if (k == 6) { return "light the torch"; }
+        return "write the word";
+    }
+
+    // The later real-life event of a duo (must come AFTER the first).
+    String duoSecond(int i) {
+        int k = i % DUO_COUNT;
+        if (k == 0) { return "noon"; }
+        if (k == 1) { return "reap the grain"; }
+        if (k == 2) { return "the flame catches"; }
+        if (k == 3) { return "speak the word"; }
+        if (k == 4) { return "strike the foe"; }
+        if (k == 5) { return "step through"; }
+        if (k == 6) { return "read by its light"; }
+        return "read the word";
+    }
+
+    // The prompt a character is shown.
+    String duoPrompt(int i) {
+        return "Spelling Duo: put these in the order they must have happened — \""
+             + duoFirst(i) + "\" and \"" + duoSecond(i) + "\".";
+    }
+
+    // Is the given order right? `firstThenSecond` = did the character answer
+    // that duoFirst precedes duoSecond? That ordering is the correct one.
+    boolean duoAnsweredRight(int i, boolean firstThenSecond) {
+        return firstThenSecond;        // the first event truly precedes the second
+    }
+
+    // Resolve the pact by answering the duo. A right answer lifts the pause.
+    boolean resolvePact(Pact p, boolean firstThenSecond) {
+        if (p == null || !p.obeyed) { return false; }
+        if (duoAnsweredRight(p.duoId, firstThenSecond)) {
+            p.resolved = true;
+            return true;               // freed — the pause lifts
+        }
+        return false;                  // still held — the character stays paused
+    }
+
+    // ------------------------------------------------------------------
+    // Readouts.
+    // ------------------------------------------------------------------
+    String describeCasting(Casting c) {
+        String who = classesThatCast(c.id);
+        String tag = "";
+        if (c.named) { tag = "  [named]"; }
+        return c.name + "  (power " + c.power + ", cast by: " + who + ")" + tag;
+    }
+
+    String classesThatCast(int i) {
+        String out = "";
+        if (classCanCast(CLS_MAGE, i))   { out = add(out, "Mage"); }
+        if (classCanCast(CLS_CLERIC, i)) { out = add(out, "Cleric"); }
+        if (classCanCast(CLS_WIZARD, i)) { out = add(out, "Wizard"); }
+        if (out == "") { out = "(none)"; }
+        return out;
+    }
+
+    String add(String csv, String one) {
+        if (csv == "") { return one; }
+        return csv + ", " + one;
+    }
+
+    // ------------------------------------------------------------------
+    // Headless demo.
+    // ------------------------------------------------------------------
+    void main() {
+        print("Moria — The Grimoire of Castings");
+        print("Named + standard castings for Mages, Clerics, Wizards.");
+        print("Fighters get their swords for now (no castings).");
+        print("");
+        print("The grimoire:");
+        int i = 0;
+        while (i < GRIMOIRE_COUNT) {
+            print("  " + describeCasting(castingAt(i)));
+            i = i + 1;
+        }
+
+        print("");
+        print("Castings available by class:");
+        print("  Fighter: " + spellsForClass(CLS_FIGHTER) + " (swords only)");
+        print("  Mage:    " + spellsForClass(CLS_MAGE));
+        print("  Cleric:  " + spellsForClass(CLS_CLERIC));
+        print("  Wizard:  " + spellsForClass(CLS_WIZARD));
+
+        print("");
+        print("A Lich obedience pact:");
+        Pact p = requestPact(20, 1);   // Vecna (id 20) demands a pact, duo #1
+        print("  The Lich requests a pact. You must Agree. You must Obey.");
+        agree(p);
+        obey(p);
+        print("  Agreed=" + yn(p.agreed) + ", Obeyed=" + yn(p.obeyed)
+            + " -> character paused: " + yn(pausesCharacter(p)));
+        print("  " + duoPrompt(p.duoId));
+        print("  You answer wrongly (second-then-first): freed = "
+            + yn(resolvePact(p, false)) + " (still paused: " + yn(pausesCharacter(p)) + ")");
+        print("  You answer rightly (first-then-second): freed = "
+            + yn(resolvePact(p, true)) + " (still paused: " + yn(pausesCharacter(p)) + ")");
+    }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+}

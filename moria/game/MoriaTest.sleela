@@ -303,6 +303,64 @@ class MoriaTest {
         check("the dungeon has a lord of the opening depth", r.hasLord());
         check("the opening lord is named", !(r.lordName() == "none"));
 
+        // --- The Grimoire of Castings: named + class spells ----------------
+        MoriaGrimoire gr = new MoriaGrimoire();
+        check("the grimoire holds 13 usable castings", gr.GRIMOIRE_COUNT == 13);
+        // The specially-named castings are present and named.
+        check("Heal is a named casting",
+            gr.castName(0) == "Heal" && gr.castNamed(0));
+        check("Teleport is a named casting", gr.castName(1) == "Teleport");
+        check("Make Short Change is a named casting",
+            gr.castName(2) == "Make Short Change");
+        check("Cast for Better Wood is a named casting",
+            gr.castName(3) == "Cast for Better Wood");
+        check("Heal Water is a named casting", gr.castName(4) == "Heal Water");
+        check("Demystify Sound is a named casting",
+            gr.castName(5) == "Demystify Sound");
+        check("Call for Collegiance is a named casting",
+            gr.castName(6) == "Call for Collegiance");
+        check("the first seven castings are the named ones",
+            gr.castNamed(0) && gr.castNamed(6) && !gr.castNamed(7));
+
+        // Fighters get swords for now — no castings. Casters each know some.
+        check("Fighters cast nothing (swords only)",
+            gr.spellsForClass(gr.CLS_FIGHTER) == 0);
+        check("Mages know some castings", gr.spellsForClass(gr.CLS_MAGE) > 0);
+        check("Clerics know some castings", gr.spellsForClass(gr.CLS_CLERIC) > 0);
+        check("Wizards are the fullest casters",
+            gr.spellsForClass(gr.CLS_WIZARD) >= gr.spellsForClass(gr.CLS_MAGE)
+            && gr.spellsForClass(gr.CLS_WIZARD) >= gr.spellsForClass(gr.CLS_CLERIC));
+        check("a Fighter cannot cast Heal",
+            !gr.classCanCast(gr.CLS_FIGHTER, 0));
+        check("a Cleric can cast Heal", gr.classCanCast(gr.CLS_CLERIC, 0));
+        check("only a Wizard casts Identify",
+            gr.classCanCast(gr.CLS_WIZARD, 12)
+            && !gr.classCanCast(gr.CLS_MAGE, 12));
+
+        // --- The Lich obedience pact + the Spelling Duo --------------------
+        Pact pc = gr.requestPact(20, 0);     // a lich demands a pact, duo #0
+        check("a fresh pact is not yet agreed", !pc.agreed);
+        gr.agree(pc);
+        check("you must Agree first", pc.agreed && !pc.obeyed);
+        gr.obey(pc);
+        check("Obey pauses the character", gr.pausesCharacter(pc));
+        // The Spelling Duo: a WRONG order keeps the hold; the RIGHT order frees.
+        check("a wrong-ordered answer does not free you",
+            !gr.resolvePact(pc, false));
+        check("still paused after a wrong answer", gr.pausesCharacter(pc));
+        check("the right order (earlier-before-later) frees you",
+            gr.resolvePact(pc, true));
+        check("the pause lifts once answered rightly", !gr.pausesCharacter(pc));
+
+        // The dungeon's pact pause actually blocks movement.
+        MoriaDungeon pd = new MoriaDungeon();
+        pd.begin("Bound", 7);
+        pd.setHeroClass(gr.CLS_WIZARD);
+        check("a Wizard hero knows castings", pd.knownCastings() > 0);
+        // Fighters get swords only, even in the dungeon.
+        pd.setHeroClass(gr.CLS_FIGHTER);
+        check("a Fighter hero knows no castings", pd.knownCastings() == 0);
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

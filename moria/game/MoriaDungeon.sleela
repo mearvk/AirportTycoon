@@ -120,11 +120,14 @@ class MoriaDungeon {
     MoriaWeapons armoury;    // the armoury (names thousands; many +4 or greater)
     MoriaSave    book;       // Save / Load / Alter + the leveling ledger
     MoriaBestiary bestiary;  // the roster of named legends, keyed to depth
+    MoriaGrimoire grimoire;  // usable castings by class + lich pacts + the duo
+    int          heroClass;  // CLS_* — Fighter/Mage/Cleric/Wizard
     int          level;      // the Adventurer's experience level (grows on descent)
     Weapon       weapon;     // the hero's current melee weapon (forged on descent)
     Weapon       sidearm;    // the hero's ranged arm — a crossbow or bow (>= 8 sq)
     Weapon       mace;       // the signature Mace of the Deep (1d48 + 26)
     Legend       lord;       // the named legend who holds the current depth
+    Pact         pact;       // a lich obedience pact in flight (null if none)
 
     // ---- Per-level derived geometry (computed in carveLevel) --------------
     int stairX;
@@ -174,6 +177,9 @@ class MoriaDungeon {
         book.begin();
         bestiary = new MoriaBestiary();
         bestiary.begin();
+        grimoire = new MoriaGrimoire();
+        heroClass = grimoire.CLS_WIZARD;   // a Wizard by default (full caster)
+        pact = null;
         level = 1;
         // Roll the six ability scores from the seeded stream (STR DEX CON INT
         // WIS CHR#). Each draw advances the deterministic RNG.
@@ -208,6 +214,8 @@ class MoriaDungeon {
         say("You sling the " + sidearm.name + " (range " + sidearm.range
             + " sq, 2d12+8 +" + sidearm.bonus + ").");
         say("You know the Fireball: " + spellLib.fireballFormula() + ".");
+        say("You are a " + grimoire.className(heroClass) + ", knowing "
+            + grimoire.spellsForClass(heroClass) + " castings of the Grimoire.");
         say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
         summonLord();
     }
@@ -487,6 +495,13 @@ class MoriaDungeon {
 
     boolean move(int dx, int dy) {
         if (!alive) { return false; }
+        // A lich's obedience pact PAUSES the character: while obeying an
+        // unresolved pact, you cannot act until the Spelling Duo is answered.
+        if (characterPaused()) {
+            say("You are bound to Obey. The pact holds you — answer the Spelling "
+                + "Duo to be freed.");
+            return false;
+        }
         int nx = heroX + dx;
         int ny = heroY + dy;
         if (!inBounds(nx, ny) || isWall(nx, ny)) {
@@ -847,6 +862,91 @@ class MoriaDungeon {
     int legendCount() { return bestiary.COUNT; }
     String legendRosterLine(int i) { return bestiary.rosterLine(i); }
 
+    // --- class + castings (the Grimoire) -----------------------------------
+    int heroClass_() { return heroClass; }
+    String heroClassName() { return grimoire.className(heroClass); }
+    int knownCastings() { return grimoire.spellsForClass(heroClass); }
+    boolean heroIsCaster() { return grimoire.isCaster(heroClass); }
+    boolean heroCanCast(int grimoireIndex) {
+        return grimoire.classCanCast(heroClass, grimoireIndex);
+    }
+    int grimoireCount() { return grimoire.GRIMOIRE_COUNT; }
+    String grimoireLine(int i) {
+        return grimoire.describeCasting(grimoire.castingAt(i));
+    }
+    // Set the hero's class (Fighter/Mage/Cleric/Wizard).
+    void setHeroClass(int cls) { heroClass = cls; }
+
+    // =======================================================================
+    // The Lich obedience pact + the Spelling Duo.
+    //   A lich (the lord, if it is a lich) may demand a pact. You must Agree,
+    //   then Obey — which PAUSES the character — and are then prompted for a
+    //   Spelling Duo: answer the real-life ORDER rightly to be freed.
+    // =======================================================================
+
+    // Does the current depth's lord demand an obedience pact? (Only liches do.)
+    boolean lordIsLich() {
+        if (lord == null) { return false; }
+        return isLichSpecies(lord.species);
+    }
+
+    boolean isLichSpecies(String sp) {
+        return sp == "Lich (Deity)" || sp == "Demilich"
+            || sp == "Vampire / Undead" || sp == "Death Knight";
+    }
+
+    // The lich requests a pact; the duo posed is derived from the hero's turns
+    // so it is deterministic.
+    void lichRequestPact() {
+        if (!lordIsLich()) { return; }
+        int duo = turns % grimoire.DUO_COUNT;
+        pact = grimoire.requestPact(lord.id, duo);
+        say(lord.name + " demands an obedience pact. You must Agree. You must Obey.");
+    }
+
+    // You must Agree.
+    void pactAgree() {
+        if (pact == null) { return; }
+        grimoire.agree(pact);
+        say("You Agree to the pact of " + lord.name + ".");
+    }
+
+    // You must Obey — this pauses the character until the duo is answered.
+    void pactObey() {
+        if (pact == null) { return; }
+        grimoire.obey(pact);
+        if (grimoire.pausesCharacter(pact)) {
+            say("You Obey. Your character is PAUSED, bound to the Lich's will.");
+            say(grimoire.duoPrompt(pact.duoId));
+        }
+    }
+
+    // The character is paused while obeying an unresolved pact.
+    boolean characterPaused() {
+        if (pact == null) { return false; }
+        return grimoire.pausesCharacter(pact);
+    }
+
+    String spellingDuoPrompt() {
+        if (pact == null) { return ""; }
+        return grimoire.duoPrompt(pact.duoId);
+    }
+
+    // Answer the Spelling Duo. firstThenSecond == true means "the earlier event
+    // precedes the later" — the right order. A right answer lifts the pause.
+    boolean answerSpellingDuo(boolean firstThenSecond) {
+        if (pact == null) { return false; }
+        boolean freed = grimoire.resolvePact(pact, firstThenSecond);
+        if (freed) {
+            say("Rightly ordered — the pact is answered. The pause lifts; you "
+                + "are free of the Lich's hold.");
+            pact = null;
+        } else {
+            say("Wrongly ordered. The Lich keeps its hold — you remain Obey-bound.");
+        }
+        return freed;
+    }
+
     // =======================================================================
     // Save / Load / Alter — persist the hero and the dungeon's creatures,
     // keeping the saved previous leveling work.
@@ -986,8 +1086,10 @@ class MoriaDungeon {
         print("");
         print(statusLine());
         print("");
-        print("Character sheet — level " + level_());
+        print("Character sheet — level " + level_() + " " + heroClassName());
         print("  " + statLine());
+        print("  castings known: " + knownCastings() + " of "
+            + grimoireCount() + " (Fighters get swords only)");
         print("  weapon: " + weaponName() + "  (" + maceFormula()
             + ", +" + weaponBonus() + " mutual)");
         print("  enchant radius here (depth " + currentDepth() + "): "
