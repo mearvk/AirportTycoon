@@ -22,7 +22,11 @@ The **Imperial Reserve** rewards maintaining at least $3,000 for 180 consecutive
 - **Up to +2 reputation** — financial discipline reinforces airport quality.
 - **Reset without punishment** — spending below the floor resets progress without a new failure condition.
 - **UI-visible finance state** — reserve floor, progress, goal, reward, and award count are in snapshots.
+- **1–4 player multiplayer** — a dependency-free authoritative TCP server supports a shared airport or private airports.
+- **Global player chat** — shared chat works in both multiplayer modes.
 
 Editions 1–4 remain intact: tower operations, economic feedback, Prosperity Contracts, the early-quality bonus, and the Prosperity Ladder all continue forward.
+
+The multiplayer layer is designed for trusted LAN/private networks in this edition; it does not yet provide internet-grade authentication or TLS.
 
 See README.md for the full overview and Edition 5 notes.
