@@ -1,4 +1,4 @@
-# Moria — a Dungeon Crawler in simple new video-game theatrics
+# Moria — a Dungeon Crawler in simple new video game theatrics
 
 > For the very willing, the very picky, the most excellent — the Adventurers in
 > the Careful Years of Time.
@@ -75,7 +75,7 @@ The core text game uses the dungeon pane/readout as the play surface. Exact inte
 | `>` | Stair down |
 | `<` | Stair up |
 | `+` | Door |
-| `# Moria — a Dungeon Crawler in simple new video-game theatrics
+| `# Moria — a Dungeon Crawler in simple new video game theatrics
 
 > For the very willing, the very picky, the most excellent — the Adventurers in
 > the Careful Years of Time.
