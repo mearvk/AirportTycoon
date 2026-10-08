@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Moria — a Dungeon Crawler in simple new video game theatrics
 
 > For the very willing, the very picky, the most excellent — the Adventurers in
