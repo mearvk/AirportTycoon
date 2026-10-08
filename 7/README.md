@@ -484,3 +484,17 @@ Edition 7 retains the multiplayer connection and adds the same explicit **CCP/1*
 The authoritative server remains the relay and simulation authority. Clients do not accept arbitrary inbound peer sockets. CCP/1 is intentionally separate from the game CMD and STATE records, so client communication does not become an alternate game-state channel.
 
 The protocol definition is ui/.../ClientCommunicationProtocol.java; Edition 7's SleelaRuntime.java contains the network client implementation and exposes peer-message helpers while preserving the existing JavaFX/UI contract.
+
+
+## Edition 7 — Reservation Booking & Reservation IQ
+
+Edition 7 now includes a first-class **Reservation Booking** business module. Reservations are designed to increase the social/competitive side of Airport Tycoon: more successful reservations bring more travelers and friends into the airport experience.
+
+- **Booking:** reserve an airport/travel experience for a named guest, flight, party size, start tick, and duration.
+- **Confirmation:** reservations have a controlled booking → confirmation → active → completion lifecycle.
+- **Friends:** a party of four, for example, contributes three accompanying friends to the live reservation count.
+- **Reservation IQ:** a game metric derived from confirmed reservations, accompanying friends, and completed reservations. It is a gameplay score, not a real-world IQ measurement.
+- **Cancellation:** reservations can be cancelled before completion without corrupting the tower simulation.
+- **Module integration:** `game/Reservations.sleela` is a standalone SLeeLa module, while `AirportTycoon.sleela` exposes booking/confirmation operations and publishes `reservationIQ` in its simulation snapshot.
+
+The deterministic module self-check is in `game/ReservationTest.sleela`.
