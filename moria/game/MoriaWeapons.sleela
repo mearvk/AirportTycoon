@@ -14,13 +14,20 @@
 //
 // No arrays: index -> String banks, and a forged weapon is a Weapon struct.
 
-// One weapon (reference struct).
+// One weapon (reference struct). Melee weapons leave the ranged fields at their
+// defaults (ranged=false, range=1, diceCount=1, baseAdd=0) so every existing
+// consumer that reads name/dieSides/bonus keeps working unchanged.
 struct Weapon {
-    int    id;       // stable catalog index
-    String name;     // the dressed-up name, bonus included
-    int    dieSides; // damage die (d6, d8, d10, d12, ...)
-    int    bonus;    // the +N enchantment (0..9); many are +4 or greater
-    int    weight;   // a flavour weight class 1..5
+    int     id;       // stable catalog index
+    String  name;     // the dressed-up name, bonus included
+    int     dieSides; // damage die (d6, d8, d10, d12, ...)
+    int     bonus;    // the +N enchantment (melee 0..9; ranged +3..+28)
+    int     weight;   // a flavour weight class 1..5
+    // --- ranged extension (crossbows and bows) ---
+    boolean ranged;    // true for a bow or crossbow
+    int     range;     // firing range in squares (ranged weapons: >= 8)
+    int     diceCount; // number of damage dice (ranged bows/crossbows: 2)
+    int     baseAdd;   // flat damage added before bonus (ranged set: +8)
 }
 
 class MoriaWeapons {
@@ -192,12 +199,156 @@ class MoriaWeapons {
 
     boolean isFinePlus(Weapon w) { return w.bonus >= 4; }   // +4 or greater
 
-    String serialize(Weapon w) {
-        return "WEAPON|id=" + w.id + "|die=" + w.dieSides
-             + "|bonus=" + w.bonus + "|weight=" + w.weight;
+    // =======================================================================
+    // Ranged arms — crossbows and bows
+    // =======================================================================
+    // Ranged weapons reach AT LEAST 8 squares, carry a richer enchantment band
+    // of +3..+28, and strike for 2d12 + 8 (two twelve-sided dice plus 8) — an
+    // average set of 2*6.5 + 8 = 21 damage before the enchantment is added.
+
+    static int RANGED_FORMS = 16;        // bow and crossbow variants
+    static int MIN_RANGE    = 8;         // every ranged arm reaches >= 8 squares
+    static int RANGED_DICE  = 2;         // 2 dice...
+    static int RANGED_SIDES = 12;        // ...of d12...
+    static int RANGED_BASE  = 8;         // ...plus 8  => 2d12 + 8
+    static int RANGED_BONUS_MIN = 3;     // +3 ...
+    static int RANGED_BONUS_MAX = 28;    // ...to +28
+
+    int rangedCatalogSize() { return RANGED_FORMS * MATERIALS * LEGENDS; }
+
+    // The eight-and-more bow and crossbow forms. Crossbows reach a little
+    // farther than bows; the exact range is set in rangeOf().
+    String rangedForm(int i) {
+        int k = i % RANGED_FORMS;
+        if (k == 0)  { return "Shortbow"; }
+        if (k == 1)  { return "Longbow"; }
+        if (k == 2)  { return "Warbow"; }
+        if (k == 3)  { return "Recurve Bow"; }
+        if (k == 4)  { return "Composite Bow"; }
+        if (k == 5)  { return "Elven Greatbow"; }
+        if (k == 6)  { return "Horn Bow"; }
+        if (k == 7)  { return "Hunter's Bow"; }
+        if (k == 8)  { return "Hand Crossbow"; }
+        if (k == 9)  { return "Light Crossbow"; }
+        if (k == 10) { return "Heavy Crossbow"; }
+        if (k == 11) { return "Arbalest"; }
+        if (k == 12) { return "Repeating Crossbow"; }
+        if (k == 13) { return "Siege Crossbow"; }
+        if (k == 14) { return "Dwarf Crossbow"; }
+        return "Windlass Crossbow";
     }
 
+    // Is this ranged form a crossbow (vs. a bow)? Forms 8..15 are crossbows.
+    boolean rangedIsCrossbow(int i) { return (i % RANGED_FORMS) >= 8; }
+
+    // Range in squares, always >= 8. Bows 8..15, crossbows 10..17 (crossbows
+    // carry farther), derived from the form so a given index is stable.
+    int rangeOf(int id) {
+        int f = id % RANGED_FORMS;
+        if (rangedIsCrossbow(f)) { return MIN_RANGE + 2 + (f - 8); }  // 10..17
+        return MIN_RANGE + f;                                          // 8..15
+    }
+
+    // The ranged enchantment +N, spread across +3..+28. Deterministic per index
+    // and biased so the catalog spans the whole band.
+    int rangedBonusOf(int id) {
+        int n = rangedCatalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int span = RANGED_BONUS_MAX - RANGED_BONUS_MIN + 1;   // 26 steps (3..28)
+        return RANGED_BONUS_MIN + (i % span);
+    }
+
+    // Deeper levels of Moria upgrade a ranged find's bonus, capped at +28.
+    int rangedBonusAtDepth(int id, int depth) {
+        int b = rangedBonusOf(id);
+        int v = b + depth;                 // +1 per level descended
+        if (v > RANGED_BONUS_MAX) { v = RANGED_BONUS_MAX; }
+        if (v < RANGED_BONUS_MIN) { v = RANGED_BONUS_MIN; }
+        return v;
+    }
+
+    // The dressed-up ranged name (material + bow/crossbow form + legend).
+    String rangedBaseName(int id) {
+        int n = rangedCatalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int m = i % MATERIALS;
+        int f = (i / MATERIALS) % RANGED_FORMS;
+        int l = (i / (MATERIALS * RANGED_FORMS)) % LEGENDS;
+        return material(m) + " " + rangedForm(f) + " of " + legend(l);
+    }
+
+    // Forge a crossbow or bow at a catalog index, enchanted for a given depth.
+    // Every one reaches >= 8 squares and strikes for 2d12 + 8 (+ the bonus).
+    Weapon forgeRanged(int id, int depth) {
+        Weapon w = new Weapon();
+        w.id = id;
+        w.ranged = true;
+        w.range = rangeOf(id);
+        w.dieSides = RANGED_SIDES;     // d12
+        w.diceCount = RANGED_DICE;     // 2 of them
+        w.baseAdd = RANGED_BASE;       // + 8
+        w.bonus = rangedBonusAtDepth(id, depth);
+        w.weight = 3;
+        if (rangedIsCrossbow(id)) { w.weight = 4; }
+        w.name = rangedBaseName(id) + plusTag(w.bonus);
+        return w;
+    }
+
+    // Ranged damage: sum of `diceCount` d`dieSides` rolls + baseAdd + bonus.
+    // Pass the two d12 rolls (roll1, roll2) from the caller's dice stream; for
+    // 2d12 only the first two are used. The average set is 2d12+8 = 21 (+bonus).
+    int rangedDamage(Weapon w, int roll1, int roll2, int bonusMod) {
+        if (!w.ranged) { return damage(w, roll1, bonusMod); }
+        int r1 = clampDie(roll1, w.dieSides);
+        int r2 = clampDie(roll2, w.dieSides);
+        int total = r1 + r2 + w.baseAdd + w.bonus + bonusMod;
+        if (total < 1) { total = 1; }
+        return total;
+    }
+
+    int clampDie(int r, int sides) {
+        if (r < 1) { return 1; }
+        if (r > sides) { return sides; }
+        return r;
+    }
+
+    // The AVERAGE damage of a ranged weapon's set: 2d12 avg (2 * 6.5 = 13) + 8,
+    // plus the enchantment. Rounds the die average down (integer math): a d12
+    // averages 6 here, so 2d12 -> 12, + 8 = 20, + bonus.
+    int rangedAverage(Weapon w) {
+        if (!w.ranged) { return (w.dieSides / 2) + w.bonus; }
+        int avgDie = w.dieSides / 2;                 // 6 for d12
+        return w.diceCount * avgDie + w.baseAdd + w.bonus;
+    }
+
+    // Can this weapon strike a target `squares` away?
+    boolean canReach(Weapon w, int squares) {
+        if (w.ranged) { return squares <= w.range; }
+        return squares <= 1;   // melee: adjacent only
+    }
+
+    boolean isRanged(Weapon w) { return w.ranged; }
+    boolean isCrossbow(Weapon w) { return w.ranged && w.weight >= 4; }
+
+    String serialize(Weapon w) {
+        return "WEAPON|id=" + w.id + "|die=" + w.dieSides
+             + "|bonus=" + w.bonus + "|weight=" + w.weight
+             + "|ranged=" + boolTag(w.ranged) + "|range=" + w.range
+             + "|dice=" + w.diceCount + "|base=" + w.baseAdd;
+    }
+
+    String boolTag(boolean b) { if (b) { return "1"; } return "0"; }
+
     String describe(Weapon w) {
+        if (w.ranged) {
+            String kind = "bow";
+            if (isCrossbow(w)) { kind = "crossbow"; }
+            // e.g. "2d12+8 +17" with a range in squares and the average set.
+            return "#" + w.id + "  " + w.name
+                 + "  (" + kind + ", range " + w.range + " sq, "
+                 + w.diceCount + "d" + w.dieSides + "+" + w.baseAdd
+                 + " +" + w.bonus + ", avg " + rangedAverage(w) + ")";
+        }
         String fine = "";
         if (isFinePlus(w)) { fine = "  <<+4 or greater>>"; }
         return "#" + w.id + "  " + w.name
@@ -221,5 +372,33 @@ class MoriaWeapons {
         }
         print("");
         print(finePlus + " of those 10 were +4 or greater.");
+
+        print("");
+        print("Ranged arms — crossbows and bows");
+        print("  range >= " + MIN_RANGE + " squares, +" + RANGED_BONUS_MIN
+            + " to +" + RANGED_BONUS_MAX + ", " + RANGED_DICE + "d"
+            + RANGED_SIDES + "+" + RANGED_BASE + " (average set).");
+        print("  Ranged catalog: " + rangedCatalogSize() + " distinct bows + crossbows.");
+        print("");
+        int j = 0;
+        while (j < 10) {
+            int id = j * 911 + 5;        // scatter across the ranged catalog
+            Weapon b = forgeRanged(id, 6);
+            print("  " + describe(b));
+            j = j + 1;
+        }
+        print("");
+        // A sample volley at range: two d12s + 8 + the enchantment.
+        Weapon shot = forgeRanged(10, 8);     // a crossbow, deep-forged
+        print("Sample shot: " + shot.name);
+        print("  reaches " + shot.range + " squares; a target 8 away is "
+            + reachWord(canReach(shot, 8)) + ".");
+        print("  volley (12 + 11 on the dice): "
+            + rangedDamage(shot, 12, 11, 0) + " damage.");
+        print("  average set: " + rangedAverage(shot) + " ("
+            + RANGED_DICE + "d" + RANGED_SIDES + "+" + RANGED_BASE
+            + " +" + shot.bonus + ").");
     }
+
+    String reachWord(boolean ok) { if (ok) { return "in range"; } return "out of range"; }
 }

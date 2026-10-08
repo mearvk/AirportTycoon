@@ -164,6 +164,43 @@ class MoriaTest {
         }
         check("many weapons are +4 or greater", fine >= 40);
 
+        // Ranged arms: crossbows and bows — >= 8 squares, +3..+28, 2d12 + 8.
+        Weapon bow = wp.forgeRanged(1, 1);        // a longbow, depth 1
+        Weapon xbow = wp.forgeRanged(10, 1);      // a crossbow, depth 1
+        check("a ranged arm is ranged", wp.isRanged(bow));
+        check("ranged reach is at least 8 squares", bow.range >= 8 && xbow.range >= 8);
+        check("ranged uses 2 dice of d12", bow.diceCount == 2 && bow.dieSides == 12);
+        check("ranged adds a base of 8 (2d12+8)", bow.baseAdd == 8);
+        // Max roll 2d12 = 24, + 8 base, + bonus. With the min bonus +3 => 35.
+        check("2d12+8 at min bonus, max dice == 35",
+            wp.rangedDamage(bow, 12, 12, 0) >= 35);
+        // The average set is 2d12+8 = 20 (integer die avg) before the bonus.
+        check("average set is 2d12+8 (>= 20 before bonus)",
+            wp.rangedAverage(bow) - bow.bonus == 20);
+        // Scan the ranged catalog: bonuses span the +3..+28 band and never leave it.
+        int lo = 99; int hi = 0; int kk = 0;
+        while (kk < 300) {
+            int b = wp.rangedBonusAtDepth(kk * 53 + 1, 0);
+            if (b < lo) { lo = b; }
+            if (b > hi) { hi = b; }
+            check("ranged bonus stays within +3..+28",
+                b >= 3 && b <= 28);
+            kk = kk + 1;
+        }
+        check("ranged bonus band reaches at least +3 at the low end", lo <= 3);
+        check("ranged bonus band reaches high (>= +20 somewhere)", hi >= 20);
+        // Depth deepens the enchantment, capped at +28. Index 25 has base bonus
+        // +28 (3 + 25%26 = 28); any added depth still caps at +28.
+        check("the enchantment caps at +28",
+            wp.rangedBonusAtDepth(25, 8) == 28);
+        // Reach: an 8-away target is in range; a 99-away target is not.
+        check("an 8-square target is reachable", wp.canReach(bow, 8));
+        check("a far target (99 sq) is out of range", !wp.canReach(bow, 99));
+        // The hero carries a ranged sidearm into the Mines.
+        check("the hero slings a ranged sidearm (>= 8 sq)", r.sidearmRange() >= 8);
+        check("the hero's sidearm bonus is within +3..+28",
+            r.sidearmBonus() >= 3 && r.sidearmBonus() <= 28);
+
         // Saved previous leveling work grows as the hero descends.
         int before = r.savedLevels();
         r.autoDescend(600);

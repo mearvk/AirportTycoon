@@ -120,7 +120,8 @@ class MoriaDungeon {
     MoriaWeapons armoury;    // the armoury (names thousands; many +4 or greater)
     MoriaSave    book;       // Save / Load / Alter + the leveling ledger
     int          level;      // the Adventurer's experience level (grows on descent)
-    Weapon       weapon;     // the hero's current weapon (forged on descent)
+    Weapon       weapon;     // the hero's current melee weapon (forged on descent)
+    Weapon       sidearm;    // the hero's ranged arm — a crossbow or bow (>= 8 sq)
 
     // ---- Per-level derived geometry (computed in carveLevel) --------------
     int stairX;
@@ -178,6 +179,9 @@ class MoriaDungeon {
         health = maxHealth;
         // A starting weapon, forged for depth 1.
         weapon = armoury.forge(nextRng() % armoury.catalogSize(), 1);
+        // A starting ranged arm — a crossbow or bow (reaches >= 8 squares,
+        // +3..+28, strikes for 2d12 + 8), forged for depth 1.
+        sidearm = armoury.forgeRanged(nextRng() % armoury.rangedCatalogSize(), 1);
         // Record the first level in the saved leveling ledger.
         book.recordLevel(1, maxHealth, 0, "Entered the Mines of Moria.");
 
@@ -189,6 +193,8 @@ class MoriaDungeon {
         say(statLib.lifeRead(stats));
         say("You carry the " + weapon.name + " (d" + weapon.dieSides
             + " +" + weapon.bonus + ").");
+        say("You sling the " + sidearm.name + " (range " + sidearm.range
+            + " sq, 2d12+8 +" + sidearm.bonus + ").");
         say("You know the Fireball: " + spellLib.fireballFormula() + ".");
         say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
     }
@@ -521,6 +527,30 @@ class MoriaDungeon {
         return false;
     }
 
+    // Loose a bolt or arrow at a monster `squares` away with the ranged sidearm
+    // (a crossbow or bow). It reaches only if the target is within the arm's
+    // range (>= 8 squares). Damage is 2d12 + 8 + the enchantment, +DEX to hit.
+    boolean fireAt(int x, int y, String kind, int squares) {
+        if (!armoury.canReach(sidearm, squares)) {
+            say("The " + kind + " is " + squares + " squares off — beyond the "
+                + sidearm.name + "'s reach of " + sidearm.range + ".");
+            return false;
+        }
+        int hit = roll(1, 20) + statLib.dexMod(stats);
+        if (hit >= 8) {
+            // Two d12 rolls from the deterministic stream, + 8, + the bonus.
+            int shot = armoury.rangedDamage(sidearm, roll(1, 12), roll(1, 12),
+                                            statLib.dexMod(stats));
+            say("You loose from " + squares + " squares with the " + sidearm.name
+                + " for " + shot + " — the " + kind + " drops where it stood.");
+            setChange(x, y, G_FLOOR);
+            monstersSlain = monstersSlain + 1;
+            return true;
+        }
+        say("Your shot from the " + sidearm.name + " flies wide of the " + kind + ".");
+        return false;
+    }
+
     // =======================================================================
     // The Fireball — the signature spell. Damage = 1d28 + 6 per level (+INT).
     // Returns the damage dealt; a target monster at (x,y) is cleared if slain.
@@ -588,6 +618,10 @@ class MoriaDungeon {
         Weapon found = armoury.forge(nextRng() % armoury.catalogSize(), depth);
         boolean upgraded = false;
         if (found.bonus >= weapon.bonus) { weapon = found; upgraded = true; }
+        // A ranged arm may also turn up — a bow or crossbow (+3..+28, 2d12+8).
+        Weapon foundRanged = armoury.forgeRanged(nextRng() % armoury.rangedCatalogSize(), depth);
+        boolean upgradedRanged = false;
+        if (foundRanged.bonus >= sidearm.bonus) { sidearm = foundRanged; upgradedRanged = true; }
         // Record this level-up in the SAVED leveling ledger.
         book.recordLevel(level, hpGain, 3,
             "Descended to depth " + depth + " (CON granted +" + hpGain + " HP).");
@@ -597,6 +631,11 @@ class MoriaDungeon {
         if (upgraded) {
             say("Deep in the rubble you find the " + found.name
                 + " (d" + found.dieSides + " +" + found.bonus + ") — you take it up.");
+        }
+        if (upgradedRanged) {
+            say("Among the fallen you recover the " + foundRanged.name
+                + " (range " + foundRanged.range + " sq, 2d12+8 +"
+                + foundRanged.bonus + ") — a finer shot.");
         }
         carveLevel();
         remusterForDepth();      // the Fellowship follows you down the Mines
@@ -744,6 +783,12 @@ class MoriaDungeon {
     String weaponName() { return weapon.name; }
     int weaponBonus() { return weapon.bonus; }
     boolean weaponFinePlus() { return weapon.bonus >= 4; }
+    // --- the ranged sidearm (a crossbow or bow): >= 8 sq, +3..+28, 2d12+8 ---
+    String sidearmName() { return sidearm.name; }
+    int sidearmRange() { return sidearm.range; }
+    int sidearmBonus() { return sidearm.bonus; }
+    int sidearmAverage() { return armoury.rangedAverage(sidearm); }
+    boolean sidearmIsCrossbow() { return armoury.isCrossbow(sidearm); }
     String fireballFormula() { return spellLib.fireballFormula(); }
     // The Fireball damage for a given die roll at the hero's current level.
     int fireballDamageFor(int dieRoll) {
@@ -840,6 +885,9 @@ class MoriaDungeon {
     void autoDescend(int stepBudget) {
         int steps = 0;
         while (!over() && steps < stepBudget) {
+            // First, if a monster stands down the hall within bow/crossbow
+            // range, open with a ranged shot rather than closing to melee.
+            tryRangedShot();
             boolean moved = false;
             // Toward the stair row first, then rightward toward the stair column.
             if (heroY < stairY) { moved = move(0, 1); }
@@ -850,6 +898,24 @@ class MoriaDungeon {
             if (!moved && !over()) { moved = move(0, 0 - 1); }
             steps = steps + 1;
         }
+    }
+
+    // Scan rightward along the hero's row; if the nearest monster is within the
+    // sidearm's range (>= 8 squares of reach), loose a shot at it. Returns true
+    // if a shot was taken.
+    boolean tryRangedShot() {
+        int step = 1;
+        while (step <= sidearm.range) {
+            int tx = heroX + step;
+            if (!inBounds(tx, heroY)) { return false; }
+            if (isWall(tx, heroY)) { return false; }   // the shot is blocked
+            String there = cell(tx, heroY);
+            if (there == G_ORC)    { return fireAt(tx, heroY, "orc", step); }
+            if (there == G_TROLL)  { return fireAt(tx, heroY, "troll", step); }
+            if (there == G_BALROG) { return false; }    // the Balrog is met in person
+            step = step + 1;
+        }
+        return false;
     }
 
     int nudgeRow() {
@@ -871,6 +937,8 @@ class MoriaDungeon {
         print("Character sheet — level " + level_());
         print("  " + statLine());
         print("  weapon: " + weaponName() + "   fireball: " + fireballFormula());
+        print("  sidearm: " + sidearmName() + " (range " + sidearmRange()
+            + " sq, 2d12+8 +" + sidearmBonus() + ", avg " + sidearmAverage() + ")");
         print("");
         print(savedLedger());
         print("");

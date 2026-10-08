@@ -21,7 +21,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/CityLights.sleela`](game/CityLights.sleela) | The **scoreboard lighting** layer: lights that come out of the game's text, coloured by a city's Providence (learned from trusted sources) and sized 2–4 mm. |
 | [`game/MoriaStats.sleela`](game/MoriaStats.sleela) | **The six ability scores** — Strength, Dexterity, **Constitution**, Intelligence, Wisdom, and **Character (the Number)**. Owns the modifiers and the Character-Number *truth model*. |
 | [`game/MoriaSpells.sleela`](game/MoriaSpells.sleela) | **The Spellbook** — a name-forge of **18,432** dressed-up spells, and the signature **Fireball = 1d28 + 6 per level**. |
-| [`game/MoriaWeapons.sleela`](game/MoriaWeapons.sleela) | **The Armoury** — a name-forge of **13,440** dressed-up weapons, **many +4 or greater**, the deep levels minting the legendary. |
+| [`game/MoriaWeapons.sleela`](game/MoriaWeapons.sleela) | **The Armoury** — a name-forge of **13,440** dressed-up melee weapons (**many +4 or greater**) **plus crossbows and bows**: ranged arms that reach **≥ 8 squares**, enchant **+3 to +28**, and strike for **2d12 + 8**. |
 | [`game/MoriaSave.sleela`](game/MoriaSave.sleela) | **Save / Load / Alter** for creatures and character stats, plus the **saved previous leveling work** (a persisted level-up ledger). |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
@@ -148,7 +148,13 @@ caster's Intelligence power). At level 5 with a die of 19 and +2 INT that is
 - The **Spellbook** forges **18,432** distinct spell names from a deterministic
   grammar `[Adjunct] [Root] of [Epithet]` across eight schools and nine tiers —
   *Greater Fireball of Khazad-dûm*, *Abyssal Scourge of Durin's Bane*, and so on.
-- The **Armoury** forges **13,440** distinct weapon names from `[Material]
+- **Crossbows and bows** — the ranged arms. Every bow or crossbow reaches **at
+  least 8 squares** (crossbows a little farther), carries a rich **+3 to +28**
+  enchantment, and strikes for **2d12 + 8** — an average set of 2·6 + 8 = **20**
+  before the bonus (and `fireAt(...)` looses one down the hall when a monster
+  stands within range). The hero slings one as a sidearm from the first step
+  into the Mines, and finer ones turn up on the deeper levels.
+- The **Armoury** forges **13,440** distinct melee weapon names from `[Material]
   [Form] of [Legend]`, each with a **+N enchantment**. **Many are +4 or
   greater**, and the deeper levels of Moria mint the legendary (up to +9) —
   *Mithril Greatsword of the Balrog-slayer +7*.
