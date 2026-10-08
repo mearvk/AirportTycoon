@@ -81,6 +81,41 @@ make ui-run
 
 For a deterministic/headless run, use the version's `make run` target. The configured RNG seed makes the same seed replayable, which is useful for testing and learning the game.
 
+### Fleet management, maintenance, and executive operations
+
+Editions **1–8** now share a standard fleet-management layer alongside the route economy and pacing systems. Each edition performs a **one-time fleet roll** stored in its SLeeLa source/configuration so the starting management state is stable and reproducible.
+
+- **Fleet size:** each edition manages a fleet within the standard **80–320 plane** range. The version-level target increases by **50 planes per edition level**, subject to the 320-plane operating cap.
+- **Use rating:** every fleet receives a **0–100 use rating**. When the rating falls **below 85**, the management system flags the fleet for a **Maintenance Engineer** review.
+- **Employees and results:** better employees improve operating results, but higher-quality staffing costs more. The management objective is greater long-term value rather than simply minimizing expense.
+- **Global maintenance:** the shared registry covers **23 named global fleets**, individually scheduled aircraft, and **724 named game planets (PL-1 through PL-724)**. Maintenance intervals and costs are calculated per aircraft.
+- **Executive management:** the **Fleet Management Desk** provides Text Area Input/Output controls for fleet size, use rating, employee quality, maintenance status, results, and operating cost. Adjustments can be discussed with **Top Brass** during operations or made during the **End-of-Day Review**.
+- **Pacing:** the authoritative game-management clock runs at **8 Hz**, with a reference fleet event approximately every **22 seconds**. Game days are configurable from roughly **2–20 minutes**, with longer days permitted.
+- **Route economics:** aircraft generate and consume airline money at the **Pickup, Flight, and Dropoff** stages. Route and fleet decisions therefore feed directly into the business result.
+
+The management layer is deliberately an executive **decision-support system**: it presents conditions, costs, results, and recommended actions so the player can make the management decision rather than having the game irreversibly make personnel decisions on the player's behalf.
+
+### Edition fleet-management rolls
+
+The current one-time source/configuration rolls are:
+
+| Edition | Rolled planes | Use rating | Engineer review? |
+|---|---:|---:|---|
+| **1** | 147 | 91 | No |
+| **2** | 198 | 76 | Yes |
+| **3** | 231 | 88 | No |
+| **4** | 264 | 83 | Yes |
+| **5** | 287 | 95 | No |
+| **6** | 305 | 79 | Yes |
+| **7** | 320 | 93 | No |
+| **8** | 320 | 86 | No |
+
+Edition 7 is intentionally stronger than Editions 1 and 3. Editions 7 and 8 reach the current 320-plane cap; the source records the roll so it does not silently change between runs.
+
+### Reservations and airline growth
+
+Reservations are part of the business-growth model: more successful reservations create more activity, more passengers, more relationships, and more opportunity for the airline. **Edition 7 uses 2,000 reservations per month as an exemplary management target**, giving the executive layer a concrete measure of airline scale and customer activity.
+
 ## Moria — the dungeon crawler
 
 Alongside the versioned Airport Tycoon game, [`moria/`](moria/) is a small,
