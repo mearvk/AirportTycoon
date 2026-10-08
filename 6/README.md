@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 5)
+# Airport Tycoon — Business Edition (Edition 6)
 
-> **Edition 5 — Imperial Horizons, the Grand Strategy Era.** Built on the complete, self-contained
+> **Edition 6 — Grand Meridian, the Continental Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -106,9 +106,18 @@ operating record without turning the ladder into a second mandatory win conditio
 
 ### What's new in Edition 5 — Imperial Reserve
 
-Edition 5 builds on the Prosperity Ladder with an **Imperial Reserve**. Keep at least **$3,000** on hand for **180 consecutive ticks** and the treasury awards **$750** and up to **+2 reputation**. Dropping below the reserve floor resets only the qualification clock.
+Edition 5's Imperial Reserve remains part of the Edition 6 foundation. Keep at least **$3,000** on hand for **180 consecutive ticks** and the treasury awards **$750** and up to **+2 reputation**. Dropping below the reserve floor resets only the qualification clock.
 
-The reserve is deliberately not a failure condition. It adds a long-range capital-management choice alongside aircraft flow, upgrades, fares, contracts, and the Prosperity Ladder. Snapshot fields expose the reserve floor, progress, goal, reward, and award count so the UI can present the financial objective.
+### What's new in Edition 6 — Grand Meridian / Resonant Concourse
+
+Edition 6 keeps the responsive JavaFX window and the uniform square grid introduced in Edition 5, then gives the floor a more finished architectural presentation.
+
+Every grid intersection remains a lighting emitter, including all four corners. The emitters retain the light-gray, white, and yellow-white palette, but now **glow and alter their visual resonance continuously and steadily**. The resonance follows an 8-second cycle and is phase-shifted across the grid so a soft wave travels through the concourse instead of every lamp pulsing at once.
+
+The lighting is deliberately presentation-only: it never changes the SLeeLa simulation tick, aircraft behavior, economy, multiplayer state, or deterministic game rules.
+
+This establishes the visual foundation for the next symbol upgrade: **Stores, Stones, Columns, and other world objects** can be introduced as grid-aware elements without redesigning the floor.
+
 
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
