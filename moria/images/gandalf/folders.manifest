@@ -1,0 +1,16 @@
+# nested sprite tree for gandalf
+# layout: <direction>/<action>/gandalf-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/gandalf-top-start.png
+sprite	top	mid	top/mid/gandalf-top-mid.png
+sprite	top	end	top/end/gandalf-top-end.png
+sprite	left	start	left/start/gandalf-left-start.png
+sprite	left	mid	left/mid/gandalf-left-mid.png
+sprite	left	end	left/end/gandalf-left-end.png
+sprite	down	start	down/start/gandalf-down-start.png
+sprite	down	mid	down/mid/gandalf-down-mid.png
+sprite	down	end	down/end/gandalf-down-end.png
+sprite	right	start	right/start/gandalf-right-start.png
+sprite	right	mid	right/mid/gandalf-right-mid.png
+sprite	right	end	right/end/gandalf-right-end.png
