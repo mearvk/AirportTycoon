@@ -434,7 +434,7 @@ public final class AirportTycoonApp extends Application {
     }
 
     private void drawRunways(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
-        double y = fieldH * 0.80, runwayW = Math.max(180, fieldW * 0.27);
+        double y = fieldH * 0.80, runwayW = Math.min(260, Math.max(120, fieldW * 0.25));
         double gap = (fieldW - runwayW * 3) / 4.0;
         for (int i = 0; i < LocalGameModel.MAX_RUNWAYS; i++) {
             double x = gap + i * (runwayW + gap);
