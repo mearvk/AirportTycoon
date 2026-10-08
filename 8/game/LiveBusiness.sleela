@@ -1,0 +1,482 @@
+#sleela 1.6
+//
+// Airport Tycoon — Edition 8 Live Business Engine
+// ================================================
+// Apex Dominion live-world business layer.
+//
+// This layer keeps LIVE SERVER score, FRIEND CHALLENGES, PUBLIC SCORE
+// OBSERVATION, and AUTHORITATIVE IN-GAME DEALS separate from the local
+// simulation. A connected client may observe a public server and propose
+// deals, but the server remains authoritative for scores, balances, deal
+// settlement, and challenge results.
+//
+// Network framing is intentionally text based and relay friendly. It is
+// compatible in spirit with CCP/1: PEERS, PRESENCE, BROADCAST, DIRECT, ACK,
+// PING and PONG remain communication primitives; LIVE, SCORE, CHALLENGE and
+// DEAL are application messages owned by this game layer.
+//
+// "Real deals" here means REAL, AUTHORITATIVE IN-GAME ECONOMIC DEALS. They
+// change the game ledger; they are not real-world cash payments.
+//
+// SLeeLa 1.6 has no array type, so all collections are linked lists.
+//
+
+struct LiveServer {
+    String serverId;
+    String name;
+    String endpoint;
+    String region;
+    boolean online;
+    boolean acceptingDeals;
+    boolean acceptingChallenges;
+    int players;
+    int score;
+    int cash;
+    int reputation;
+    int served;
+    int tick;
+    LiveServer next;
+}
+
+struct LivePlayer {
+    String playerId;
+    String name;
+    String serverId;
+    int score;
+    int cash;
+    int reputation;
+    int served;
+    boolean online;
+    LivePlayer next;
+}
+
+struct Challenge {
+    int id;
+    String challengerId;
+    String challengedId;
+    int challengerScore;
+    int challengedScore;
+    int targetScore;
+    int state;
+    Challenge next;
+}
+
+struct Deal {
+    int id;
+    String sellerId;
+    String buyerId;
+    String serverId;
+    int kind;
+    int quantity;
+    int unitPrice;
+    int totalPrice;
+    int state;
+    int createdTick;
+    int settledTick;
+    String note;
+    Deal next;
+}
+
+class LiveBusiness {
+    static int CHALLENGE_OPEN = 1;
+    static int CHALLENGE_ACTIVE = 2;
+    static int CHALLENGE_WON = 3;
+    static int CHALLENGE_LOST = 4;
+    static int CHALLENGE_DRAW = 5;
+    static int CHALLENGE_DECLINED = 6;
+
+    static int DEAL_PROPOSED = 1;
+    static int DEAL_ACCEPTED = 2;
+    static int DEAL_REJECTED = 3;
+    static int DEAL_SETTLED = 4;
+    static int DEAL_CANCELLED = 5;
+
+    static int DEAL_SERVICE = 1;
+    static int DEAL_GATE_CAPACITY = 2;
+    static int DEAL_FUEL = 3;
+    static int DEAL_CARGO = 4;
+    static int DEAL_ROUTE = 5;
+
+    LiveServer servers;
+    LivePlayer players;
+    Challenge challenges;
+    Deal deals;
+
+    int serverCount = 0;
+    int playerCount = 0;
+    int challengeCount = 0;
+    int dealCount = 0;
+    int nextChallengeId = 1;
+    int nextDealId = 1;
+    int tick = 0;
+
+    // Local published identity.
+    String localServerId = "APEX-LOCAL";
+    String localServerName = "Apex Dominion Live";
+    String localPlayerId = "P1";
+    String localPlayerName = "Player";
+
+    void setup() {
+        servers = null;
+        players = null;
+        challenges = null;
+        deals = null;
+        serverCount = 0;
+        playerCount = 0;
+        challengeCount = 0;
+        dealCount = 0;
+        nextChallengeId = 1;
+        nextDealId = 1;
+        tick = 0;
+    }
+
+    LiveServer serverById(String id) {
+        LiveServer s = servers;
+        while (s != null) {
+            if (s.serverId == id) { return s; }
+            s = s.next;
+        }
+        return null;
+    }
+
+    LivePlayer playerById(String id) {
+        LivePlayer p = players;
+        while (p != null) {
+            if (p.playerId == id) { return p; }
+            p = p.next;
+        }
+        return null;
+    }
+
+    // Public server discovery. The server advertises only information it has
+    // chosen to publish; clients never receive private server state here.
+    LiveServer discoverServer(String id, String name, String endpoint,
+                              String region, int score, int cash, int rep,
+                              int served, int playerTotal, int serverTick,
+                              boolean dealBook, boolean challengesOn) {
+        LiveServer old = serverById(id);
+        LiveServer s = old;
+        if (s == null) {
+            s = new LiveServer();
+            s.next = servers;
+            servers = s;
+            serverCount = serverCount + 1;
+        }
+        s.serverId = id;
+        s.name = name;
+        s.endpoint = endpoint;
+        s.region = region;
+        s.online = true;
+        s.acceptingDeals = dealBook;
+        s.acceptingChallenges = challengesOn;
+        s.players = playerTotal;
+        s.score = score;
+        s.cash = cash;
+        s.reputation = rep;
+        s.served = served;
+        s.tick = serverTick;
+        return s;
+    }
+
+    void serverOffline(String id) {
+        LiveServer s = serverById(id);
+        if (s != null) { s.online = false; }
+    }
+
+    void publishPlayer(String id, String name, String serverId,
+                       int score, int cash, int rep, int served) {
+        LivePlayer old = playerById(id);
+        LivePlayer p = old;
+        if (p == null) {
+            p = new LivePlayer();
+            p.next = players;
+            players = p;
+            playerCount = playerCount + 1;
+        }
+        p.playerId = id;
+        p.name = name;
+        p.serverId = serverId;
+        p.score = score;
+        p.cash = cash;
+        p.reputation = rep;
+        p.served = served;
+        p.online = true;
+    }
+
+    // A challenge is a scored contest, not a mutation of the opponent's
+    // simulation. The target score is captured when the challenge is opened.
+    Challenge challenge(String challengerId, String challengedId,
+                        int targetScore) {
+        LivePlayer a = playerById(challengerId);
+        LivePlayer b = playerById(challengedId);
+        if (a == null || b == null) { return null; }
+        Challenge c = new Challenge();
+        c.id = nextChallengeId;
+        nextChallengeId = nextChallengeId + 1;
+        c.challengerId = challengerId;
+        c.challengedId = challengedId;
+        c.challengerScore = a.score;
+        c.challengedScore = b.score;
+        c.targetScore = targetScore;
+        c.state = CHALLENGE_OPEN;
+        c.next = challenges;
+        challenges = c;
+        challengeCount = challengeCount + 1;
+        return c;
+    }
+
+    boolean acceptChallenge(int id) {
+        Challenge c = challengeById(id);
+        if (c == null || c.state != CHALLENGE_OPEN) { return false; }
+        c.state = CHALLENGE_ACTIVE;
+        return true;
+    }
+
+    boolean declineChallenge(int id) {
+        Challenge c = challengeById(id);
+        if (c == null || c.state != CHALLENGE_OPEN) { return false; }
+        c.state = CHALLENGE_DECLINED;
+        return true;
+    }
+
+    Challenge challengeById(int id) {
+        Challenge c = challenges;
+        while (c != null) {
+            if (c.id == id) { return c; }
+            c = c.next;
+        }
+        return null;
+    }
+
+    // Settle against current public scores. A server can call this after its
+    // authoritative tick. Equal scores are a draw.
+    boolean settleChallenge(int id) {
+        Challenge c = challengeById(id);
+        if (c == null || c.state != CHALLENGE_ACTIVE) { return false; }
+        LivePlayer a = playerById(c.challengerId);
+        LivePlayer b = playerById(c.challengedId);
+        if (a == null || b == null) { return false; }
+        c.challengerScore = a.score;
+        c.challengedScore = b.score;
+        if (a.score == b.score) { c.state = CHALLENGE_DRAW; }
+        else if (a.score > b.score) { c.state = CHALLENGE_WON; }
+        else { c.state = CHALLENGE_LOST; }
+        return true;
+    }
+
+    Deal dealById(int id) {
+        Deal d = deals;
+        while (d != null) {
+            if (d.id == id) { return d; }
+            d = d.next;
+        }
+        return null;
+    }
+
+    // Propose a genuine in-game transaction. The server must validate funds,
+    // capacity, ownership, and the requested resource before accepting.
+    Deal proposeDeal(String sellerId, String buyerId, String serverId,
+                     int kind, int quantity, int unitPrice, String note) {
+        if (quantity <= 0 || unitPrice < 0) { return null; }
+        LivePlayer seller = playerById(sellerId);
+        LivePlayer buyer = playerById(buyerId);
+        LiveServer server = serverById(serverId);
+        if (seller == null || buyer == null || server == null) { return null; }
+        if (!server.online || !server.acceptingDeals) { return null; }
+
+        Deal d = new Deal();
+        d.id = nextDealId;
+        nextDealId = nextDealId + 1;
+        d.sellerId = sellerId;
+        d.buyerId = buyerId;
+        d.serverId = serverId;
+        d.kind = kind;
+        d.quantity = quantity;
+        d.unitPrice = unitPrice;
+        d.totalPrice = quantity * unitPrice;
+        d.state = DEAL_PROPOSED;
+        d.createdTick = tick;
+        d.settledTick = 0;
+        d.note = note;
+        d.next = deals;
+        deals = d;
+        dealCount = dealCount + 1;
+        return d;
+    }
+
+    boolean acceptDeal(int id) {
+        Deal d = dealById(id);
+        if (d == null || d.state != DEAL_PROPOSED) { return false; }
+        LivePlayer buyer = playerById(d.buyerId);
+        if (buyer == null || buyer.cash < d.totalPrice) { return false; }
+        d.state = DEAL_ACCEPTED;
+        return true;
+    }
+
+    boolean rejectDeal(int id) {
+        Deal d = dealById(id);
+        if (d == null || d.state != DEAL_PROPOSED) { return false; }
+        d.state = DEAL_REJECTED;
+        return true;
+    }
+
+    // Settlement is the economic commit point. Money moves only here.
+    boolean settleDeal(int id) {
+        Deal d = dealById(id);
+        if (d == null || d.state != DEAL_ACCEPTED) { return false; }
+        LivePlayer seller = playerById(d.sellerId);
+        LivePlayer buyer = playerById(d.buyerId);
+        if (seller == null || buyer == null) { return false; }
+        if (buyer.cash < d.totalPrice) { return false; }
+
+        buyer.cash = buyer.cash - d.totalPrice;
+        seller.cash = seller.cash + d.totalPrice;
+        d.state = DEAL_SETTLED;
+        d.settledTick = tick;
+        return true;
+    }
+
+    boolean cancelDeal(int id) {
+        Deal d = dealById(id);
+        if (d == null) { return false; }
+        if (d.state == DEAL_SETTLED) { return false; }
+        d.state = DEAL_CANCELLED;
+        return true;
+    }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+
+    // Public LIVE message. Safe to expose to the internet: it contains current
+    // published scores and deal/challenge capability, not private state.
+    String liveSnapshot(String serverId) {
+        LiveServer s = serverById(serverId);
+        if (s == null) { return "LIVE|server=unknown|online=no"; }
+        return "LIVE|server=" + s.serverId
+            + "|name=" + s.name
+            + "|endpoint=" + s.endpoint
+            + "|region=" + s.region
+            + "|online=" + yn(s.online)
+            + "|players=" + s.players
+            + "|score=" + s.score
+            + "|cash=" + s.cash
+            + "|rep=" + s.reputation
+            + "|served=" + s.served
+            + "|tick=" + s.tick
+            + "|deals=" + yn(s.acceptingDeals)
+            + "|challenges=" + yn(s.acceptingChallenges);
+    }
+
+    String scoreboard() {
+        String out = "SCOREBOARD|servers=" + serverCount
+            + "|players=" + playerCount;
+        LiveServer s = servers;
+        while (s != null) {
+            if (s.online) {
+                out = out + "\nSCORE|server=" + s.serverId
+                    + "|name=" + s.name
+                    + "|score=" + s.score
+                    + "|cash=" + s.cash
+                    + "|rep=" + s.reputation
+                    + "|served=" + s.served
+                    + "|players=" + s.players;
+            }
+            s = s.next;
+        }
+        LivePlayer p = players;
+        while (p != null) {
+            if (p.online) {
+                out = out + "\nPLAYER|id=" + p.playerId
+                    + "|name=" + p.name
+                    + "|server=" + p.serverId
+                    + "|score=" + p.score
+                    + "|cash=" + p.cash
+                    + "|rep=" + p.reputation
+                    + "|served=" + p.served;
+            }
+            p = p.next;
+        }
+        return out;
+    }
+
+    String challengesSnapshot() {
+        String out = "CHALLENGES|count=" + challengeCount;
+        Challenge c = challenges;
+        while (c != null) {
+            out = out + "\nCHALLENGE|id=" + c.id
+                + "|from=" + c.challengerId
+                + "|to=" + c.challengedId
+                + "|fromScore=" + c.challengerScore
+                + "|toScore=" + c.challengedScore
+                + "|target=" + c.targetScore
+                + "|state=" + c.state;
+            c = c.next;
+        }
+        return out;
+    }
+
+    String dealsSnapshot() {
+        String out = "DEALS|count=" + dealCount;
+        Deal d = deals;
+        while (d != null) {
+            out = out + "\nDEAL|id=" + d.id
+                + "|seller=" + d.sellerId
+                + "|buyer=" + d.buyerId
+                + "|server=" + d.serverId
+                + "|kind=" + d.kind
+                + "|qty=" + d.quantity
+                + "|unit=" + d.unitPrice
+                + "|total=" + d.totalPrice
+                + "|state=" + d.state
+                + "|created=" + d.createdTick
+                + "|settled=" + d.settledTick
+                + "|note=" + d.note;
+            d = d.next;
+        }
+        return out;
+    }
+
+    // Application messages for a relay/server implementation. These remain
+    // separate from simulation CMD/STATE traffic.
+    String makeLiveRequest(String serverId) {
+        return "LIVE|REQUEST|server=" + serverId;
+    }
+
+    String makeScoreRequest(String serverId) {
+        return "SCORE|REQUEST|server=" + serverId;
+    }
+
+    String makeChallengeRequest(String from, String to, int target) {
+        return "CHALLENGE|REQUEST|from=" + from
+            + "|to=" + to + "|target=" + target;
+    }
+
+    String makeDealRequest(int id) {
+        return "DEAL|REQUEST|id=" + id;
+    }
+
+    void step() {
+        tick = tick + 1;
+    }
+
+    void main() {
+        setup();
+        discoverServer("S1", "Friends Airport", "https://server.example",
+                      "US-East", 12500, 900000, 94, 430, 4, 8812,
+                      true, true);
+        publishPlayer("P1", "Player", "S1", 12500, 900000, 94, 430);
+        publishPlayer("P2", "Friend", "S1", 11900, 750000, 91, 405);
+
+        Challenge c = challenge("P1", "P2", 13000);
+        acceptChallenge(c.id);
+
+        Deal d = proposeDeal("P1", "P2", "S1", DEAL_SERVICE,
+                             3, 5000, "Three priority service slots");
+        acceptDeal(d.id);
+        settleDeal(d.id);
+
+        print(liveSnapshot("S1"));
+        print(scoreboard());
+        print(challengesSnapshot());
+        print(dealsSnapshot());
+    }
+}
