@@ -1,4 +1,4 @@
-<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+<p align="right"><img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180"></p>
 
 # Airport Tycoon — Business Edition (Edition 7) — *Celestial Concourse*
 
