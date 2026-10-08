@@ -26,9 +26,13 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaBestiary.sleela`](game/MoriaBestiary.sleela) | **The Legends Bestiary** — **24 named legends** (Tiamat, Vecna, Strahd, Drizzt, Elminster, …) keyed to **dungeon depth**: deeper is more experienced. Each is depth/tier-scaled into a full stat block. |
 | [`game/MoriaGrimoire.sleela`](game/MoriaGrimoire.sleela) | **The Grimoire of Castings** — every spell usable in Moria, by class (Mage/Cleric/Wizard; **Fighters get swords**), plus the **Lich obedience pact** (You must Agree / Obey — it **pauses** your character) resolved by the **Spelling Duo**. |
 | [`game/MoriaCreator.sleela`](game/MoriaCreator.sleela) | **The character-creation generator** — base-stat allowances (**Rolled**, **Point-set**, **Old Wisdoms**) and **lifetime feats** (the *snuff*): **Law Degree, Trusts of Universities, Great Wealth, Exception Institute**, Knighthood, Endowed Chair. |
-| [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
+| [`game/MoriaAnimation.sleela`](game/MoriaAnimation.sleela) | **The walk animation** — the character sampled as **START → MID → STOP** (the three autocropped sprite frames), with the character **moving like he walks** (frame + facing + position advance each step). |
+| [`game/MoriaDungeonCatalog.sleela`](game/MoriaDungeonCatalog.sleela) | **The dungeon catalog** — **12,672** distinct dungeons (**> 2000**), each sized at its **original authoring resolution** and then **for the Sleela GUI gameboard**, with the animation **times** (frame holds + ms/tick). |
+| [`tools/autocrop_sprites.py`](tools/autocrop_sprites.py) | **The sprite autocropper** — pure-stdlib Python (baseline-JPEG decoder + PNG writer, no deps/network): decode a sheet, **autocrop to the figure**, slice **start/mid/stop**, and write `images/<character>/<character>-{start,mid,stop}.png`. |
+| [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, same-seed reproducibility, the ranged arms, the walk animation, and the GUI-fit of the dungeon catalog. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
-| [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
+| [`images/<character>/`](images/) | **Autocropped sprites**, per character: `adventurer/` and `warden/` each hold `-start.png`, `-mid.png`, `-stop.png` and a `sprite.manifest`. |
+| [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test` / `animation` / `catalog` / `sprites`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
 vendor drop at [`../1/sources/user-interface`](../1/sources/user-interface)
@@ -122,6 +126,51 @@ deterministic**: the same seed replays the same wandering, step for step. The
 GUI gets a dedicated **"The Fellowship — Figuring Pieces"** panel (glyph badge +
 name + role + live position); the headless read prints the same roster. Run
 `make figures` (or `make run`) to see it.
+
+## Sprites, the walk, and 2000+ dungeons
+
+### Autocropped sprites — start / mid / stop
+
+The character sheets in [`images/`](images/) are autocropped by
+[`tools/autocrop_sprites.py`](tools/autocrop_sprites.py) — a **pure-stdlib**
+Python tool (it carries its own baseline-JPEG decoder and PNG writer, so it runs
+with **no Pillow/ImageMagick and no network**). For each sheet it:
+
+1. decodes the baseline JPEG to RGB,
+2. **autocrops** to the figure's tight bounding box (trims the uniform
+   background measured from the sheet's corner),
+3. slices the figure into the animation sample **start / mid / stop**, and
+4. writes them under the character's name:
+   `images/<character>/<character>-{start,mid,stop}.png`, plus a
+   `sprite.manifest` the UI can read for frame sizes.
+
+The two real sheets became **`images/adventurer/`** and **`images/warden/`**
+(three ~910×1527 frames each). Re-run on any sheet with
+`make sprites SHEET=images/<file>.jpeg CHARACTER=<name>`.
+
+### The walk — the character moves like he's walking
+
+[`MoriaAnimation.sleela`](game/MoriaAnimation.sleela) drives a `Walker` from the
+three sampled frames: each `step()` advances the **gait** (START → MID → STOP →
+MID, looped) **and** the walker's position by one cell along its heading, so the
+character reads as walking. The hero in the live dungeon carries a `Walker`;
+`stepHeroTo()` faces and steps it on every move, and `heroFrame()`/`heroSprite()`
+report the current frame and its PNG under `images/adventurer/`.
+
+### 2000+ dungeons, sized for the GUI gameboard — and the times
+
+[`MoriaDungeonCatalog.sleela`](game/MoriaDungeonCatalog.sleela) name-forges
+**12,672** distinct dungeons (`[Theme] [Hall-Form] of [Legend]`), each sized
+twice — the "**make an original and then size for the gameboard and times**"
+step:
+
+- **Original** — the authoring grid (32–64 × 16–36 cells) at `originalCellPx`
+  (48 px), the resolution it was drawn at.
+- **Gameboard** — the largest GUI cell (down to a floor) that still fits the
+  **whole board inside the Sleela pane** (760×560). *Every* dungeon fits — the
+  self-check asserts zero overflow across the catalog.
+- **Times** — the walk's frame holds (start/mid/stop) plus `msPerTick`, which
+  paces a stride a touch slower on wider halls; `strideMs()` is a full stride.
 
 ## The RPG layer — stats, spells, weapons, and the saved book
 

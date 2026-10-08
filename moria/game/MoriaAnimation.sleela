@@ -1,0 +1,162 @@
+#sleela 1.6
+//
+// Moria — the Walk Animation
+// ==========================
+// The character animation sampled as START -> MID -> STOP: the three poses the
+// autocropped sprite sheets slice into (see moria/images/<character>/, produced
+// by tools/autocrop_sprites.py). This module drives a figure's walk from those
+// three frames and advances its on-board position so it reads as WALKING.
+//
+// The sprite frames themselves are PNGs on disk; here we model which frame is
+// shown at each tick and where the walker stands, so the SleelaUI front-end can
+// bind frame -> SLImage and the headless read can narrate the gait. The frame
+// files are named <character>-start.png / -mid.png / -stop.png, autocropped and
+// sized to the sheet; frameLabel()/framePath() name them for a given tick.
+//
+// Determinism: the walk cycle is a pure function of the tick, so a replay shows
+// the same gait every time. #sleela 1.6: scalars + struct, no arrays.
+
+// One walking actor: a character animated across the three sampled frames while
+// its (x,y) advances along a heading. Reference struct (intrusive list-ready).
+struct Walker {
+    String character;   // "adventurer", "warden", ...
+    int    x;           // board column (in cells)
+    int    y;           // board row
+    int    headingX;    // -1 / 0 / +1 facing + motion on x
+    int    headingY;    // -1 / 0 / +1 on y
+    int    tick;        // animation tick (advances each step)
+    int    distance;    // total cells walked
+    boolean moving;     // true while walking (START/MID), false at rest (STOP)
+    Walker next;
+}
+
+class MoriaAnimation {
+
+    // The animation sample: exactly three frames, in order.
+    static int FRAME_START = 0;   // weight on the back foot, about to stride
+    static int FRAME_MID   = 1;   // mid-stride, both feet off the line
+    static int FRAME_STOP  = 2;   // weight settling, the foot planting
+    static int FRAMES      = 3;
+
+    // Walk-cycle timing. A full stride is START -> MID -> STOP -> MID -> (repeat)
+    // so the gait reads as a loop; the "times" below are frame holds in ticks.
+    static int HOLD_START = 2;
+    static int HOLD_MID   = 1;
+    static int HOLD_STOP  = 2;
+    static int CYCLE      = 6;    // HOLD_START + HOLD_MID + HOLD_STOP + HOLD_MID
+
+    // --- make / configure a walker -----------------------------------------
+    Walker spawn(String character, int x, int y) {
+        Walker w = new Walker();
+        w.character = character;
+        if (w.character == null) { w.character = "adventurer"; }
+        w.x = x; w.y = y;
+        w.headingX = 1; w.headingY = 0;   // facing east by default
+        w.tick = 0; w.distance = 0;
+        w.moving = false;
+        return w;
+    }
+
+    void face(Walker w, int dx, int dy) {
+        w.headingX = sign(dx);
+        w.headingY = sign(dy);
+    }
+
+    int sign(int v) {
+        if (v > 0) { return 1; }
+        if (v < 0) { return 0 - 1; }
+        return 0;
+    }
+
+    // Take one walking step: advance the tick (the gait) AND the position along
+    // the heading. The character MOVES — like he's walking — one cell per step.
+    void step(Walker w) {
+        w.tick = w.tick + 1;
+        w.moving = true;
+        if (w.headingX == 0 && w.headingY == 0) { w.headingX = 1; }
+        w.x = w.x + w.headingX;
+        w.y = w.y + w.headingY;
+        w.distance = w.distance + 1;
+    }
+
+    // Walk toward a target (tx,ty) by one step, setting the heading first.
+    void stepToward(Walker w, int tx, int ty) {
+        face(w, tx - w.x, ty - w.y);
+        step(w);
+    }
+
+    // Come to rest: the gait settles on the STOP frame and motion stops.
+    void halt(Walker w) {
+        w.moving = false;
+    }
+
+    // --- which frame is showing right now -----------------------------------
+    // The three-frame sample looped over the cycle:
+    //   ticks [0,HOLD_START)              -> START
+    //   next  [.., +HOLD_MID)             -> MID
+    //   next  [.., +HOLD_STOP)            -> STOP
+    //   next  [.., +HOLD_MID)             -> MID   (and repeat)
+    int frameOf(Walker w) {
+        if (!w.moving) { return FRAME_STOP; }   // at rest, show the planted pose
+        int t = w.tick % CYCLE;
+        if (t < HOLD_START) { return FRAME_START; }
+        t = t - HOLD_START;
+        if (t < HOLD_MID) { return FRAME_MID; }
+        t = t - HOLD_MID;
+        if (t < HOLD_STOP) { return FRAME_STOP; }
+        return FRAME_MID;
+    }
+
+    String frameLabel(int frame) {
+        if (frame == FRAME_START) { return "start"; }
+        if (frame == FRAME_MID)   { return "mid"; }
+        return "stop";
+    }
+
+    // The on-disk sprite file for a walker's current frame, e.g.
+    // "images/adventurer/adventurer-mid.png". The SleelaUI build binds this to
+    // an SLImage; it was produced by the autocropper.
+    String framePath(Walker w) {
+        String label = frameLabel(frameOf(w));
+        return "images/" + w.character + "/" + w.character + "-" + label + ".png";
+    }
+
+    // A heading word for the gait read.
+    String headingWord(Walker w) {
+        if (w.headingX > 0) { return "east"; }
+        if (w.headingX < 0) { return "west"; }
+        if (w.headingY > 0) { return "south"; }
+        if (w.headingY < 0) { return "north"; }
+        return "still";
+    }
+
+    // A one-line read of the walker's current animation state.
+    String describe(Walker w) {
+        String gait = "at rest";
+        if (w.moving) { gait = "walking " + headingWord(w); }
+        return w.character + " @ (" + w.x + "," + w.y + ") "
+             + gait + " — frame " + frameLabel(frameOf(w))
+             + " (tick " + w.tick + ", walked " + w.distance + " cells)";
+    }
+
+    // =======================================================================
+    // A self-contained demo: walk a character eight cells east and narrate the
+    // start/mid/stop gait at each step, then halt.
+    // =======================================================================
+    void main() {
+        print("Moria — the Walk Animation (START -> MID -> STOP)");
+        print("Frames per character: " + FRAMES
+            + " (start, mid, stop); cycle " + CYCLE + " ticks.");
+        print("");
+        Walker hero = spawn("adventurer", 2, 9);
+        face(hero, 1, 0);
+        int i = 0;
+        while (i < 8) {
+            step(hero);
+            print("  " + describe(hero) + "   sprite=" + framePath(hero));
+            i = i + 1;
+        }
+        halt(hero);
+        print("  " + describe(hero) + "   sprite=" + framePath(hero));
+    }
+}

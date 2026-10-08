@@ -1,0 +1,6 @@
+# sprite manifest for adventurer
+sheet	character-animation-sprites-005.jpeg	2752x1536
+autocrop	11,5,2741,1532	2730x1527
+frame	start	adventurer-start.png	910x1527
+frame	mid	adventurer-mid.png	910x1527
+frame	stop	adventurer-stop.png	910x1527

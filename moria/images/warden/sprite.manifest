@@ -1,0 +1,6 @@
+# sprite manifest for warden
+sheet	character-animation-sprites-011.jpeg	2752x1536
+autocrop	12,17,2752,1536	2740x1519
+frame	start	warden-start.png	913x1519
+frame	mid	warden-mid.png	913x1519
+frame	stop	warden-stop.png	914x1519

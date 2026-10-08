@@ -36,13 +36,15 @@ BESTIARY_SRC := game/MoriaBestiary.sleela
 GRIMOIRE_SRC := game/MoriaGrimoire.sleela
 # The character-creation generator: base allowances + lifetime feats (the snuff).
 CREATOR_SRC := game/MoriaCreator.sleela
-RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC) $(GRIMOIRE_SRC) $(CREATOR_SRC)
+ANIM_SRC    := game/MoriaAnimation.sleela
+CATALOG_SRC := game/MoriaDungeonCatalog.sleela
+RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC) $(GRIMOIRE_SRC) $(CREATOR_SRC) $(ANIM_SRC) $(CATALOG_SRC)
 
 # The SleelaUI widget toolkit, reused from the Edition 1 vendor drop. These are
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures stats spells weapons save bestiary grimoire creator ui test help
+.PHONY: all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites ui test help
 
 all: game test
 
@@ -77,6 +79,22 @@ spells:
 
 weapons:
 	$(SLEELA) run $(WEAPONS_SRC)
+
+# The walk animation: start/mid/stop frames, the character moving like he walks.
+animation:
+	$(SLEELA) run $(ANIM_SRC)
+
+# The 2000+ dungeon catalog, each sized for authoring AND the Sleela GUI board.
+catalog:
+	$(SLEELA) run $(CATALOG_SRC)
+
+# Autocrop the sprite sheets in images/ into images/<character>/{start,mid,stop}.
+# Pure-stdlib Python (no deps); decodes baseline JPEG, trims to the figure, and
+# slices the start/mid/stop animation sample. Pass SHEET=... CHARACTER=...
+SHEET ?= images/character-animation-sprites-005.jpeg
+CHARACTER ?= adventurer
+sprites:
+	python3 tools/autocrop_sprites.py $(SHEET) $(CHARACTER) --frames 3 --out images
 
 save:
 	$(SLEELA) run $(SAVE_SRC)
