@@ -35,7 +35,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run network-client check clean help
 
 all: game check ui
 
@@ -104,6 +104,9 @@ ui:
 
 ui-run:
 	cd ui && mvn -q javafx:run
+
+network-client:
+	AIRPORT_NETWORK_HOST=$(HOST) AIRPORT_NETWORK_PORT=$(PORT) AIRPORT_NETWORK_MODE=$(MODE) AIRPORT_PLAYER=$(NAME) make ui-run
 
 # Build + run the pure-Java game-logic tests. No JavaFX download required.
 check:
