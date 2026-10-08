@@ -44,7 +44,7 @@ game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
-			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) \
+			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) $(ROUTE_ECONOMY_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
