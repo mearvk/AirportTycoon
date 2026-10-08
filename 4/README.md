@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 3)
+# Airport Tycoon — Business Edition (Edition 4)
 
-> **Edition 3 — Platinum Ascension, the Prosperity Era.** Built on the complete, self-contained
+> **Edition 4 — Sovereign Skies, the Dominion Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
