@@ -1,0 +1,66 @@
+#sleela 1.6
+//
+// Edition 8 — Live Business Engine self-check
+//
+
+class LiveBusinessTest {
+    int failures = 0;
+
+    void check(boolean condition, String label) {
+        if (condition) {
+            print("ok   - " + label);
+        } else {
+            print("FAIL - " + label);
+            failures = failures + 1;
+        }
+    }
+
+    void main() {
+        LiveBusiness live = new LiveBusiness();
+        live.setup();
+
+        live.discoverServer("S1", "Friends Airport", "live://friends",
+                            "US-East", 10000, 500000, 95, 300, 2, 100,
+                            true, true);
+        live.publishPlayer("P1", "Player", "S1", 10000, 500000, 95, 300);
+        live.publishPlayer("P2", "Friend", "S1", 9000, 250000, 92, 280);
+
+        check(live.serverById("S1") != null, "live server discovery");
+        check(live.playerById("P2") != null, "live player publication");
+
+        Challenge c = live.challenge("P1", "P2", 12000);
+        check(c != null && c.state == live.CHALLENGE_OPEN,
+              "challenge creation");
+        check(live.acceptChallenge(c.id), "challenge acceptance");
+
+        // Refresh the friend above the challenger and settle from live scores.
+        live.publishPlayer("P2", "Friend", "S1", 11000, 250000, 92, 300);
+        check(live.settleChallenge(c.id), "challenge settlement");
+        check(c.state == live.CHALLENGE_LOST, "challenge result");
+
+        Deal d = live.proposeDeal("P1", "P2", "S1",
+                                  live.DEAL_SERVICE, 2, 5000,
+                                  "Priority service");
+        check(d != null && d.state == live.DEAL_PROPOSED,
+              "deal proposal");
+        check(live.acceptDeal(d.id), "deal acceptance");
+
+        int sellerBefore = live.playerById("P1").cash;
+        int buyerBefore = live.playerById("P2").cash;
+        check(live.settleDeal(d.id), "deal settlement");
+        check(live.playerById("P1").cash == sellerBefore + 10000,
+              "seller ledger increased");
+        check(live.playerById("P2").cash == buyerBefore - 10000,
+              "buyer ledger decreased");
+        check(d.state == live.DEAL_SETTLED, "deal ledger settled");
+
+        live.serverOffline("S1");
+        check(!live.serverById("S1").online, "server offline state");
+
+        if (failures == 0) {
+            print("ALL LIVE BUSINESS TESTS PASSED");
+        } else {
+            print("LIVE BUSINESS TESTS FAILED: " + failures);
+        }
+    }
+}
