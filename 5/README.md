@@ -345,6 +345,77 @@ future is knowable in advance. [`game/AuthorPath.sleela`](game/AuthorPath.sleela
 `make author` runs the SLeeLa proof; the Java test suite verifies the path wins
 in exactly 1001 moves across every starting state it sweeps.
 
+## Multiplayer — play together
+
+Edition 5 now includes a small, dependency-free TCP multiplayer layer for
+**1–4 players**. The server is authoritative and the deterministic Airport
+Tycoon rules remain on the server side.
+
+### Two ways to play
+
+- **Same World / Shared Airport** — everyone operates the **same airport**.
+  One player can clear an aircraft while another buys a gate, assigns a gate,
+  or sends a different aircraft home. The whole group sees the same world.
+- **Individual Airports + Chat** — each player gets a **private airport** with
+  its own deterministic game state, while everyone connected to the server can
+  use the shared **Player Chat** panel.
+
+The server supports both modes at the same time, so one group can share an
+airport while another player runs an individual airport and still participates
+in the common conversation.
+
+### Start a game together
+
+On the host:
+
+```sh
+cd 5
+make network-server PORT=47500
+```
+
+On each player's machine:
+
+```sh
+cd 5
+make network-client HOST=192.168.1.20 MODE=shared NAME=Player1
+```
+
+For private airports with chat:
+
+```sh
+make network-client HOST=192.168.1.20 MODE=individual NAME=Player1
+```
+
+Replace the host address with the LAN address of the machine running the
+server. The server accepts at most **four simultaneous players**.
+
+The network client keeps the JavaFX UI responsive: the server advances the
+world at 10 Hz, clients receive snapshots asynchronously, and player actions
+are sent as small named intents. Chat is UTF-8 encoded and framed independently
+of game state.
+
+### Network architecture
+
+```
+                 Airport Tycoon Multiplayer Server
+                       authoritative, 10 Hz
+                       /       |       \
+                    P1         P2       P3/P4
+                     \         |         /
+                       TCP + Chat
+                         /       \
+              Shared World    Individual Worlds
+```
+
+The implementation lives in:
+
+- `ui/.../MultiplayerServer.java` — authoritative 1–4 player server.
+- `ui/.../NetworkRuntime.java` — non-blocking JavaFX client runtime.
+- `ui/.../MultiplayerProtocol.java` — small line-based TCP protocol.
+- `GameSnapshot.toWire()` — SLeeLa-compatible snapshot serialization.
+
+No third-party networking library or account service is required.
+
 ## Controls
 
 | Key / Button | Action |
