@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 2)
+# Airport Tycoon — Business Edition (Edition 8) — *Apex Dominion*
 
-> **Edition 2 — the improvement line.** Built on the complete, self-contained
+> **Edition 8 — Apex Dominion, the Ultimate Era.
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
