@@ -425,6 +425,19 @@ public final class LocalGameModel implements SleelaRuntime {
         }
         tick++;
 
+        // Edition 5: Imperial Reserve qualification.
+        if (cash >= RESERVE_FLOOR) {
+            reserveTicks++;
+            if (reserveTicks >= RESERVE_TICKS) {
+                cash += RESERVE_BONUS;
+                reputation = Math.min(100, reputation + RESERVE_REP_BONUS);
+                reserveAwards++;
+                reserveTicks = 0;
+            }
+        } else {
+            reserveTicks = 0;
+        }
+
         // Edition 3 contract deadline. Expiry rotates the target and resets
         // progress; it does not directly damage reputation.
         if (contractDeadline > 0) {
@@ -434,6 +447,7 @@ public final class LocalGameModel implements SleelaRuntime {
             contractProgress = 0;
             contractTargetSize = (contractTargetSize + 1) % 3;
             contractDeadline = CONTRACT_DEADLINE;
+            contractChain = 0;
         }
 
         for (Runway r : runways) {
