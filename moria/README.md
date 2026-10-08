@@ -16,6 +16,79 @@ All game logic is SLeeLa source. The GUI is **SleelaUI™** (SLeeLa's own
 cross-platform native toolkit), painting the dungeon into a text canvas. The
 game is fully playable **headless** too — the same text read drives both.
 
+
+## Gameplay & Goals
+
+### Your objective
+
+You are the **Adventurer**. Begin on the planet's surface at **Level 1**, then descend through the persistent Mines of Moria. Explore each level, manage health and resources, fight or avoid the creatures of the Mines, and make your way toward the deepest halls.
+
+The principal journey is:
+
+**Surface → descend → explore → survive combat → reach the deeper levels → face the Balrog at Level 8 → turn around → climb the stairs back toward daylight.**
+
+The dungeon is persistent: returning to a level restores the same generated hall rather than creating a new one. A deterministic seed makes a run reproducible.
+
+### How to play
+
+- **Move through the dungeon** as the `@` Adventurer.
+- Use **`>`** to descend and **`<`** to climb back up.
+- Explore around **walls (#)** and **doors (+)** while staying on lit floor **(.)**.
+- Watch for **treasure ($)** and hostile creatures such as **orcs (o)**, **trolls (T)**, and the **Balrog (B)** at depth 8.
+- The Fellowship figures — Gandalf, Frodo, Aragorn, Legolas, and Gimli — travel with the hero; the Sauron's Eye stalker appears in deeper halls.
+- Use **Strength, Dexterity, Constitution, Intelligence, Wisdom, and Character Number** to understand your strengths and progression.
+- Choose **Rolled**, **Point-set**, or **Old Wisdoms** character creation. Lifetime feats and starting resources further shape the character.
+- Use weapons, ranged arms, armor, spells, and the Grimoire according to your character's capabilities. Save/load preserves supported character and dungeon information.
+- A Lich obedience pact can temporarily pause the character; resolving its **Spelling Duo** challenge correctly releases the character.
+
+### Goals and success
+
+Moria is designed as a survival-and-exploration journey rather than a simple score chase. The important goals are to:
+
+1. **Descend successfully** through the persistent levels.
+2. **Survive increasingly dangerous encounters** as depth increases.
+3. **Reach the Balrog at Level 8.**
+4. **Return upward** and make it back toward the surface after the deep descent.
+5. **Preserve and improve your character**, using leveling, equipment, spells, and the save/leveling ledger.
+6. **Replay and master the dungeon.** The deterministic seed makes the same underlying run reproducible for learning routes and testing strategies.
+
+### Controls and symbols
+
+The core text game uses the dungeon pane/readout as the play surface. Exact interactive controls depend on the UI host. The map symbols are:
+
+| Symbol | Meaning |
+|---|---|
+| `@` | Adventurer |
+| `#` | Wall |
+| `.` | Lit floor |
+| `>` | Stair down |
+| `<` | Stair up |
+| `+` | Door |
+| `# Moria — a Dungeon Crawler in simple new video-game theatrics
+
+> For the very willing, the very picky, the most excellent — the Adventurers in
+> the Careful Years of Time.
+
+A small, deterministic **Moria dungeon crawler** rendered through a **GUI-driven
+text pane / canvas** with excellent text features. The Adventurer begins on the
+**surface of the planet (Level 1)**, then descends the Mines of Moria one level
+at a time, moving by torchlight through rough-hewn halls, past the orc and the
+troll, down toward the **Balrog on level eight** — and, if resolve and luck
+hold, back **up the stairs** and out into distant daylight. **The levels
+persist:** go down a stair and climb back up and you return to the very same
+hall, exactly as you left it — and down again finds the deeper hall unchanged.
+
+All game logic is SLeeLa source. The GUI is **SleelaUI™** (SLeeLa's own
+cross-platform native toolkit), painting the dungeon into a text canvas. The
+game is fully playable **headless** too — the same text read drives both.
+
+ | Treasure |
+| `o` | Orc |
+| `T` | Troll |
+| `B` | Balrog |
+| `G F A L D` | Fellowship figures |
+| `S` | Sauron's Eye |
+
 ## What's here
 
 | Path | Contents |

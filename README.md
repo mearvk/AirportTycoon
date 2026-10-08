@@ -43,6 +43,44 @@ recorded in a `VERSION.NAME.md` inside its folder.
 > [`1/README.md`](1/README.md) for the original base game overview,
 > architecture, and build/run instructions.
 
+
+## Gameplay & Goals
+
+### Airport Tycoon — what you are trying to do
+
+You are the **airport tower and owner**. The core loop is simple: receive incoming aircraft, land them safely on available runways, move them to gates, service them, and send them back out before their patience expires.
+
+The primary business goal is to build a healthy, growing airport:
+
+1. **Keep aircraft moving.** Land inbound planes, assign gates, service them, and depart them promptly.
+2. **Protect reputation.** A plane that runs out of patience and leaves angry hurts reputation. If reputation reaches **0**, the airport closes.
+3. **Make money.** Successful departures produce fare revenue. The business/life layer tracks the owner's Character and the Citizens who travel through the airport.
+4. **Reach the win condition.** Build **Major-Eastern revenue above $240,000 while that revenue is rising month-over-month**.
+5. **Master the Author Path.** The repository also contains a deterministic **1001-move Author Path** that is guaranteed to win. It is available as a strategy/proof path rather than being required for ordinary play.
+
+### Practical tower strategy
+
+- Watch **patience** as closely as runway and gate capacity.
+- Do not let planes sit idle when another aircraft needs the gate or runway.
+- Prefer clean, on-time departures: in Edition 2, every **five consecutive clean departures** earns a **$150** combo tip.
+- Edition 2 reputation directly affects fares: at reputation 60 the fare is neutral; higher reputation increases the service premium, while very low reputation forces discounts.
+- Edition 2 **Auto-assist** prioritizes urgent aircraft while giving a small preference to heavier, higher-value aircraft when urgency is otherwise comparable.
+- Edition 2's **Business Desk** runs alongside the tower game. Casino Management is higher variance; Investment Management is steadier and compounding. Sustained profitable weeks build IQ toward the **Level-5 Great Assimilation**, which temporarily boosts Major-Eastern revenue.
+
+For exact mechanics of a particular edition, use that edition's README: [`1/README.md`](1/README.md) through [`8/README.md`](8/README.md). Edition 8 is the current versioned edition.
+
+### Starting a game
+
+For the current edition:
+
+```sh
+cd 8
+make check
+make ui-run
+```
+
+For a deterministic/headless run, use the version's `make run` target. The configured RNG seed makes the same seed replayable, which is useful for testing and learning the game.
+
 ## Moria — the dungeon crawler
 
 Alongside the versioned Airport Tycoon game, [`moria/`](moria/) is a small,
