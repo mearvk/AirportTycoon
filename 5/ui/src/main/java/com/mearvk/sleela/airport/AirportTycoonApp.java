@@ -16,6 +16,7 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.LinearGradient;
@@ -73,6 +74,11 @@ public final class AirportTycoonApp extends Application {
         runtime.reset();
 
         canvas = new Canvas(W, FIELD_H);
+        StackPane field = new StackPane(canvas);
+        field.setMinSize(480, 320);
+        field.setStyle("-fx-background-color: #202936;");
+        canvas.widthProperty().bind(field.widthProperty());
+        canvas.heightProperty().bind(field.heightProperty());
 
         hud = new Label();
         hud.setFont(Font.font("Consolas", FontWeight.BOLD, 15));
@@ -93,13 +99,15 @@ public final class AirportTycoonApp extends Application {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #0b1220;");
         root.setTop(buildHeader());
-        root.setCenter(canvas);
+        root.setCenter(field);
         root.setRight(buildEconomyPanel());
         root.setBottom(buildControls());
 
         cashAtMonthStart = runtime.snapshot().cash;
 
-        Scene scene = new Scene(root, W, H);
+        Scene scene = new Scene(root, WINDOW_W, H);
+        stage.setMinWidth(900);
+        stage.setMinHeight(600);
         scene.setOnKeyPressed(e -> {
             switch (e.getCode()) {
                 case SPACE -> togglePause();
@@ -368,49 +376,74 @@ public final class AirportTycoonApp extends Application {
     // --- rendering ---
     private void render(GameSnapshot snap) {
         GraphicsContext g = canvas.getGraphicsContext2D();
+        double fieldW = Math.max(1, canvas.getWidth());
+        double fieldH = Math.max(1, canvas.getHeight());
 
-        // Sky gradient.
         LinearGradient sky = new LinearGradient(0, 0, 0, 1, true, null,
                 new Stop(0, Color.web("#16233f")),
                 new Stop(1, Color.web("#223a5e")));
         g.setFill(sky);
-        g.fillRect(0, 0, W, FIELD_H);
+        g.fillRect(0, 0, fieldW, fieldH);
 
-        // Apron / tarmac.
-        g.setFill(Color.web("#2b2f3a"));
-        g.fillRect(0, FIELD_H * 0.62, W, FIELD_H * 0.38);
-
-        drawRunways(g, snap);
-        drawGates(g, snap);
-        drawPlanes(g, snap);
+        drawGridFloor(g, fieldW, fieldH);
+        drawRunways(g, snap, fieldW, fieldH);
+        drawGates(g, snap, fieldW, fieldH);
+        drawPlanes(g, snap, fieldW, fieldH);
 
         if (snap.gameOver) {
             g.setFill(Color.color(0, 0, 0, 0.6));
-            g.fillRect(0, 0, W, FIELD_H);
+            g.fillRect(0, 0, fieldW, fieldH);
             g.setFill(Color.web("#ff6b6b"));
             g.setFont(Font.font("Consolas", FontWeight.BOLD, 40));
-            g.fillText("AIRPORT CLOSED", W / 2 - 170, FIELD_H / 2);
+            g.fillText("AIRPORT CLOSED", fieldW / 2 - 170, fieldH / 2);
             g.setFont(Font.font("Consolas", 18));
             g.setFill(Color.web("#e8f0ff"));
-            g.fillText("Served " + snap.served + "  ·  Lost " + snap.lost
-                    + "  ·  Click Restart", W / 2 - 170, FIELD_H / 2 + 36);
+            g.fillText("Served " + snap.served + "  ·  Lost " + snap.lost + "  ·  Click Restart",
+                    fieldW / 2 - 170, fieldH / 2 + 36);
         }
     }
 
-    private void drawRunways(GraphicsContext g, GameSnapshot snap) {
-        double y = FIELD_H * 0.80;
+    private void drawGridFloor(GraphicsContext g, double fieldW, double fieldH) {
+        final int columns = 16, rows = 10;
+        final double tileW = fieldW / columns, tileH = fieldH / rows;
+        final double radius = Math.max(1.5, Math.min(tileW, tileH) * 0.035);
+        g.setFill(Color.web("#2b3038"));
+        g.fillRect(0, 0, fieldW, fieldH);
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                double x = col * tileW, y = row * tileH;
+                g.setFill((row + col) % 2 == 0 ? Color.web("#343a43") : Color.web("#30363f"));
+                g.fillRect(x + 1, y + 1, tileW - 2, tileH - 2);
+            }
+        }
+        g.setStroke(Color.web("#515861"));
+        g.setLineWidth(1);
+        for (int col = 0; col <= columns; col++) { double x = col * tileW; g.strokeLine(x, 0, x, fieldH); }
+        for (int row = 0; row <= rows; row++) { double y = row * tileH; g.strokeLine(0, y, fieldW, y); }
+        for (int row = 0; row <= rows; row++) {
+            for (int col = 0; col <= columns; col++) {
+                double x = col * tileW, y = row * tileH;
+                g.setFill(Color.color(1.0, 0.98, 0.82, 0.10));
+                g.fillOval(x - radius * 3.2, y - radius * 3.2, radius * 6.4, radius * 6.4);
+                g.setFill(Color.web("#e8e8e4"));
+                g.fillOval(x - radius, y - radius, radius * 2, radius * 2);
+                g.setFill(Color.web("#fffdf0"));
+                g.fillOval(x - radius * 0.55, y - radius * 0.55, radius * 1.1, radius * 1.1);
+            }
+        }
+    }
+
+    private void drawRunways(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
+        double y = fieldH * 0.80, runwayW = Math.max(180, fieldW * 0.27);
+        double gap = (fieldW - runwayW * 3) / 4.0;
         for (int i = 0; i < LocalGameModel.MAX_RUNWAYS; i++) {
-            double x = 60 + i * 300;
+            double x = gap + i * (runwayW + gap);
             boolean open = i < snap.openRunways;
             g.setFill(open ? Color.web("#3b3f4a") : Color.web("#1a1d24"));
-            g.fillRoundRect(x, y, 260, 26, 8, 8);
-            // centreline dashes
+            g.fillRoundRect(x, y, runwayW, 26, 8, 8);
             if (open) {
-                g.setStroke(Color.web("#d9c04a"));
-                g.setLineWidth(2);
-                for (double dx = x + 12; dx < x + 248; dx += 26) {
-                    g.strokeLine(dx, y + 13, dx + 12, y + 13);
-                }
+                g.setStroke(Color.web("#d9c04a")); g.setLineWidth(2);
+                for (double dx = x + 12; dx < x + runwayW - 12; dx += 26) g.strokeLine(dx, y + 13, Math.min(dx + 12, x + runwayW - 4), y + 13);
             }
             g.setFill(open ? Color.web("#8fb0d8") : Color.web("#4a4f5a"));
             g.setFont(Font.font("Consolas", 11));
@@ -418,11 +451,11 @@ public final class AirportTycoonApp extends Application {
         }
     }
 
-    private void drawGates(GraphicsContext g, GameSnapshot snap) {
+    private void drawGates(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
         for (int i = 0; i < LocalGameModel.MAX_GATES; i++) {
             int idx = i + 1;
-            double gx = (0.6 + (idx % 4) * 0.09) * W;
-            double gy = (0.3 + (idx / 4) * 0.18) * FIELD_H;
+            double gx = (0.6 + (idx % 4) * 0.09) * fieldW;
+            double gy = (0.3 + (idx / 4) * 0.18) * fieldH;
             boolean open = idx <= snap.openGates;
             g.setFill(open ? Color.web("#2f6f4f") : Color.web("#20242e"));
             g.fillRoundRect(gx - 14, gy - 10, 28, 20, 5, 5);
@@ -431,8 +464,7 @@ public final class AirportTycoonApp extends Application {
             g.fillText("G" + idx, gx - 8, gy + 4);
         }
     }
-
-    private void drawPlanes(GraphicsContext g, GameSnapshot snap) {
+    private void drawPlanes(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
         for (GameSnapshot.PlaneView p : snap.planes) {
             double[] s = sprites.get(p.id);
             if (s == null) {
