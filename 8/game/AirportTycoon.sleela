@@ -553,6 +553,35 @@ class AirportTycoon {
         }
     }
 
+
+    // ---------------------------------------------------------------------
+    // Edition 8 — published live score. This is intentionally derived from
+    // authoritative simulation state so a connected server can publish one
+    // stable competitive number without granting clients write access.
+    // ---------------------------------------------------------------------
+    int liveScore() {
+        return (cash * 10) + (reputation * 100)
+            + (served * 50) + (streak * 25);
+    }
+
+    String liveScoreLine(String serverId, String serverName,
+                         String endpoint, String region,
+                         int players, boolean deals, boolean challenges) {
+        return "LIVE|server=" + serverId
+            + "|name=" + serverName
+            + "|endpoint=" + endpoint
+            + "|region=" + region
+            + "|online=" + (running ? "yes" : "no")
+            + "|players=" + players
+            + "|score=" + liveScore()
+            + "|cash=" + cash
+            + "|rep=" + reputation
+            + "|served=" + served
+            + "|tick=" + tick
+            + "|deals=" + (deals ? "yes" : "no")
+            + "|challenges=" + (challenges ? "yes" : "no");
+    }
+
     // ---------------------------------------------------------------------
     // Snapshot: the ONLY data crossing into the UI each frame. The header is a
     // compact pipe-delimited line; each live plane is emitted via structPack
@@ -564,7 +593,8 @@ class AirportTycoon {
             + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
             + "|gates=" + openGates + "|runways=" + openRunways
             + "|planes=" + planeCount + "|over=" + gameOver
-            + "|streak=" + streak + "|premium=" + servicePremiumPct();
+            + "|streak=" + streak + "|premium=" + servicePremiumPct()
+            + "|liveScore=" + liveScore();
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
