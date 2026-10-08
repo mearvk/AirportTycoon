@@ -80,10 +80,26 @@ public final class MultiplayerServer {
         for (Peer peer : peers) peer.send(line);
     }
 
+    private void broadcastCcp(String line) {
+        for (Peer peer : peers) peer.send(line);
+    }
+
+    private void sendPeerList() {
+        StringBuilder entries = new StringBuilder();
+        for (Peer peer : peers) {
+            if (entries.length() > 0) entries.append('\\n');
+            entries.append(peer.id).append("=").append(peer.name).append("@").append(peer.mode);
+        }
+        String line = ClientCommunicationProtocol.peers(entries.toString());
+        for (Peer peer : peers) peer.send(line);
+    }
+
     private void remove(Peer peer) {
         peers.remove(peer);
         peer.close();
         broadcastChat("Server", peer.name + " left the airport network.");
+        broadcastCcp(ClientCommunicationProtocol.presence("LEAVE", peer.id, peer.name, peer.mode));
+        sendPeerList();
     }
 
     private final class Peer implements Runnable {
@@ -92,6 +108,7 @@ public final class MultiplayerServer {
         final LocalGameModel model = new LocalGameModel();
         BufferedReader in;
         PrintWriter out;
+        String id;
         String name = "Player";
         String mode = MultiplayerProtocol.SHARED;
         volatile boolean connected = true;
@@ -115,6 +132,8 @@ public final class MultiplayerServer {
                     mode = MultiplayerProtocol.INDIVIDUAL;
                 }
                 send("WELCOME|" + peers.size() + "|" + mode + "|" + MultiplayerProtocol.MAX_PLAYERS);
+                broadcastCcp(ClientCommunicationProtocol.presence("JOIN", id, name, mode));
+                sendPeerList();
                 broadcastChat("Server", name + " joined (" + mode + ").");
                 sendState();
 
@@ -130,6 +149,30 @@ public final class MultiplayerServer {
         }
 
         private void handle(String line) {
+            if (line.startsWith("CCP/1|BROADCAST|")) {
+                broadcastCcp(line);
+                send(ClientCommunicationProtocol.ack(extractMessageId(line, 2)));
+                return;
+            }
+            if (line.startsWith("CCP/1|DIRECT|")) {
+                String[] p = line.split("\\|", 6);
+                if (p.length == 6) {
+                    String target = ClientCommunicationProtocol.dec(p[4]);
+                    for (Peer peer : peers) {
+                        if (peer.id.equals(target) || peer.name.equals(target)) {
+                            peer.send(line);
+                            send(ClientCommunicationProtocol.ack(ClientCommunicationProtocol.dec(p[2])));
+                            return;
+                        }
+                    }
+                    send("INFO|" + MultiplayerProtocol.enc("Peer not found: " + target));
+                }
+                return;
+            }
+            if (line.startsWith("CCP/1|PING|")) {
+                send(ClientCommunicationProtocol.pong(Long.parseLong(line.substring("CCP/1|PING|".length()))));
+                return;
+            }
             if (line.startsWith("CHAT|")) {
                 String[] p = line.split("\|", 3);
                 if (p.length == 3) broadcastChat(name, MultiplayerProtocol.dec(p[2]));
@@ -172,6 +215,11 @@ public final class MultiplayerServer {
         void close() {
             connected = false;
             try { socket.close(); } catch (IOException ignored) {}
+        }
+
+        private String extractMessageId(String line, int field) {
+            String[] p = line.split("\\|", 6);
+            return p.length > field ? ClientCommunicationProtocol.dec(p[field]) : "unknown";
         }
 
         private int parse(String s) {
