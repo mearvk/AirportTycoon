@@ -343,3 +343,20 @@ capacity, pace, and RNG seed. The matching `static` fields at the top of
 Edition 8 includes the **CCP/1** protocol definition as the forward-compatible communications contract for network-capable clients. It defines presence, peer lists, broadcast messages, direct peer messages, acknowledgements, and PING/PONG heartbeats while keeping human text UTF-8 safe through Base64 framing.
 
 CCP/1 is deliberately separated from game CMD and STATE records. The intended topology is server-relayed client communication: clients do not open arbitrary inbound peer sockets, and the authoritative game server remains responsible for simulation state. The protocol definition is ui/.../ClientCommunicationProtocol.java.
+
+
+## Edition 8 Live Business World
+
+Edition 8 extends Apex Dominion into a connected live business layer while preserving the deterministic airport simulation underneath it.
+
+- **Live Servers:** a participating server can publish its current online status, players, score, revenue/cash, reputation, served aircraft, and simulation tick for remote observation.
+- **Live Scores:** published scores can be compared while the server is running. The authoritative score is derived from server-side game state; clients cannot write their own score.
+- **Friends & Challenges:** players can challenge another published player score. Challenges capture the opening scores, enter an active state, and settle from authoritative live scores as the contest progresses.
+- **Real In-Game Deals:** players can propose, accept, reject, cancel, and settle authoritative economic transactions. Settlement is the ledger commit point and transfers in-game currency between the participating accounts.
+- **Deal Board / Ledger:** public deal metadata can be published separately from simulation CMD/STATE traffic so connected clients can inspect offers without receiving private server state.
+- **Server Authority:** live score, challenge results, deal acceptance, balances, and settlement remain server-authoritative.
+- **Network Separation:** live application messages use LIVE, SCORE, CHALLENGE, and DEAL records alongside the existing relay communication concepts rather than overloading the core simulation protocol.
+
+The implementation lives in 8/game/LiveBusiness.sleela, with deterministic checks in 8/game/LiveBusinessTest.sleela. The core AirportTycoon.sleela simulation now publishes a derived liveScore in its frame snapshot.
+
+> **Economic boundary:** “real deals” in Apex Dominion are real, authoritative **in-game** transactions. They do not represent real-world cash payments or financial instruments.
