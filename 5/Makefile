@@ -141,6 +141,9 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/main/java/com/mearvk/sleela/airport/MediaCenter.java \
 	    src/main/java/com/mearvk/sleela/airport/BusinessDesk.java \
+    src/main/java/com/mearvk/sleela/airport/MultiplayerProtocol.java \
+    src/main/java/com/mearvk/sleela/airport/MultiplayerServer.java \
+    src/main/java/com/mearvk/sleela/airport/NetworkRuntime.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 
