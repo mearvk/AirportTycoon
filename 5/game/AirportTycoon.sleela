@@ -132,6 +132,17 @@ class AirportTycoon {
     int contractsCompleted = 0;
     int contractChain = 0;
 
+    // Edition 5: Imperial Horizons / Imperial Reserve.
+    // Financial stability becomes a strategic resource without creating a
+    // second game-over condition. Maintain the reserve floor long enough to
+    // earn a treasury award; spending below it resets the qualification clock.
+    static int RESERVE_FLOOR = 3000;
+    static int RESERVE_TICKS = 180;
+    static int RESERVE_BONUS = 750;
+    static int RESERVE_REP_BONUS = 2;
+    int reserveTicks = 0;
+    int reserveAwards = 0;
+
     // ---------------------------------------------------------------------
     // Deterministic PRNG. Keeps the simulation reproducible from a seed so the
     // UI replay and tests agree.
@@ -422,6 +433,22 @@ class AirportTycoon {
             contractChain = 0;
         }
 
+        // Edition 5: Imperial Reserve qualification.
+        if (cash >= RESERVE_FLOOR) {
+            reserveTicks = reserveTicks + 1;
+            if (reserveTicks >= RESERVE_TICKS) {
+                cash = cash + RESERVE_BONUS;
+                if (reputation < 100) {
+                    reputation = reputation + RESERVE_REP_BONUS;
+                    if (reputation > 100) { reputation = 100; }
+                }
+                reserveAwards = reserveAwards + 1;
+                reserveTicks = 0;
+            }
+        } else {
+            reserveTicks = 0;
+        }
+
         // Cool runways down.
         Runway r = runways;
         while (r != null) {
@@ -629,7 +656,12 @@ class AirportTycoon {
             + "|contractEarlyBonus=" + CONTRACT_EARLY_BONUS
             + "|contractChain=" + contractChain
             + "|contractLadderStep=" + CONTRACT_LADDER_STEP
-            + "|contractLadderCap=" + CONTRACT_LADDER_CAP;
+            + "|contractLadderCap=" + CONTRACT_LADDER_CAP
+            + "|reserveFloor=" + RESERVE_FLOOR
+            + "|reserveTicks=" + reserveTicks
+            + "|reserveGoal=" + RESERVE_TICKS
+            + "|reserveBonus=" + RESERVE_BONUS
+            + "|reserveAwards=" + reserveAwards;
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
