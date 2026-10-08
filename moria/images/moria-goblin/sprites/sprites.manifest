@@ -1,0 +1,26 @@
+# moria-goblin sprite crops
+# source: moria/images/goblins.jpeg (2476x304 sprite sheet, black background)
+# produced by: moria/tools/crop.go
+#
+# Minimum crop set: one crop per sprite instance (12 total), no filler frames.
+# Uniform output: every crop is 182x229 (= max sprite bounding box across the sheet).
+# Each sprite is centered horizontally and anchored to the bottom of the canvas so
+# frames align on a common ground line; the black background is made transparent.
+#
+# Two goblins at the right of the sheet touch with no empty column between them;
+# crop.go separates them at the content valley (x=2245), yielding sprites 11 & 12.
+#
+# column 'src box' = tight bounding box of the sprite in the source sheet.
+size	182x229
+sprite	01	moria-goblin-01.png	src=x[191..344],y[57..252]	tight=154x196
+sprite	02	moria-goblin-02.png	src=x[364..503],y[57..252]	tight=140x196
+sprite	03	moria-goblin-03.png	src=x[514..695],y[24..251]	tight=182x228
+sprite	04	moria-goblin-04.png	src=x[732..906],y[24..252]	tight=175x229
+sprite	05	moria-goblin-05.png	src=x[961..1097],y[58..246]	tight=137x189
+sprite	06	moria-goblin-06.png	src=x[1132..1257],y[58..252]	tight=126x195
+sprite	07	moria-goblin-07.png	src=x[1310..1446],y[58..246]	tight=137x189
+sprite	08	moria-goblin-08.png	src=x[1495..1631],y[58..246]	tight=137x189
+sprite	09	moria-goblin-09.png	src=x[1654..1791],y[58..246]	tight=138x189
+sprite	10	moria-goblin-10.png	src=x[1888..2059],y[24..246]	tight=172x223
+sprite	11	moria-goblin-11.png	src=x[2073..2244],y[24..252]	tight=172x229
+sprite	12	moria-goblin-12.png	src=x[2245..2415],y[24..246]	tight=171x223

@@ -15,8 +15,20 @@ const thresh = 24 // luminance threshold for "content" vs black background
 type box struct{ x0, y0, x1, y1 int }
 
 func main() {
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "usage: crop <sheet.jpeg> <outDir> [namePrefix]")
+		os.Exit(2)
+	}
 	src := os.Args[1]
 	outDir := os.Args[2]
+	// Name prefix for the emitted PNGs (<prefix>-NN.png). Defaults to the
+	// output directory's parent name so e.g. .../moria-goblin/sprites -> "moria-goblin".
+	prefix := ""
+	if len(os.Args) > 3 {
+		prefix = os.Args[3]
+	} else {
+		prefix = filepath.Base(filepath.Dir(outDir))
+	}
 	f, err := os.Open(src)
 	must(err)
 	defer f.Close()
@@ -54,6 +66,61 @@ func main() {
 			if x-start >= 3 {
 				runs = append(runs, [2]int{start, x - 1})
 			}
+		}
+	}
+
+	// Separate touching sprites: when two figures abut with no empty column
+	// between them, the gap-based scan above merges them into one oversized
+	// run. Detect such runs (much wider than the median) and split each at its
+	// lowest-content interior column (the valley between the two figures).
+	// Repeated until no run is anomalously wide, so a 3-way merge also splits.
+	medianRunWidth := func(rs [][2]int) int {
+		ws := make([]int, 0, len(rs))
+		for _, r := range rs {
+			ws = append(ws, r[1]-r[0]+1)
+		}
+		for a := 0; a < len(ws); a++ {
+			for b2 := a + 1; b2 < len(ws); b2++ {
+				if ws[b2] < ws[a] {
+					ws[a], ws[b2] = ws[b2], ws[a]
+				}
+			}
+		}
+		if len(ws) == 0 {
+			return 0
+		}
+		return ws[len(ws)/2]
+	}
+	for {
+		med := medianRunWidth(runs)
+		if med == 0 {
+			break
+		}
+		var next [][2]int
+		changed := false
+		for _, r := range runs {
+			rw := r[1] - r[0] + 1
+			// A run ~1.6x wider than the typical sprite is almost certainly
+			// two figures touching.
+			if rw >= med*8/5 {
+				margin := rw / 4 // don't split near the run's own edges
+				minx, min := -1, 1<<30
+				for x := r[0] + margin; x <= r[1]-margin; x++ {
+					if colCount[x] < min {
+						min, minx = colCount[x], x
+					}
+				}
+				if minx > r[0] && minx < r[1] {
+					next = append(next, [2]int{r[0], minx - 1}, [2]int{minx, r[1]})
+					changed = true
+					continue
+				}
+			}
+			next = append(next, r)
+		}
+		runs = next
+		if !changed {
+			break
 		}
 	}
 
@@ -118,7 +185,7 @@ func main() {
 				dst.Set(offX+x, offY+y, color.RGBA{r8, g8, b8, a})
 			}
 		}
-		name := filepath.Join(outDir, fmt.Sprintf("gandalf-%02d.png", i+1))
+		name := filepath.Join(outDir, fmt.Sprintf("%s-%02d.png", prefix, i+1))
 		of, err := os.Create(name)
 		must(err)
 		must(png.Encode(of, dst))
