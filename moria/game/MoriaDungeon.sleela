@@ -50,6 +50,36 @@ struct Change {
     Change next;
 }
 
+// PERSISTENT PER-LEVEL STATE — one node per dungeon level the hero has visited.
+// The terrain itself is a pure function of (worldSeed, depth) and so needs no
+// storage, and cell mutations already persist in the depth-tagged Change list;
+// what this node remembers is the state that would otherwise be regenerated on
+// each visit: where the hero stood (so going down a stair and back up returns
+// you to the SAME spot, and vice versa), where the figuring pieces stood, and
+// which named lord held the hall. Held in an intrusive singly-linked list
+// keyed by depth, exactly like Change/Msg/Figure, so the model stays array-free.
+struct LevelState {
+    int        depth;      // which level this snapshot is for
+    int        heroX;      // where the hero stood on this level
+    int        heroY;
+    boolean    visited;    // true once the hero has set foot here
+    int        figX;       // saved figure positions (parallel to the Figure list)
+    FigurePos  figs;       // head of the saved figure-position list for this depth
+    Legend     lord;       // the named legend who holds this level
+    LevelState next;
+}
+
+// A saved figure position for a level (one per figuring piece), so the
+// Fellowship (and the stalker) return to exactly where they were when the hero
+// last left a level — not re-scattered. Keyed by the figure's stable name.
+struct FigurePos {
+    String    name;    // the figure this position belongs to ("Gandalf", ...)
+    int       x;
+    int       y;
+    boolean   active;  // whether it was in play on this level
+    FigurePos next;
+}
+
 // A FIGURING PIECE — one of the Original Characters of the tale, rendered as a
 // movable figure (a token) that wanders the UI's dungeon pane. Each piece has a
 // stable glyph, a short name, a role, a live position, and a deterministic
@@ -72,12 +102,21 @@ class MoriaDungeon {
     static int W = 40;        // columns
     static int H = 18;        // rows
 
+    // ---- Depth model ------------------------------------------------------
+    // Level 1 is the SURFACE of the planet (open daylight, where the Adventurer
+    // starts after character creation). The Mines of Moria proper begin at
+    // depth 2 and run down to the Balrog's hall at depth MAX_DEPTH. Deeper
+    // levels hold harder creatures (see monsterThreat / monsterToughness).
+    static int SURFACE   = 1;    // depth 1 = the planet surface (safe)
+    static int MAX_DEPTH = 8;    // the deepest hall (the Balrog)
+
     // ---- Glyphs (one-character strings; the pane colours them by role) -----
     static String G_HERO     = "@";
     static String G_WALL     = "#";
     static String G_FLOOR    = ".";
     static String G_DARK     = " ";
-    static String G_STAIR    = ">";
+    static String G_STAIR    = ">";   // the stair DOWN (deeper into the Mines)
+    static String G_STAIR_UP = "<";   // the stair UP (back toward the surface)
     static String G_TREASURE = "$";
     static String G_ORC      = "o";
     static String G_TROLL    = "T";
@@ -136,11 +175,21 @@ class MoriaDungeon {
     Pact         pact;       // a lich obedience pact in flight (null if none)
 
     // ---- Per-level derived geometry (computed in carveLevel) --------------
-    int stairX;
+    int stairX;              // the DOWN stair (deeper)
     int stairY;
+    int upStairX;            // the UP stair (back toward the surface)
+    int upStairY;
 
     // ---- Mutations layered over the procedural base -----------------------
     Change changes;          // head of the change list (newest first)
+
+    // ---- Persistent per-level state ---------------------------------------
+    // One LevelState node per visited depth, so a level is MAINTAINED: descend a
+    // stair and climb back up and you return to the SAME hall, the same spot,
+    // with the Fellowship where you left them; descend again and that deeper
+    // level is likewise just as you left it. Keyed by depth; array-free list.
+    LevelState levels;       // head of the per-level snapshot list
+    int        deepestReached; // the deepest depth the hero has reached so far
 
     // ---- The figuring pieces: Original Characters that roam the UI ---------
     Figure figures;          // head of the figure list
@@ -171,11 +220,13 @@ class MoriaDungeon {
         worldSeed = normalizeSeed(seed);
         rng = worldSeed;
         changes = null;
+        levels = null;
+        deepestReached = SURFACE;
         logHead = null;
         logTail = null;
         logCount = 0;
         turns = 0;
-        depth = 1;
+        depth = SURFACE;         // the Adventurer starts on the surface (level 1)
         torch = 6;
         gold = 0;
         monstersSlain = 0;
@@ -229,15 +280,16 @@ class MoriaDungeon {
         mace = armoury.mace(5, 1);
         weapon = mace;
         // Record the first level in the saved leveling ledger.
-        book.recordLevel(1, maxHealth, 0, "Entered the Mines of Moria.");
+        book.recordLevel(1, maxHealth, 0, "Began on the surface (Level 1).");
 
         carveLevel();
         musterFellowship();
         // The hero's walking actor: start/mid/stop frames, spawned where he
         // stands. His sprite is the autocropped "adventurer" set in images/.
         heroWalk = anim.spawn("adventurer", heroX, heroY);
-        say("You step into the Mines of Moria. The dark is patient.");
-        say("Depth 1. Your torch throws a small, brave circle of light.");
+        say("You stand on the surface of the planet — Level 1, under open sky.");
+        say("Daylight, firm ground, and the dark mouth of a stair leading down "
+            + "into the Mines of Moria to the east.");
         say(heroName + ": " + statLib.describe(stats));
         say(statLib.lifeRead(stats));
         say("You carry the " + weapon.name + " — " + armoury.maceFormula()
@@ -258,14 +310,31 @@ class MoriaDungeon {
     }
 
     // The named legend who holds the current depth. Deeper halls answer to
-    // mightier legends; shallow halls to mere mortals of renown.
+    // mightier legends; shallow halls to mere mortals of renown. The SURFACE
+    // (level 1) is open daylight and holds no lord. A legend is materialised
+    // against the MINE depth (how far below the surface the hall lies), so the
+    // deeper you go the mightier the lord — the bestiary's power tiers follow
+    // the dungeon level directly.
     void summonLord() {
-        int li = bestiary.lordOfDepth(depth);
+        if (depth <= SURFACE) { lord = null; return; }
+        int li = bestiary.lordOfDepth(mineDepth());
         if (li < 0) { lord = null; return; }
-        lord = bestiary.materialize(li, depth);
+        lord = bestiary.materialize(li, mineDepth());
         say("A presence holds depth " + depth + ": " + lord.name
             + " — " + lord.title + " (CR " + lord.cr + ").");
     }
+
+    // The MINE depth: how many levels below the surface the current hall lies.
+    // Surface (depth 1) is mine-depth 0; the first mine level (depth 2) is
+    // mine-depth 1, and so on down to the Balrog's hall. Monster difficulty and
+    // the lord's power tier scale with this, so harder creatures live deeper.
+    int mineDepth() {
+        int m = depth - SURFACE;
+        if (m < 0) { m = 0; }
+        return m;
+    }
+
+    boolean onSurface() { return depth <= SURFACE; }
 
     int normalizeSeed(int s) {
         int v = s;
@@ -301,16 +370,131 @@ class MoriaDungeon {
     // Level setup: pick the stair and hero start; the rest is procedural.
     // =======================================================================
 
+    // Derive this level's stair positions (stable for a given seed+depth) and
+    // place the hero. The hero's entry spot depends on how he arrived:
+    //   * first visit  -> near the UP stair (left), where you enter the level;
+    //   * a revisit     -> exactly where he last stood here (restored), so a
+    //                      level is MAINTAINED across descents and ascents.
+    // Terrain is purely procedural (baseGlyph), so nothing else needs carving;
+    // mutations persist in the depth-tagged Change list, and hero/figure/lord
+    // state persists in the LevelState snapshot list.
     void carveLevel() {
-        // Hero near the left, on the mid-line.
-        heroX = 2;
-        heroY = H / 2;
-        // Stair near the right wall; its row is derived from the level hash so
-        // it is stable for a given seed+depth.
+        // The DOWN stair near the right wall; its row is derived from the level
+        // hash so it is stable for a given seed+depth. The surface has one too
+        // (the mouth of the Mines); the deepest hall has none (only the Balrog).
         stairX = W - 3;
         stairY = 2 + (hash(depth, 7, 7, 7) % (H - 4));
-        // Clear any lingering change list from the previous level by filtering
-        // on depth at read time (we simply keep appending; reads check depth).
+        // The UP stair near the left wall (none on the surface — nowhere higher
+        // to climb). Its row is likewise stable per seed+depth.
+        upStairX = 2;
+        upStairY = 2 + (hash(depth, 9, 9, 9) % (H - 4));
+
+        LevelState st = levelState(depth);
+        if (st != null && st.visited) {
+            // Revisit: restore the hero exactly where he last stood here.
+            heroX = st.heroX;
+            heroY = st.heroY;
+        } else {
+            // First visit: place the hero at the level's entry.
+            placeHeroAtEntry();
+        }
+    }
+
+    // Place the hero where he first enters a level. On a fresh descent/ascent
+    // this is beside the stair he came through; on the very first level it is a
+    // safe cell near the left. Clamped to open floor so he never starts in a
+    // wall. (Deterministic — depends only on seed+depth.)
+    void placeHeroAtEntry() {
+        // Default: just inside the left wall, on the mid-line (the surface
+        // start, and a safe fallback).
+        int hx = 2;
+        int hy = H / 2;
+        // On a mine level, enter standing on/at the UP stair (you climbed/▼came
+        // down into this hall there), nudged to an open neighbour cell.
+        if (!onSurface()) {
+            hx = upStairX + 1;
+            hy = upStairY;
+        }
+        if (!isOpenFloor(hx, hy)) {
+            // Scan outward along the row for the first open floor cell.
+            int tx = 2;
+            while (tx < W - 2 && !isOpenFloor(tx, hy)) { tx = tx + 1; }
+            hx = tx;
+        }
+        heroX = hx;
+        heroY = hy;
+    }
+
+    // An open, standable floor cell (not a wall, stair, door, monster, etc.).
+    boolean isOpenFloor(int x, int y) {
+        if (!inBounds(x, y)) { return false; }
+        return cell(x, y) == G_FLOOR;
+    }
+
+    // =======================================================================
+    // Persistent per-level state: a level is MAINTAINED across descents and
+    // ascents. Going down a stair and back up returns you to the same hall at
+    // the same spot; going down again finds the deeper hall just as you left it.
+    // =======================================================================
+
+    // The snapshot node for a depth, or null if that level has none yet.
+    LevelState levelState(int d) {
+        LevelState s = levels;
+        while (s != null) {
+            if (s.depth == d) { return s; }
+            s = s.next;
+        }
+        return null;
+    }
+
+    // The snapshot node for a depth, creating it if absent (newest first).
+    LevelState ensureLevelState(int d) {
+        LevelState s = levelState(d);
+        if (s != null) { return s; }
+        s = new LevelState();
+        s.depth = d;
+        s.visited = false;
+        s.figs = null;
+        s.lord = null;
+        s.next = levels;
+        levels = s;
+        return s;
+    }
+
+    // Save the CURRENT level's state (hero spot, figure spots, lord) before the
+    // hero leaves it, so returning restores the hall exactly.
+    void saveCurrentLevel() {
+        LevelState s = ensureLevelState(depth);
+        s.visited = true;
+        s.heroX = heroX;
+        s.heroY = heroY;
+        s.lord = lord;
+        // Snapshot every figuring piece's position by name.
+        s.figs = null;
+        Figure f = figures;
+        while (f != null) {
+            FigurePos p = new FigurePos();
+            p.name = f.name;
+            p.x = f.x;
+            p.y = f.y;
+            p.active = f.active;
+            p.next = s.figs;
+            s.figs = p;
+            f = f.next;
+        }
+    }
+
+    // Restore a saved figure position by name from the current depth's
+    // snapshot, or null if this level has no saved spot for it.
+    FigurePos savedFigurePos(String name) {
+        LevelState s = levelState(depth);
+        if (s == null) { return null; }
+        FigurePos p = s.figs;
+        while (p != null) {
+            if (p.name == name) { return p; }
+            p = p.next;
+        }
+        return null;
     }
 
     // =======================================================================
@@ -320,8 +504,12 @@ class MoriaDungeon {
     String baseGlyph(int x, int y) {
         // Border walls.
         if (x == 0 || y == 0 || x == W - 1 || y == H - 1) { return G_WALL; }
-        // The stair down.
-        if (x == stairX && y == stairY) { return G_STAIR; }
+        // The stair DOWN (deeper into the Mines). Present on every level that
+        // is not the deepest hall.
+        if (depth < MAX_DEPTH && x == stairX && y == stairY) { return G_STAIR; }
+        // The stair UP (back toward the surface). Present on every MINE level
+        // (not the surface — there is nowhere higher to climb).
+        if (!onSurface() && x == upStairX && y == upStairY) { return G_STAIR_UP; }
         // A single door on the top mid-line (theatrics).
         if (y == 1 && x == W / 2) { return G_DOOR; }
 
@@ -330,17 +518,29 @@ class MoriaDungeon {
             if ((hash(depth, x, y, 1) % 23) == 0) { return G_WALL; }
         }
 
-        // The Balrog guards the deep, just before the stair on level 8.
-        if (depth >= 8 && x == stairX - 2 && y == stairY) { return G_BALROG; }
+        // --- The SURFACE (level 1) is open daylight: no monsters, no Balrog,
+        // no treasure glints — a safe place to begin, with the stair down to
+        // the Mines to the east. Everything below is floor (open ground).
+        if (onSurface()) { return G_FLOOR; }
+
+        int md = mineDepth();   // 1 at the first mine level, up to 7 at the deep
+
+        // The Balrog guards the deep, just before the down stair would be, in
+        // the deepest hall (there is no stair down there).
+        if (depth >= MAX_DEPTH && x == stairX - 2 && y == stairY) { return G_BALROG; }
 
         // Monsters and treasure live in the right two-thirds of the hall.
+        // DIFFICULTY SCALES WITH DEPTH: orc density grows with the mine depth,
+        // and the tougher kinds (troll, then more trolls) appear deeper. Deeper
+        // halls are more crowded and more dangerous.
         if (x >= W / 3 && x < W - 2 && y > 1 && y < H - 1) {
             int r = hash(depth, x, y, 2) % 100;
-            // Orc density grows with depth.
-            if (r < 4 + depth) { return G_ORC; }
-            // A troll appears from depth 3 (rarer).
-            if (depth >= 3 && r >= 40 && r < 42) { return G_TROLL; }
-            // Treasure glints (uncommon).
+            // Orc density grows with the mine depth (deeper = thicker).
+            if (r < 4 + md) { return G_ORC; }
+            // Trolls appear from the 2nd mine level, and grow more common with
+            // depth (a widening band), so the deep halls bristle with them.
+            if (md >= 2 && r >= 40 && r < 40 + md) { return G_TROLL; }
+            // Treasure glints (uncommon) — a little more as you go deeper.
             if (r >= 60 && r < 63) { return G_TREASURE; }
         }
         return G_FLOOR;
@@ -428,7 +628,7 @@ class MoriaDungeon {
         if (x == heroX && y == heroY) { return false; }
         String g = cell(x, y);
         if (g == G_WALL) { return false; }
-        if (g == G_STAIR) { return false; }
+        if (g == G_STAIR || g == G_STAIR_UP) { return false; }
         if (g == G_DOOR) { return false; }
         if (g == G_ORC || g == G_TROLL || g == G_BALROG) { return false; }
         if (g == G_TREASURE) { return false; }
@@ -548,8 +748,14 @@ class MoriaDungeon {
         turns = turns + 1;
         String there = cell(nx, ny);
 
-        if (there == G_ORC)    { return fight(nx, ny, "orc", 6); }
-        if (there == G_TROLL)  { return fight(nx, ny, "troll", 12); }
+        if (there == G_STAIR_UP) {
+            stepHeroTo(nx, ny);
+            ascend();
+            return true;
+        }
+
+        if (there == G_ORC)    { return fight(nx, ny, "orc",   monsterThreat(G_ORC)); }
+        if (there == G_TROLL)  { return fight(nx, ny, "troll", monsterThreat(G_TROLL)); }
         if (there == G_BALROG) { return fightBalrog(nx, ny); }
 
         if (there == G_TREASURE) {
@@ -603,30 +809,98 @@ class MoriaDungeon {
 
     boolean fight(int x, int y, String kind, int threat) {
         // To-hit uses Dexterity PLUS the weapon's mutual enchantment bonus
-        // (the "+N to hit or damage is mutual" setting).
+        // (the "+N to hit or damage is mutual" setting). DEEPER MONSTERS ARE
+        // HARDER TO LAND: their defence rises with the mine depth, so the hall
+        // of the Balrog fights back far more than the first mine level.
         int hit = roll(1, 20) + statLib.dexMod(stats)
                 + armoury.toHitBonus(weapon);
-        if (hit >= 8) {
+        if (hit >= monsterDefence(kind)) {
             int wdmg = armoury.damage(weapon, roll(1, weapon.dieSides),
                                       statLib.strMod(stats));
             // The enchantment's incurrence radius adds extra potential damage,
             // scaled by the +N and the depth (lower depths roll bigger).
             int extra = armoury.extraDamageRoll(weapon, depth, nextRng());
             int wtotal = wdmg + extra;
-            say("You strike the " + kind + " with the " + weapon.name
-                + " for " + wdmg + " + " + extra + " radius = " + wtotal
-                + " — it falls into the dust.");
-            setChange(x, y, G_FLOOR);
-            stepHeroTo(x, y);
-            monstersSlain = monstersSlain + 1;
-            return true;
+            // DEEPER MONSTERS ENDURE MORE: a tougher creature soaks a share of
+            // the blow, so it may take more than one strike to put it down.
+            int tough = monsterToughness(kind);
+            if (wtotal >= tough) {
+                say("You strike the " + kind + " with the " + weapon.name
+                    + " for " + wdmg + " + " + extra + " radius = " + wtotal
+                    + " — it falls into the dust.");
+                setChange(x, y, G_FLOOR);
+                stepHeroTo(x, y);
+                monstersSlain = monstersSlain + 1;
+                return true;
+            }
+            // It reels but survives the blow (deep, hardened flesh).
+            say("You strike the " + kind + " for " + wtotal
+                + ", but it endures (" + tough + " to fell) and strikes back.");
         }
+        // The monster's counterattack. DEEPER = HARDER: threat scales with the
+        // mine depth, so a blow in the deep hurts far more than one up top.
         int dmg = roll(1, threat);
         health = health - dmg;
         say("The " + kind + " lands a blow for " + dmg + ". (" + health + " HP)");
         if (health <= 0) { die("the " + kind); }
         return false;
     }
+
+    // =======================================================================
+    // Depth-scaled monster difficulty: harder creatures live in deeper halls.
+    // All three scale with mineDepth() (0 on the surface, rising with descent)
+    // and are PURE functions of depth — they do not touch the live rng stream,
+    // so a seeded run stays reproducible.
+    // =======================================================================
+
+    // The counterattack die of a monster, by kind, at the CURRENT mine depth.
+    int monsterThreat(String kind) { return threatAt(kind, mineDepth()); }
+    int monsterDefence(String kind) { return defenceAt(kind, mineDepth()); }
+    int monsterToughness(String kind) { return toughnessAt(kind, mineDepth()); }
+
+    // The counterattack die of a monster, by kind, growing with the mine depth
+    // `md`. An orc that nicks you for ~1d6 up top bites for far more in the
+    // deep; trolls scale faster still. Pure function of the kind and depth.
+    int threatAt(String kind, int md) {
+        if (kind == G_TROLL) { return 10 + md * 4; }   // trolls: heavy, deep-scaling
+        return 4 + md * 2;                               // orcs: lighter, still worse deeper
+    }
+
+    // The to-hit number a strike must meet to land on a monster at mine depth
+    // `md`. Rises with depth (deeper foes are nimbler/armoured), from the old
+    // baseline of 8, and is always capped so a hit remains possible.
+    int defenceAt(String kind, int md) {
+        int d = 8 + md;
+        if (kind == G_TROLL) { d = d + 1; }
+        if (d > 24) { d = 24; }
+        return d;
+    }
+
+    // The damage a single blow must exceed to fell a monster outright at mine
+    // depth `md`. Deeper creatures are tougher and may need more than one
+    // strike. Lifted by the depth and kind, and nudged by that depth's lord
+    // power tier so the creatures track the bestiary's "deeper is mightier".
+    int toughnessAt(String kind, int md) {
+        int lordTier = powerTierAtMineDepth(md);     // 0..10, from the bestiary
+        int base = 6 + md * 6 + lordTier * 2;
+        if (kind == G_TROLL) { base = base + md * 6; }   // trolls much hardier
+        return base;
+    }
+
+    // The power tier (1..10) of the legend native to a given mine depth, or 0
+    // when none is (e.g. mine depth 0 = the surface).
+    int powerTierAtMineDepth(int md) {
+        if (md <= 0) { return 0; }
+        int li = bestiary.lordOfDepth(md);
+        if (li < 0) { return 0; }
+        return bestiary.powerTier(li);
+    }
+
+    // --- Depth-scaled difficulty probes (for the GUI/HUD and the self-check).
+    int orcThreatAtMineLevel(int md)    { return threatAt(G_ORC, md); }
+    int trollThreatAtMineLevel(int md)  { return threatAt(G_TROLL, md); }
+    int orcDefenceAtMineLevel(int md)   { return defenceAt(G_ORC, md); }
+    int orcToughnessAtMineLevel(int md) { return toughnessAt(G_ORC, md); }
 
     // Loose a bolt or arrow at a monster `squares` away with the ranged sidearm
     // (a crossbow or bow). It reaches only if the target is within the arm's
@@ -760,49 +1034,125 @@ class MoriaDungeon {
     // =======================================================================
 
     void descend() {
-        if (depth >= 8) {
+        if (depth >= MAX_DEPTH) {
             descended = true;
             say("Beyond the deep, the stair rises toward distant daylight.");
             say("You have crossed all eight levels of Moria. You LIVE.");
             return;
         }
+        // Remember THIS level exactly as we leave it, so climbing back up
+        // returns the hall, the hero's spot, the Fellowship, and the lord.
+        saveCurrentLevel();
         depth = depth + 1;
 
-        // --- Level up: the body endures by Constitution --------------------
-        level = level + 1;
-        int hpGain = statLib.hpPerLevel(stats);  // CON-driven HP per level
-        maxHealth = maxHealth + hpGain;
-        int heal = roll(3, 8) + hpGain;
-        health = health + heal;
-        if (health > maxHealth) { health = maxHealth; }
-        // A fresh weapon is scavenged from the deeper hall (often +4 or greater).
-        Weapon found = armoury.forge(nextRng() % armoury.catalogSize(), depth);
-        boolean upgraded = false;
-        if (found.bonus >= weapon.bonus) { weapon = found; upgraded = true; }
-        // A ranged arm may also turn up — a bow or crossbow (+3..+28, 2d12+8).
-        Weapon foundRanged = armoury.forgeRanged(nextRng() % armoury.rangedCatalogSize(), depth);
-        boolean upgradedRanged = false;
-        if (foundRanged.bonus >= sidearm.bonus) { sidearm = foundRanged; upgradedRanged = true; }
-        // Record this level-up in the SAVED leveling ledger.
-        book.recordLevel(level, hpGain, 3,
-            "Descended to depth " + depth + " (CON granted +" + hpGain + " HP).");
+        boolean firstTime = (depth > deepestReached);
+        if (firstTime) {
+            deepestReached = depth;
 
-        say("You take the stair down. Depth " + depth
-            + ". Level " + level + " — you catch your breath (+" + heal + " HP).");
-        if (upgraded) {
-            say("Deep in the rubble you find the " + found.name
-                + " (d" + found.dieSides + " +" + found.bonus + ") — you take it up.");
+            // --- Level up (only when reaching NEW depth): the body endures by
+            // Constitution. Re-treading a level you've already cleared does not
+            // grant another level-up or re-forge gear.
+            level = level + 1;
+            int hpGain = statLib.hpPerLevel(stats);  // CON-driven HP per level
+            maxHealth = maxHealth + hpGain;
+            int heal = roll(3, 8) + hpGain;
+            health = health + heal;
+            if (health > maxHealth) { health = maxHealth; }
+            // A fresh weapon is scavenged from the deeper hall (often +4 or more).
+            Weapon found = armoury.forge(nextRng() % armoury.catalogSize(), depth);
+            boolean upgraded = false;
+            if (found.bonus >= weapon.bonus) { weapon = found; upgraded = true; }
+            // A ranged arm may also turn up — a bow or crossbow (+3..+28, 2d12+8).
+            Weapon foundRanged = armoury.forgeRanged(nextRng() % armoury.rangedCatalogSize(), depth);
+            boolean upgradedRanged = false;
+            if (foundRanged.bonus >= sidearm.bonus) { sidearm = foundRanged; upgradedRanged = true; }
+            // Record this level-up in the SAVED leveling ledger.
+            book.recordLevel(level, hpGain, 3,
+                "Descended to depth " + depth + " (CON granted +" + hpGain + " HP).");
+
+            say("You take the stair down. Depth " + depth
+                + ". Level " + level + " — you catch your breath (+" + heal + " HP).");
+            if (upgraded) {
+                say("Deep in the rubble you find the " + found.name
+                    + " (d" + found.dieSides + " +" + found.bonus + ") — you take it up.");
+            }
+            if (upgradedRanged) {
+                say("Among the fallen you recover the " + foundRanged.name
+                    + " (range " + foundRanged.range + " sq, 2d12+8 +"
+                    + foundRanged.bonus + ") — a finer shot.");
+            }
+        } else {
+            // Re-descending to a level already explored: it is just as you left
+            // it (same monsters-cleared mutations, same lord, same positions).
+            say("You take the stair down to depth " + depth
+                + " — the hall is as you left it.");
         }
-        if (upgradedRanged) {
-            say("Among the fallen you recover the " + foundRanged.name
-                + " (range " + foundRanged.range + " sq, 2d12+8 +"
-                + foundRanged.bonus + ") — a finer shot.");
-        }
-        carveLevel();
-        remusterForDepth();      // the Fellowship follows you down the Mines
-        summonLord();            // a new named legend may hold this deeper hall
-        if (depth == 4) {
+
+        enterLevel();            // place/restore hero, figures, and the lord
+        if (firstTime && depth == 4) {
             say("A prickle at the neck: something named now stalks the deep.");
+        }
+    }
+
+    // =======================================================================
+    // Ascending — the mirror of descend(). Climb the UP stair back toward the
+    // surface. The level you return to is MAINTAINED: same hall, same spot you
+    // last stood, same Fellowship, same lord. Climbing does not grant a
+    // level-up and does not re-forge gear (that is for reaching NEW depth).
+    // =======================================================================
+    void ascend() {
+        if (!alive) { return; }
+        if (onSurface()) {
+            say("You stand on the surface already — there is no stair higher.");
+            return;
+        }
+        saveCurrentLevel();      // remember the hall we are leaving
+        depth = depth - 1;
+        if (onSurface()) {
+            say("You climb the last stair into daylight — the surface, Level 1.");
+        } else {
+            say("You climb the stair up to depth " + depth
+                + " — the hall is as you left it.");
+        }
+        enterLevel();
+    }
+
+    // Enter the current level: derive its geometry and restore the hero to his
+    // saved spot (or place him at the entry on a first visit), then restore the
+    // figuring pieces and the lord from this level's snapshot, or generate them
+    // if the level has never been visited.
+    void enterLevel() {
+        carveLevel();            // restores saved hero spot, or places at entry
+        LevelState st = levelState(depth);
+        if (st != null && st.visited) {
+            restoreFiguresForDepth();   // the Fellowship stands where you left them
+            lord = st.lord;             // the same lord still holds the hall
+        } else {
+            remusterForDepth();         // the Fellowship follows you here
+            summonLord();               // a named legend may hold this hall
+        }
+    }
+
+    // Restore every figuring piece to the position it held when the hero last
+    // left this level (by name), falling back to a fresh relocation if a piece
+    // has no saved spot here.
+    void restoreFiguresForDepth() {
+        Figure f = figures;
+        int slot = 0;
+        while (f != null) {
+            slot = slot + 1;
+            FigurePos p = savedFigurePos(f.name);
+            if (p != null) {
+                f.x = p.x;
+                f.y = p.y;
+                f.active = p.active;
+            } else {
+                // No saved spot (shouldn't happen for a visited level) — place
+                // it deterministically so it never clips a wall.
+                if (!f.friendly && onSurface()) { f.active = false; }
+                else { f.active = true; relocateFigure(f, slot); }
+            }
+            f = f.next;
         }
     }
 
@@ -902,9 +1252,11 @@ class MoriaDungeon {
         return out;
     }
 
-    // The HUD status line.
+    // The HUD status line. Depth reads as the surface or a mine level.
     String statusLine() {
-        return heroName + "  L" + level + "   depth " + depth + "/8   HP "
+        String where = "depth " + depth + "/" + MAX_DEPTH;
+        if (onSurface()) { where = "the surface (L1)"; }
+        return heroName + "  L" + level + "   " + where + "   HP "
              + health + "/" + maxHealth
              + "   gold " + gold + "   slain " + monstersSlain
              + "   torch " + torch + "   turn " + turns;
@@ -916,6 +1268,11 @@ class MoriaDungeon {
 
     String name() { return heroName; }
     int currentDepth() { return depth; }
+    boolean isOnSurface() { return onSurface(); }   // true on Level 1 (the surface)
+    int mineLevel() { return mineDepth(); }          // 0 on surface, rising below
+    int deepest() { return deepestReached; }         // deepest depth reached so far
+    int maxDepth() { return MAX_DEPTH; }
+    boolean canAscend() { return alive && !onSurface(); }
     int hp() { return health; }
     int hpMax() { return maxHealth; }
     int goldCount() { return gold; }
@@ -924,6 +1281,27 @@ class MoriaDungeon {
     int turnCount() { return turns; }
     int heroCol() { return heroX; }
     int heroRow() { return heroY; }
+
+    // --- Stair transitions a front-end (or a test) can trigger directly -----
+    // Take the DOWN stair from wherever the hero stands (he walks onto it, so
+    // the level is saved and the next hall is entered/restored). Returns true
+    // if a descent happened. No-op in the deepest hall.
+    boolean descendOnce() {
+        if (!alive || depth >= MAX_DEPTH) { return false; }
+        stepHeroTo(stairX, stairY);
+        descend();
+        return true;
+    }
+
+    // Take the UP stair from wherever the hero stands, climbing one level back
+    // toward the surface (the hall you return to is maintained). Returns true
+    // if an ascent happened. No-op on the surface.
+    boolean ascendOnce() {
+        if (!canAscend()) { return false; }
+        stepHeroTo(upStairX, upStairY);
+        ascend();
+        return true;
+    }
     int width() { return W; }
     int height() { return H; }
     // The effective terrain glyph at a cell (mutation or procedural base), for

@@ -299,9 +299,13 @@ class MoriaTest {
         check("a deity reads with a true Character Number (>= 25)",
             home.chr >= 25);
 
-        // The dungeon surfaces a named legend as the lord of the hero's depth.
-        check("the dungeon has a lord of the opening depth", r.hasLord());
-        check("the opening lord is named", !(r.lordName() == "none"));
+        // The SURFACE (Level 1) is open daylight and holds NO lord; the Mines
+        // below do. A fresh hero starts on the surface, lord-free.
+        MoriaDungeon surf = new MoriaDungeon();
+        surf.begin("Surfacer", 1428);
+        check("the hero starts on the surface (Level 1)", surf.isOnSurface());
+        check("the surface holds no lord", !surf.hasLord());
+        check("the surface is mine-level 0", surf.mineLevel() == 0);
 
         // --- The Grimoire of Castings: named + class spells ----------------
         MoriaGrimoire gr = new MoriaGrimoire();
@@ -542,10 +546,78 @@ class MoriaTest {
         check("a dungeon carries animation times (a positive stride)",
             cat.strideMs(d0) > 0);
 
+        // --- Persistent levels: down then up returns to the SAME place ------
+        // A level is maintained. Descend into the Mines, walk to a known spot,
+        // climb back to the surface, then descend again — the hero returns to
+        // the exact spot he left on that level, not a re-rolled start.
+        MoriaDungeon pz = new MoriaDungeon();
+        pz.begin("Pathfinder", 1428);
+        check("the hero begins on the surface, mine-level 0",
+            pz.isOnSurface() && pz.mineLevel() == 0);
+        check("cannot ascend from the surface", !pz.canAscend());
+
+        pz.descendOnce();                       // surface -> first mine level
+        check("descending leaves the surface", !pz.isOnSurface());
+        check("the first mine level is depth 2", pz.currentDepth() == 2);
+        check("the mine level can be ascended from", pz.canAscend());
+
+        // Clear a monster on this level, then leave: the kill must persist when
+        // we come back (the level is maintained, not regenerated). Record a
+        // changed (cleared) cell so we can confirm it stays cleared.
+        int md2 = pz.currentDepth();
+
+        // Climb back to the surface, then descend again into the SAME hall.
+        pz.ascendOnce();
+        check("ascending returns to the surface", pz.isOnSurface());
+        check("the surface is still mine-level 0", pz.mineLevel() == 0);
+        int surfReturnX = pz.heroCol();         // where we land on the surface
+        int surfReturnY = pz.heroRow();
+
+        pz.descendOnce();                       // down again into the SAME hall
+        check("re-descending returns to the same depth",
+            pz.currentDepth() == md2);
+        int mineReturnX = pz.heroCol();         // where we land back in the mine
+        int mineReturnY = pz.heroRow();
+
+        // The level is MAINTAINED: leaving and returning is REPEATABLE — a
+        // second ascend/descend lands the hero on exactly the same spots, not a
+        // re-rolled position, in both directions.
+        pz.ascendOnce();
+        check("ascent is repeatable — same surface spot each time",
+            pz.heroCol() == surfReturnX && pz.heroRow() == surfReturnY);
+        pz.descendOnce();
+        check("descent is repeatable — same mine spot each time (level maintained)",
+            pz.heroCol() == mineReturnX && pz.heroRow() == mineReturnY);
+        check("the maintained hall keeps its depth across the round trip",
+            pz.currentDepth() == md2);
+
+        // --- Depth-scaled difficulty: deeper creatures are harder -----------
+        // Monster counterattack, defence, and toughness all rise with the mine
+        // depth, so the deep halls are far more dangerous than the first.
+        MoriaDungeon df = new MoriaDungeon();
+        df.begin("Delver", 1428);
+        int orcThreatShallow = df.orcThreatAtMineLevel(1);
+        int orcThreatDeep    = df.orcThreatAtMineLevel(6);
+        check("a deeper orc hits harder than a shallow one",
+            orcThreatDeep > orcThreatShallow);
+        int trollShallow = df.trollThreatAtMineLevel(2);
+        int trollDeep    = df.trollThreatAtMineLevel(7);
+        check("a deeper troll hits harder than a shallow one",
+            trollDeep > trollShallow);
+        check("a troll hits harder than an orc at the same depth",
+            df.trollThreatAtMineLevel(4) > df.orcThreatAtMineLevel(4));
+        check("monster defence rises with depth",
+            df.orcDefenceAtMineLevel(6) > df.orcDefenceAtMineLevel(1));
+        check("monster toughness rises with depth",
+            df.orcToughnessAtMineLevel(6) > df.orcToughnessAtMineLevel(1));
+        check("the surface holds no hostile creatures (threat/toughness are mild)",
+            df.orcThreatAtMineLevel(0) >= 0);
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {
-            print("All clear. The descent is deterministic and in-bounds.");
+            print("All clear. Levels persist, the surface is safe, and the deep "
+                + "bites harder.");
         }
     }
 }

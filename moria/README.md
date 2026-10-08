@@ -4,10 +4,13 @@
 > the Careful Years of Time.
 
 A small, deterministic **Moria dungeon crawler** rendered through a **GUI-driven
-text pane / canvas** with excellent text features. A lone hero descends the
-Mines of Moria one level at a time, moving by torchlight through rough-hewn
-halls, past the orc and the troll, down toward the **Balrog on level eight** —
-and, if resolve and luck hold, up and out into distant daylight.
+text pane / canvas** with excellent text features. The Adventurer begins on the
+**surface of the planet (Level 1)**, then descends the Mines of Moria one level
+at a time, moving by torchlight through rough-hewn halls, past the orc and the
+troll, down toward the **Balrog on level eight** — and, if resolve and luck
+hold, back **up the stairs** and out into distant daylight. **The levels
+persist:** go down a stair and climb back up and you return to the very same
+hall, exactly as you left it — and down again finds the deeper hall unchanged.
 
 All game logic is SLeeLa source. The GUI is **SleelaUI™** (SLeeLa's own
 cross-platform native toolkit), painting the dungeon into a text canvas. The
@@ -44,6 +47,41 @@ The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
 vendor drop at [`../1/sources/user-interface`](../1/sources/user-interface)
 (byte-for-byte the upstream `mearvk/SLeeLa` `lib/user-interface`), so there is
 one authoritative copy of the widget vocabulary rather than a duplicate.
+
+## Persistent levels, the surface, and depth-scaled danger
+
+Three rules govern the shape of the descent:
+
+- **The levels are persistent — a hall is maintained.** Terrain is a pure
+  function of `(worldSeed, depth)`, and every change you make (a slain monster,
+  a looted glint of treasure) is remembered per level in a depth-tagged mutation
+  list. On top of that, each level now keeps a **snapshot** of where you stood,
+  where the Fellowship stood, and which named lord held the hall. So when you
+  take the **down** stair (`>`) and later climb the **up** stair (`<`) back, you
+  arrive in the *same* hall at the *same* spot, with the Fellowship where you
+  left them and the cleared cells still clear — and descending again finds the
+  deeper hall exactly as before. Going down then up (and up then down) is a
+  faithful round trip: `MoriaDungeon` saves the level on the way out and
+  restores it on the way back in (`saveCurrentLevel` / `enterLevel`, keyed by
+  depth in an array-free `LevelState` list). Reaching a **new** deepest level is
+  what grants a level-up and a chance at better gear; re-treading a cleared
+  level does not.
+
+- **Level 1 is the surface of the planet.** After character creation (choose or
+  forge your Adventurer), play begins on the **surface** — open daylight, firm
+  ground, no monsters, no lord — with the dark mouth of a stair leading **down**
+  into the Mines to the east. The Mines proper run from depth 2 down to the
+  Balrog's hall at depth 8. (`SURFACE = 1`, `MAX_DEPTH = 8`.)
+
+- **Deeper means harder — creatures scale with the dungeon level.** A monster's
+  bite, its defence (how hard it is to land a blow), and its toughness (how much
+  a single strike must do to fell it) all **rise with the mine depth**, and the
+  toughness is lifted further by the **power tier of the legend** native to that
+  depth (from the Bestiary). Orcs thicken and bite harder the deeper you go;
+  trolls appear in the lower halls and scale faster still and endure more; the
+  deepest halls answer to the mightiest named lords. The surface holds nothing
+  hostile at all. The scaling is a **pure function of depth** (it never touches
+  the live RNG stream), so a seeded run stays perfectly reproducible.
 
 ## The excellent text features
 
@@ -416,11 +454,16 @@ Mines already mighty. Run the generator demo with **`make creator`**.
 
 ```
 @  the Adventurer      #  rough dwarf-stone wall   .  lit floor
->  the stair down      $  a glint of treasure      +  a door
-o  an orc              T  a troll (depth 3+)        B  the Balrog (depth 8)
+>  the stair down      <  the stair up             +  a door
+$  a glint of treasure o  an orc                   T  a troll (deeper halls)
+B  the Balrog (depth 8)
 G  Gandalf   F  Frodo   A  Aragorn   L  Legolas   D  Gimli   S  Sauron's Eye
    (space)             the unseen dark beyond the torch
 ```
+
+The surface (Level 1) is open daylight — floor, the Fellowship, and a `>` down
+into the Mines. Every mine level carries both a `>` (deeper) and a `<` (back up);
+the deepest hall has the Balrog instead of a down stair.
 
 ## Determinism — the Careful Years of Time
 
