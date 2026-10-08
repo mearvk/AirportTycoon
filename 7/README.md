@@ -343,3 +343,10 @@ capacity, pace, and RNG seed. The matching `static` fields at the top of
 Edition 7 adds a live United States Operations Desk while retaining the responsive UI, Resonant Concourse lighting, and multiplayer connection foundation. The desk displays real system-clock values for UTC, Eastern, Central, Mountain, Pacific, Alaska, and Hawaii using Java's IANA time-zone database, including daylight-saving changes. It is a display of the local system clock, not a claim of direct NIST synchronization.
 
 The country panel presents public CIA World Factbook reference values: Washington, DC as capital, constitutional federal republic as government type, and 9,833,517 km² total area. The CIA panel is an open-reference information layer only; it does not represent classified or operational intelligence.
+
+
+## Client Communication Protocol — CCP/1
+
+Edition 7 retains the multiplayer connection and adds the explicit **CCP/1** client communication contract. The runtime can maintain a peer list, receive presence events, broadcast to the connected group, send a direct peer message, acknowledge delivery, and answer PING/PONG heartbeats.
+
+The authoritative server remains the relay and simulation authority. Clients do not accept arbitrary inbound peer sockets, and CCP/1 is separate from game CMD and STATE records. The protocol definition is ui/.../ClientCommunicationProtocol.java; Edition 7's SleelaRuntime.java contains the network client implementation and peer-message helpers.
