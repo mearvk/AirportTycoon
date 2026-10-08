@@ -1,0 +1,23 @@
+# gandalf sprite crops
+# source: moria/images/gandalf.jpeg (2526x406 sprite sheet, black background)
+# produced by: moria/tools/crop.go
+#
+# Minimum crop set: one crop per sprite instance (12 total), no filler frames.
+# Uniform output: every crop is 154x210 (= max sprite bounding box across the sheet).
+# Each sprite is centered horizontally and anchored to the bottom of the canvas so
+# frames align on a common ground line; the black background is made transparent.
+#
+# column 'src box' = tight bounding box of the sprite in the source sheet.
+size	154x210
+sprite	01	gandalf-01.png	src=x[224..366],y[170..375]	tight=143x206
+sprite	02	gandalf-02.png	src=x[398..538],y[170..379]	tight=141x210
+sprite	03	gandalf-03.png	src=x[580..709],y[170..369]	tight=130x200
+sprite	04	gandalf-04.png	src=x[806..922],y[175..373]	tight=117x199
+sprite	05	gandalf-05.png	src=x[970..1087],y[175..373]	tight=118x199
+sprite	06	gandalf-06.png	src=x[1151..1266],y[175..373]	tight=116x199
+sprite	07	gandalf-07.png	src=x[1358..1472],y[175..373]	tight=115x199
+sprite	08	gandalf-08.png	src=x[1526..1649],y[175..373]	tight=124x199
+sprite	09	gandalf-09.png	src=x[1697..1814],y[175..373]	tight=118x199
+sprite	10	gandalf-10.png	src=x[1921..2068],y[174..369]	tight=148x196
+sprite	11	gandalf-11.png	src=x[2098..2251],y[174..373]	tight=154x200
+sprite	12	gandalf-12.png	src=x[2276..2423],y[174..373]	tight=148x200
