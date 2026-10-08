@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 2)
+# Airport Tycoon — Business Edition (Edition 3)
 
-> **Edition 2 — the improvement line.** Built on the complete, self-contained
+> **Edition 3 — Platinum Ascension, the Prosperity Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -65,6 +65,27 @@
 > mechanics are covered by new `make check` assertions. Everything else is
 > inherited from Edition 1 verbatim.
 
+
+### What's new in Edition 3 — Prosperity Contracts
+
+Edition 3 adds a strategic operating layer on top of Edition 2's economic
+feedback loop. The airport carries one deterministic **Prosperity Contract**
+at a time: serve **5 aircraft of the displayed size class** before the
+**240-tick** contract clock expires. Matching departures advance the contract;
+all other departures remain fully profitable.
+
+Completing a contract pays a **$500 prosperity bonus**, restores up to **2
+reputation**, records the completion, and rotates the target **Small → Medium →
+Heavy → Small**. Missing the clock simply resets progress and rotates the target;
+there is **no additional reputation penalty**. The rule therefore rewards
+planning and prioritization without creating a second hidden game-over condition.
+
+The SLeeLa Wrapper and Java mirror expose the same deterministic contract
+readouts in the snapshot: `contractTarget`, `contractProgress`,
+`contractGoal`, `contractLeft`, and `contracts`. Edition 2's service
+premium, on-time combo, smarter auto-assist, Business Desk, deterministic seed,
+and Author Path remain intact.
+
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
 ever-shrinking timer, and you have a bounded number of **gates** and **runways**
@@ -102,7 +123,7 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The tower game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
 | [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. Owns the **win condition**. |
 | [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
-| [`game/BusinessDesk.sleela`](game/BusinessDesk.sleela) | **The Business Desk (Edition 2).** Where the player makes a move/transaction while flying planes. Starts empty; opens parallel **Casino** and **Investment** side games (modelled as Chemistry), accrues **IQ**, and fires the **Level-5 Great Assimilation** that rakes in Major-Eastern money. Java mirror: `BusinessDesk.java`; self-demo: `make desk`. |
+| [`game/BusinessDesk.sleela`](game/BusinessDesk.sleela) | **The Business Desk (Edition 2 foundation carried into Edition 3).** Where the player makes a move/transaction while flying planes. Starts empty; opens parallel **Casino** and **Investment** side games (modelled as Chemistry), accrues **IQ**, and fires the **Level-5 Great Assimilation** that rakes in Major-Eastern money. Java mirror: `BusinessDesk.java`; self-demo: `make desk`. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
 | [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |
