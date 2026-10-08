@@ -35,6 +35,16 @@ public final class LocalGameModel implements SleelaRuntime {
     static final int COMBO_STEP = 5;         // departures per combo milestone
     static final int COMBO_TIP = 150;        // cash tip at each milestone
 
+    // Edition 4: Prosperity Ladder.
+    static final int CONTRACT_LADDER_STEP = 100;
+    static final int CONTRACT_LADDER_CAP = 4;
+
+    // Edition 5: Imperial Reserve.
+    static final int RESERVE_FLOOR = 3000;
+    static final int RESERVE_TICKS = 180;
+    static final int RESERVE_BONUS = 750;
+    static final int RESERVE_REP_BONUS = 2;
+
     static final int INBOUND = 1;
     static final int LANDING = 2;
     static final int TAXI_IN = 3;
@@ -99,6 +109,9 @@ public final class LocalGameModel implements SleelaRuntime {
     private int contractProgress;
     private int contractDeadline;
     private int contractsCompleted;
+    private int contractChain;
+    private int reserveTicks;
+    private int reserveAwards;
 
     // Edition 2 feedback-loop state.
     private int streak;        // consecutive on-time departures (resets on abandon)
@@ -130,6 +143,9 @@ public final class LocalGameModel implements SleelaRuntime {
         contractProgress = 0;
         contractDeadline = CONTRACT_DEADLINE;
         contractsCompleted = 0;
+        contractChain = 0;
+        reserveTicks = 0;
+        reserveAwards = 0;
         streak = 0;
         comboTips = 0;
 
@@ -522,7 +538,8 @@ public final class LocalGameModel implements SleelaRuntime {
             if (p.sizeClass == contractTargetSize) {
                 contractProgress++;
                 if (contractProgress >= CONTRACT_GOAL) {
-                    cash += CONTRACT_BONUS;
+                    int ladder = Math.min(CONTRACT_LADDER_CAP, contractChain);
+                    cash += CONTRACT_BONUS + ladder * CONTRACT_LADDER_STEP;
                     // Fast completion earns a quality bonus as well.
                     if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
                         cash += CONTRACT_EARLY_BONUS;
@@ -530,6 +547,7 @@ public final class LocalGameModel implements SleelaRuntime {
                     }
                     reputation = Math.min(100, reputation + CONTRACT_REP_BONUS);
                     contractsCompleted++;
+                    contractChain++;
                     contractProgress = 0;
                     contractTargetSize = (contractTargetSize + 1) % 3;
                     contractDeadline = CONTRACT_DEADLINE;
