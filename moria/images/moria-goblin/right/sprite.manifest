@@ -1,0 +1,4 @@
+# moria-goblin — facing right
+action	start	right/start/moria-goblin-right-start.png
+action	mid	right/mid/moria-goblin-right-mid.png
+action	end	right/end/moria-goblin-right-end.png

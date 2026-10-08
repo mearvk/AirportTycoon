@@ -1,0 +1,16 @@
+# nested sprite tree for moria-goblin
+# layout: <direction>/<action>/moria-goblin-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/moria-goblin-top-start.png
+sprite	top	mid	top/mid/moria-goblin-top-mid.png
+sprite	top	end	top/end/moria-goblin-top-end.png
+sprite	left	start	left/start/moria-goblin-left-start.png
+sprite	left	mid	left/mid/moria-goblin-left-mid.png
+sprite	left	end	left/end/moria-goblin-left-end.png
+sprite	down	start	down/start/moria-goblin-down-start.png
+sprite	down	mid	down/mid/moria-goblin-down-mid.png
+sprite	down	end	down/end/moria-goblin-down-end.png
+sprite	right	start	right/start/moria-goblin-right-start.png
+sprite	right	mid	right/mid/moria-goblin-right-mid.png
+sprite	right	end	right/end/moria-goblin-right-end.png

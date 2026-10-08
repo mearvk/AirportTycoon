@@ -1,0 +1,4 @@
+# gimli — facing down
+action	start	down/start/gimli-down-start.png
+action	mid	down/mid/gimli-down-mid.png
+action	end	down/end/gimli-down-end.png

@@ -1,0 +1,4 @@
+# aragorn — facing top
+action	start	top/start/aragorn-top-start.png
+action	mid	top/mid/aragorn-top-mid.png
+action	end	top/end/aragorn-top-end.png

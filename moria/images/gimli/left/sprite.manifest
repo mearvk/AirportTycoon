@@ -1,0 +1,4 @@
+# gimli — facing left
+action	start	left/start/gimli-left-start.png
+action	mid	left/mid/gimli-left-mid.png
+action	end	left/end/gimli-left-end.png

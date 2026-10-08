@@ -1,0 +1,16 @@
+# nested sprite tree for aragorn
+# layout: <direction>/<action>/aragorn-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/aragorn-top-start.png
+sprite	top	mid	top/mid/aragorn-top-mid.png
+sprite	top	end	top/end/aragorn-top-end.png
+sprite	left	start	left/start/aragorn-left-start.png
+sprite	left	mid	left/mid/aragorn-left-mid.png
+sprite	left	end	left/end/aragorn-left-end.png
+sprite	down	start	down/start/aragorn-down-start.png
+sprite	down	mid	down/mid/aragorn-down-mid.png
+sprite	down	end	down/end/aragorn-down-end.png
+sprite	right	start	right/start/aragorn-right-start.png
+sprite	right	mid	right/mid/aragorn-right-mid.png
+sprite	right	end	right/end/aragorn-right-end.png
