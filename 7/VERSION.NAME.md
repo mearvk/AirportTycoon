@@ -1,39 +1,24 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 7 — *Celestial Concourse*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Version:** 7
+> **Name:** Celestial Concourse
+> **Epithet:** *The Zenith Era*
+> **Status:** Latest — the zenith presentation and national-operations line, evolved from Edition 6 *Grand Meridian*.
 
 ## Why the name
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+**Celestial Concourse** represents the point where the airport's physical floor, live clocks, national reference data, network connection, and user interface become one operating presentation.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+## What's new since *Grand Meridian* (Edition 6)
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+- **United States Operations Desk** — a dedicated UI information layer for national operating context.
+- **Live national clocks** — UTC plus Eastern, Central, Mountain, Pacific, Alaska, and Hawaii time, calculated from real system time and IANA time-zone rules.
+- **DST-aware time** — the displayed zone abbreviation and offset change according to the platform's current time-zone database.
+- **Country specification** — Washington, DC, constitutional federal republic, and 9,833,517 km² total area are presented as public CIA World Factbook reference data.
+- **CIA open-reference panel** — explains the public intelligence-reference role without representing classified or operational intelligence.
+- **Network retained** — the Java runtime continues to connect to the authoritative multiplayer TCP service.
+- **Resonant Concourse retained** — the grid emitters continue their slow, phase-shifted glow from Edition 6.
 
-## What's new since *Keystone Meridian* (Edition 1)
+The time reference follows the U.S. national timekeeping model: NIST maintains UTC(NIST), while the local time-zone conversion is handled by the operating system/IANA time-zone data.
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
-
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+The CIA reference layer is informational only. It does not collect, infer, or display classified information.
