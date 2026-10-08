@@ -27,6 +27,7 @@ public final class MultiplayerServer {
     private final ScheduledExecutorService clock = Executors.newScheduledThreadPool(2);
     private final ExecutorService clients = Executors.newCachedThreadPool();
     private final Set<Peer> peers = ConcurrentHashMap.newKeySet();
+    private final AtomicInteger nextPeerId = new AtomicInteger(1);
     private final LocalGameModel sharedWorld = new LocalGameModel();
     private final Object sharedLock = new Object();
 
