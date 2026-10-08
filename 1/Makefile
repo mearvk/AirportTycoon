@@ -25,6 +25,9 @@ UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
 TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
 ROUTE_ECONOMY_SRC := game/RouteProfitabilityModel.sleela
+PACING_SRC := game/PacingEngine.sleela
+DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
+PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
 # The Lighting Effects MODULE and its LOADER (optional light on text/words).
 LIGHTS_SRC := media/LightingEffects.sleela media/LightingLoader.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
@@ -53,6 +56,9 @@ game:
 	fi
 
 # Run the timeless route-profitability observer as a standalone program load.
+pacing:
+	$(SLEELA) run $(PACING_SRC)
+
 route-economy:
 	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
 
