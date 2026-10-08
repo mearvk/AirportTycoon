@@ -1,0 +1,4 @@
+# Placeholder so Git tracks this (otherwise empty) directory.
+# moria/images/ holds the character-sprite images: character-sprites-001,
+# character-sprites-002, ... (each keeps its own original file type).
+# Remove this file once the images are added.
