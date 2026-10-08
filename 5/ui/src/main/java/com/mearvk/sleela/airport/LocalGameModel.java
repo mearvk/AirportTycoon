@@ -588,7 +588,8 @@ public final class LocalGameModel implements SleelaRuntime {
                 streak, servicePremiumPct(), contractTargetSize,
                 contractProgress, CONTRACT_GOAL, contractDeadline,
                 contractsCompleted, CONTRACT_EARLY_TICKS, CONTRACT_EARLY_BONUS,
-                contractChain, CONTRACT_LADDER_STEP, CONTRACT_LADDER_CAP);
+                contractChain, CONTRACT_LADDER_STEP, CONTRACT_LADDER_CAP,
+                RESERVE_FLOOR, reserveTicks, RESERVE_TICKS, RESERVE_BONUS, reserveAwards);
     }
 
     @Override
@@ -623,4 +624,6 @@ public final class LocalGameModel implements SleelaRuntime {
     int contractsCompleted() { return contractsCompleted; }
     int contractEarlyTicks() { return CONTRACT_EARLY_TICKS; }
     int contractChain() { return contractChain; }
+    int reserveTicks() { return reserveTicks; }
+    int reserveAwards() { return reserveAwards; }
 }
