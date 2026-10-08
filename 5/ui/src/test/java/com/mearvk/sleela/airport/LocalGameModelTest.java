@@ -48,6 +48,10 @@ public final class LocalGameModelTest {
         testGreatAssimilationRakesInMoney();
         testDeskIsDeterministic();
         testDeskSnapshotRoundTrips();
+        // --- Edition 3: Platinum Ascension / Prosperity Contracts ---
+        testProsperityContractStarts();
+        testProsperityContractCompletes();
+        testProsperityContractExpiryRotates();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -418,6 +422,42 @@ public final class LocalGameModelTest {
         // tick closer to timeout still beats a heavy.
         check(m.scoreFor(39, 0) < m.scoreFor(40, 2),
                 "more-urgent small plane still beats a comfortable heavy");
+    }
+
+    // --- Edition 3: Platinum Ascension / Prosperity Contracts --------------
+
+    private static void testProsperityContractStarts() {
+        LocalGameModel m = new LocalGameModel();
+        check(m.contractTargetSize() == 0, "Edition 3 starts with Small target");
+        check(m.contractProgress() == 0, "prosperity contract starts at zero");
+        check(m.contractDeadline() == LocalGameModel.CONTRACT_DEADLINE,
+                "prosperity contract starts with full deadline");
+        check(m.snapshot().contractGoal == LocalGameModel.CONTRACT_GOAL,
+                "snapshot exposes contract goal");
+    }
+
+    private static void testProsperityContractCompletes() {
+        LocalGameModel m = new LocalGameModel();
+        int beforeCash = m.cash();
+        for (int i = 0; i < 1600 && m.contractsCompleted() == 0 && !m.snapshot().gameOver; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.contractsCompleted() > 0, "seeded auto-play completes a prosperity contract");
+        check(m.cash() >= beforeCash + LocalGameModel.CONTRACT_BONUS,
+                "contract completion pays the prosperity bonus");
+    }
+
+    private static void testProsperityContractExpiryRotates() {
+        LocalGameModel m = new LocalGameModel();
+        int beforeRep = m.reputation();
+        for (int i = 0; i < LocalGameModel.CONTRACT_DEADLINE; i++) {
+            m.step();
+        }
+        check(m.contractTargetSize() == 1, "expired contract rotates to Medium");
+        check(m.contractProgress() == 0, "expired contract resets progress");
+        check(m.reputation() == beforeRep || m.reputation() < beforeRep,
+                "contract expiry adds no separate reputation penalty");
     }
 
     // --- Edition 2: the Business Desk (side ventures + Level-5 moves) --------

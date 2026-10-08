@@ -1,39 +1,33 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 4 — *Sovereign Skies*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Version:** 4
+> **Name:** Sovereign Skies
+> **Epithet:** *The Dominion Era*
+> **Status:** Latest — the dominion line, evolving from the Edition 3 prosperity line.
 
 ## Why the name
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+**Sovereign Skies** — Edition 4 is about control at scale. The player is no
+longer merely reacting to individual aircraft or completing isolated contracts;
+a disciplined airport can build a consecutive prosperity record and make each
+successful contract more valuable.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+The **Prosperity Ladder** adds measured compounding to Edition 3: +$100 for
+each consecutive completed contract, capped at +$400, while an expired contract
+resets the ladder. The early-completion quality bonus remains intact.
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+> *Sovereign Skies* — the Edition where operational discipline becomes
+> sustained dominion.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## What's new since *Platinum Ascension* (Edition 3)
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+- **Prosperity Ladder** — consecutive completed contracts increase the next contract's base reward.
+- **+$100 ladder step** — each successful contract adds another $100 to the next base contract reward.
+- **+$400 cap** — the ladder can raise the $500 base reward to $900.
+- **Expiry reset** — missing a contract breaks the ladder without an additional reputation penalty.
+- **Early-quality bonus retained** — Edition 3's $250/+1 early-completion reward remains.
+- **UI-visible progression** — ladder chain, step, and cap are in snapshots.
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+Edition 1's tower rules, Edition 2's economic feedback and Business Desk, and Edition 3's Prosperity Contracts remain intact.
+
+See README.md for the full overview and Edition 4 notes.
