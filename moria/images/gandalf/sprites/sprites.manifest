@@ -1,14 +1,16 @@
 # gandalf sprite crops
 # source: moria/images/gandalf.jpeg (2526x406 sprite sheet, black background)
-# produced by: moria/tools/crop.go
+# produced by: moria/tools/crop2.go
 #
 # Minimum crop set: one crop per sprite instance (12 total), no filler frames.
-# Uniform output: every crop is 154x210 (= max sprite bounding box across the sheet).
+# Uniform output: every crop is 196x210, the SAME uniform size shared with the
+# gimli sprite set so the two characters are interchangeable at one frame size.
+# (196 = widest gimli bounding box; 210 = tallest gandalf bounding box.)
 # Each sprite is centered horizontally and anchored to the bottom of the canvas so
 # frames align on a common ground line; the black background is made transparent.
 #
 # column 'src box' = tight bounding box of the sprite in the source sheet.
-size	154x210
+size	196x210
 sprite	01	gandalf-01.png	src=x[224..366],y[170..375]	tight=143x206
 sprite	02	gandalf-02.png	src=x[398..538],y[170..379]	tight=141x210
 sprite	03	gandalf-03.png	src=x[580..709],y[170..369]	tight=130x200

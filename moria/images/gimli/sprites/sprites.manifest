@@ -1,0 +1,28 @@
+# gimli sprite crops
+# source: moria/images/gimli.jpeg (2510x266 sprite sheet, black background)
+# produced by: moria/tools/crop2.go
+#
+# Minimum crop set: one crop per sprite instance (12 total), no filler frames.
+# Uniform output: every crop is 196x210, the SAME uniform size shared with the
+# gandalf sprite set so the two characters are interchangeable at one frame size.
+# (196 = widest gimli bounding box; 210 = tallest gandalf bounding box.)
+#
+# Two adjacent figures on the sheet overlap at the axe handle (merged by plain
+# black-gap splitting); crop2.go splits any run >1.6x the median width at the
+# lowest-content column in its central band. Those seams are sprites 02|03 and 11|12.
+#
+# Each sprite is centered horizontally and bottom-anchored on the canvas so frames
+# align on a common ground line; the black background is keyed to transparent.
+size	196x210
+sprite	01	gimli-01.png	src=x[174..369],y[39..226]	tight=196x188
+sprite	02	gimli-02.png	src=x[399..570],y[39..231]	tight=172x193
+sprite	03	gimli-03.png	src=x[571..726],y[39..231]	tight=156x193
+sprite	04	gimli-04.png	src=x[761..920],y[44..231]	tight=160x188
+sprite	05	gimli-05.png	src=x[944..1086],y[44..226]	tight=143x183
+sprite	06	gimli-06.png	src=x[1145..1316],y[44..231]	tight=172x188
+sprite	07	gimli-07.png	src=x[1339..1458],y[33..226]	tight=120x194
+sprite	08	gimli-08.png	src=x[1478..1637],y[33..226]	tight=160x194
+sprite	09	gimli-09.png	src=x[1690..1883],y[33..226]	tight=194x194
+sprite	10	gimli-10.png	src=x[1909..2060],y[33..225]	tight=152x193
+sprite	11	gimli-11.png	src=x[2091..2245],y[32..225]	tight=155x194
+sprite	12	gimli-12.png	src=x[2246..2422],y[32..225]	tight=177x194
