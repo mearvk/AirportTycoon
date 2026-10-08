@@ -28,7 +28,7 @@ game: prepare
 	@$(MAKE) -C dungeons-of-moria game
 
 check: prepare
-	@for n in $(EDITIONS); do echo "== Edition $$n checks =="; $(MAKE) -C $$n check; done 2>/dev/null || true
+	@for n in $(EDITIONS); do echo "== Edition $n checks =="; $(MAKE) -C $n check; done
 	@echo "Edition checks requested; individual Makefiles remain authoritative."
 
 editions: prepare
