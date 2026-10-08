@@ -1,32 +1,32 @@
-# Edition 5 — *Imperial Horizons*
+# Edition 6 — *Grand Meridian*
 
-> **Version:** 5
-> **Name:** Imperial Horizons
-> **Epithet:** *The Grand Strategy Era*
-> **Status:** Latest — the grand strategy line, evolving from the Edition 4 dominion line.
+> **Version:** 6
+> **Name:** Grand Meridian
+> **Epithet:** *The Continental Era*
+> **Status:** Latest — the continental line, evolved from Edition 5's grand strategy foundation.
 
 ## Why the name
 
-**Imperial Horizons** — Edition 5 expands the airport's strategy beyond the immediate traffic horizon. The player must balance aircraft flow, contract prosperity, and the capital needed to keep the airport resilient.
+**Grand Meridian** carries the airport from Imperial Horizons into a larger, more connected operating space. The tower, economy, multiplayer foundation, and illuminated grid remain intact while the presentation gains a calm, continuous architectural rhythm.
 
-The **Imperial Reserve** rewards maintaining at least $3,000 for 180 consecutive ticks with a $750 treasury award and up to +2 reputation. Falling below the floor resets only qualification progress; it never closes the airport.
+## The Resonant Concourse
 
-> *Imperial Horizons* — the Edition where prosperity becomes long-range strategy.
+Edition 6 retains the Edition 5 grid floor and its light-gray, white, and yellow-white emitters. Every grid intersection—including the four corners—continues to glow, but the emitters now change their apparent resonance gradually over an **8-second visual cycle**.
 
-## What's new since *Sovereign Skies* (Edition 4)
+The emitters are phase-shifted by their grid position, so the floor produces a gentle travelling wave rather than a synchronized flash. The effect is deliberately steady and architectural: it should make the airport feel alive without distracting from aircraft operations.
 
-- **Imperial Reserve** — cash-stability objective alongside the Prosperity Ladder.
-- **$3,000 reserve floor** — capital must remain at or above the floor.
-- **180-tick qualification** — stability must be maintained continuously.
-- **$750 treasury award** — successful qualification adds working capital.
-- **Up to +2 reputation** — financial discipline reinforces airport quality.
-- **Reset without punishment** — spending below the floor resets progress without a new failure condition.
-- **UI-visible finance state** — reserve floor, progress, goal, reward, and award count are in snapshots.
-- **1–4 player multiplayer** — a dependency-free authoritative TCP server supports a shared airport or private airports.
-- **Global player chat** — shared chat works in both multiplayer modes.
+This resonance is **presentation-only**. It does not alter game ticks, aircraft patience, economy, multiplayer state, or deterministic gameplay.
 
-Editions 1–4 remain intact: tower operations, economic feedback, Prosperity Contracts, the early-quality bonus, and the Prosperity Ladder all continue forward.
+## What's new since *Imperial Horizons* (Edition 5)
 
-The multiplayer layer is designed for trusted LAN/private networks in this edition; it does not yet provide internet-grade authentication or TLS.
+- **Grand Meridian presentation layer** — the responsive game window continues forward.
+- **Uniform illuminated grid** — the playable floor remains organized by square tiles.
+- **Resonant Concourse lighting** — every grid intersection glows continuously with a slow, phase-shifted resonance.
+- **Corner emitters retained** — all four floor corners remain explicit lighting emitters.
+- **Stable visual rhythm** — the lighting cycle is smooth and does not flash or affect simulation timing.
+- **Future symbol foundation** — Stores, Stones, Columns, and related objects can occupy the same grid without changing the underlying rules.
+- **1–4 player multiplayer** — shared and individual airport modes plus global chat continue forward unchanged.
 
-See README.md for the full overview and Edition 5 notes.
+Editions 1–5 remain intact: tower operations, economic feedback, Prosperity Contracts, the Prosperity Ladder, Imperial Reserve, and the multiplayer foundation all continue forward.
+
+See README.md for the full overview and Edition 6 presentation notes.
