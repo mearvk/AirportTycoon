@@ -1,8 +1,8 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 8 — *Apex Dominion*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
+> **Version:** 8
+> **Name:** Apex Dominion
+> **Epithet:** *The Ultimate Era*
 > **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
 
 ## Why the name
