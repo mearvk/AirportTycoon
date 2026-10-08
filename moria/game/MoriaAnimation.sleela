@@ -22,8 +22,10 @@ struct Walker {
     String character;   // "adventurer", "warden", ...
     int    x;           // board column (in cells)
     int    y;           // board row
-    int    headingX;    // -1 / 0 / +1 facing + motion on x
-    int    headingY;    // -1 / 0 / +1 on y
+    int    headingX;    // PERSISTENT facing on x: -1 left, +1 right (never 0)
+    int    headingY;    // last facing on y: -1 / 0 / +1
+    int    moveX;        // this step's motion on x: -1 / 0 / +1
+    int    moveY;        // this step's motion on y: -1 / 0 / +1
     int    tick;        // animation tick (advances each step)
     int    distance;    // total cells walked
     boolean moving;     // true while walking (START/MID), false at rest (STOP)
@@ -51,15 +53,21 @@ class MoriaAnimation {
         w.character = character;
         if (w.character == null) { w.character = "adventurer"; }
         w.x = x; w.y = y;
-        w.headingX = 1; w.headingY = 0;   // facing east by default
+        w.headingX = 1; w.headingY = 0;   // facing east (right) by default
+        w.moveX = 0; w.moveY = 0;
         w.tick = 0; w.distance = 0;
         w.moving = false;
         return w;
     }
 
+    // Point the walker at a delta: set this step's MOTION (moveX/moveY) and the
+    // PERSISTENT horizontal FACING (headingX, which never goes to 0, so a figure
+    // walking straight up or down keeps looking the way it last turned).
     void face(Walker w, int dx, int dy) {
-        w.headingX = sign(dx);
-        w.headingY = sign(dy);
+        w.moveX = sign(dx);
+        w.moveY = sign(dy);
+        if (w.moveX != 0) { w.headingX = w.moveX; }
+        w.headingY = w.moveY;
     }
 
     int sign(int v) {
@@ -73,9 +81,10 @@ class MoriaAnimation {
     void step(Walker w) {
         w.tick = w.tick + 1;
         w.moving = true;
-        if (w.headingX == 0 && w.headingY == 0) { w.headingX = 1; }
-        w.x = w.x + w.headingX;
-        w.y = w.y + w.headingY;
+        // If no motion was set, default to walking in the facing direction.
+        if (w.moveX == 0 && w.moveY == 0) { w.moveX = w.headingX; }
+        w.x = w.x + w.moveX;
+        w.y = w.y + w.moveY;
         w.distance = w.distance + 1;
     }
 
@@ -113,20 +122,37 @@ class MoriaAnimation {
         return "stop";
     }
 
-    // The on-disk sprite file for a walker's current frame, e.g.
-    // "images/adventurer/adventurer-mid.png". The SleelaUI build binds this to
-    // an SLImage; it was produced by the autocropper.
+    // Which way the walker FACES, left or right. Right = the sheet's own
+    // orientation; left = the horizontally-mirrored sprite. A walker that is
+    // moving purely up/down keeps its last horizontal facing (default right).
+    String facing(Walker w) {
+        if (w.headingX < 0) { return "left"; }
+        return "right";
+    }
+
+    // The on-disk sprite file for a walker's current frame AND facing, e.g.
+    // "images/adventurer/adventurer-mid-left.png". The SleelaUI build binds this
+    // to an SLImage; all three poses x two facings were made by the autocropper.
     String framePath(Walker w) {
+        String label = frameLabel(frameOf(w));
+        String dir = facing(w);
+        return "images/" + w.character + "/" + w.character
+             + "-" + label + "-" + dir + ".png";
+    }
+
+    // The facing-neutral base frame (no -left/-right suffix), kept for callers
+    // that do not care which way the figure looks.
+    String frameBasePath(Walker w) {
         String label = frameLabel(frameOf(w));
         return "images/" + w.character + "/" + w.character + "-" + label + ".png";
     }
 
-    // A heading word for the gait read.
+    // A heading word for the gait read — the direction of THIS step's motion.
     String headingWord(Walker w) {
-        if (w.headingX > 0) { return "east"; }
-        if (w.headingX < 0) { return "west"; }
-        if (w.headingY > 0) { return "south"; }
-        if (w.headingY < 0) { return "north"; }
+        if (w.moveX > 0) { return "east"; }
+        if (w.moveX < 0) { return "west"; }
+        if (w.moveY > 0) { return "south"; }
+        if (w.moveY < 0) { return "north"; }
         return "still";
     }
 
@@ -150,13 +176,23 @@ class MoriaAnimation {
         print("");
         Walker hero = spawn("adventurer", 2, 9);
         face(hero, 1, 0);
+        print("Walking RIGHT (east) — uses the -right sprites:");
         int i = 0;
-        while (i < 8) {
+        while (i < 6) {
             step(hero);
             print("  " + describe(hero) + "   sprite=" + framePath(hero));
             i = i + 1;
         }
+        print("");
+        print("Turning and walking LEFT (west) — uses the -left (mirrored) sprites:");
+        int j = 0;
+        while (j < 6) {
+            stepToward(hero, hero.x - 1, hero.y);   // face + step west
+            print("  " + describe(hero) + "   sprite=" + framePath(hero));
+            j = j + 1;
+        }
         halt(hero);
-        print("  " + describe(hero) + "   sprite=" + framePath(hero));
+        print("");
+        print("At rest: " + describe(hero) + "   sprite=" + framePath(hero));
     }
 }

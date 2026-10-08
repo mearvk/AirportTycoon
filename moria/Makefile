@@ -109,7 +109,7 @@ catalog:
 SHEET ?= images/character-animation-sprites-005.jpeg
 CHARACTER ?= adventurer
 sprites:
-	python3 tools/autocrop_sprites.py $(SHEET) $(CHARACTER) --frames 3 --out images
+	python3 tools/autocrop_sprites.py $(SHEET) $(CHARACTER) --frames 3 --directions --out images
 
 save:
 	$(SLEELA) run $(SAVE_SRC)

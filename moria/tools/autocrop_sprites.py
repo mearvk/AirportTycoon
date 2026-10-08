@@ -336,6 +336,19 @@ def slice_frames(w, h, rgb, n):
     return frames
 
 
+def flip_h(w, h, rgb):
+    """Horizontal mirror of an RGB frame — turns a right-facing pose into the
+    left-facing one (and vice versa)."""
+    out = bytearray(w*h*3)
+    for y in range(h):
+        row = y*w*3
+        for x in range(w):
+            s = row + x*3
+            d = row + (w-1-x)*3
+            out[d] = rgb[s]; out[d+1] = rgb[s+1]; out[d+2] = rgb[s+2]
+    return (w, h, out)
+
+
 SAMPLE = ["start", "mid", "stop"]
 
 def main():
@@ -344,6 +357,9 @@ def main():
     ap.add_argument("character")
     ap.add_argument("--frames", type=int, default=3)
     ap.add_argument("--out", default="images")
+    ap.add_argument("--directions", action="store_true",
+                    help="also emit left/right facings (right = sheet orientation, "
+                         "left = horizontal mirror), named <char>-<pose>-<dir>.png")
     args = ap.parse_args()
 
     w, h, rgb = decode_jpeg(args.sheet)
@@ -359,10 +375,22 @@ def main():
     labels = SAMPLE if args.frames == 3 else [f"frame{i:02d}" for i in range(args.frames)]
     for i, (fw2, fh2, fb) in enumerate(frames):
         label = labels[i] if i < len(labels) else f"frame{i:02d}"
+        # Base (facing-neutral) frame, kept for backward compatibility.
         name = f"{args.character}-{label}.png"
         write_png(os.path.join(outdir, name), fw2, fh2, fb)
         manifest.append(f"frame\t{label}\t{name}\t{fw2}x{fh2}")
         print(f"wrote {outdir}/{name}  ({fw2}x{fh2})")
+        if args.directions:
+            # right = the sheet's own orientation; left = its horizontal mirror.
+            rname = f"{args.character}-{label}-right.png"
+            write_png(os.path.join(outdir, rname), fw2, fh2, fb)
+            manifest.append(f"frame\t{label}\tright\t{rname}\t{fw2}x{fh2}")
+            print(f"wrote {outdir}/{rname}  ({fw2}x{fh2})  [right]")
+            lw, lh, lb = flip_h(fw2, fh2, fb)
+            lname = f"{args.character}-{label}-left.png"
+            write_png(os.path.join(outdir, lname), lw, lh, lb)
+            manifest.append(f"frame\t{label}\tleft\t{lname}\t{lw}x{lh}")
+            print(f"wrote {outdir}/{lname}  ({lw}x{lh})  [left, mirrored]")
     with open(os.path.join(outdir, "sprite.manifest"), "w") as f:
         f.write("\n".join(manifest) + "\n")
     print(f"wrote {outdir}/sprite.manifest")

@@ -493,16 +493,32 @@ class MoriaTest {
         check("a walking character is moving", wk.moving);
         check("the walk cycles through the sampled frames",
             an.frameOf(wk) >= an.FRAME_START && an.frameOf(wk) <= an.FRAME_STOP);
-        check("the frame maps to its sprite path under the character's name",
-            an.framePath(wk) == "images/adventurer/adventurer-" + an.frameLabel(an.frameOf(wk)) + ".png");
+        // Walking east faces RIGHT -> the -right sprite.
+        check("walking east faces right", an.facing(wk) == "right");
+        check("the right-facing frame maps to the -right sprite",
+            an.framePath(wk) == "images/adventurer/adventurer-"
+                + an.frameLabel(an.frameOf(wk)) + "-right.png");
+        // Turn and walk west: faces LEFT -> the mirrored -left sprite.
+        an.stepToward(wk, wk.x - 1, wk.y);
+        check("walking west faces left", an.facing(wk) == "left");
+        check("the left-facing frame maps to the -left sprite",
+            an.framePath(wk) == "images/adventurer/adventurer-"
+                + an.frameLabel(an.frameOf(wk)) + "-left.png");
+        // The facing-neutral base path is still available.
+        check("the base (undirected) sprite path is still offered",
+            an.frameBasePath(wk) == "images/adventurer/adventurer-"
+                + an.frameLabel(an.frameOf(wk)) + ".png");
         an.halt(wk);
         check("halting settles on the STOP frame", an.frameOf(wk) == an.FRAME_STOP);
-        // The hero in the live dungeon animates as he walks.
+        // The hero in the live dungeon animates as he walks, left or right.
         check("the hero reports a walk frame", r.heroFrame() != "");
-        check("the hero's sprite lives under images/adventurer/",
-            r.heroSprite() == "images/adventurer/adventurer-start.png"
-            || r.heroSprite() == "images/adventurer/adventurer-mid.png"
-            || r.heroSprite() == "images/adventurer/adventurer-stop.png");
+        check("the hero's sprite is a left/right facing under images/adventurer/",
+            r.heroSprite() == "images/adventurer/adventurer-start-right.png"
+            || r.heroSprite() == "images/adventurer/adventurer-mid-right.png"
+            || r.heroSprite() == "images/adventurer/adventurer-stop-right.png"
+            || r.heroSprite() == "images/adventurer/adventurer-start-left.png"
+            || r.heroSprite() == "images/adventurer/adventurer-mid-left.png"
+            || r.heroSprite() == "images/adventurer/adventurer-stop-left.png");
 
         // --- The 2000+ dungeon catalog, sized for the GUI gameboard ----------
         MoriaDungeonCatalog cat = new MoriaDungeonCatalog();

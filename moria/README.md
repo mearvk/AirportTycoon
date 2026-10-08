@@ -37,7 +37,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`ui-sleela/MoriaThrobber.sleela`](ui-sleela/MoriaThrobber.sleela) | The **title throbber**: a thin (2–4 px), full-width, resizing light strip directly under the title that casts a radiant **white-and-yellow** light **downward only** onto the Descriptive Canvas, with a constant 3D light-ebb animation that runs until the program ends. |
 | [`ui-sleela/MoriaCharacterSelect.sleela`](ui-sleela/MoriaCharacterSelect.sleela) | The **character-select startup**: choose a ready-made hero from a small roster, or **forge a new one** with the creation generator — the chosen `Creature0` is adopted by `beginFromCharacter`. |
 | [`ui-sleela/BRIDGE.md`](ui-sleela/BRIDGE.md) | The **SLVM bridge manifest**: the new `ui*` built-ins the Moria UI helpers introduce (`uiImageFile`, `uiFontEffectBind/Update`, `uiSleepMillis`), with signatures and the C ABI each should call. |
-| [`images/<character>/`](images/) | **Autocropped sprites**, per character: `adventurer/` and `warden/` each hold `-start.png`, `-mid.png`, `-stop.png` and a `sprite.manifest`. |
+| [`images/<character>/`](images/) | **Autocropped sprites**, per character: `adventurer/` and `warden/` each hold `-start`, `-mid`, `-stop` in **three facings** — the base plus **`-right`** (sheet orientation) and **`-left`** (mirrored) — nine PNGs and a `sprite.manifest`. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test` / `animation` / `catalog` / `sprites`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
@@ -170,23 +170,31 @@ with **no Pillow/ImageMagick and no network**). For each sheet it:
 1. decodes the baseline JPEG to RGB,
 2. **autocrops** to the figure's tight bounding box (trims the uniform
    background measured from the sheet's corner),
-3. slices the figure into the animation sample **start / mid / stop**, and
-4. writes them under the character's name:
-   `images/<character>/<character>-{start,mid,stop}.png`, plus a
-   `sprite.manifest` the UI can read for frame sizes.
+3. slices the figure into the animation sample **start / mid / stop**,
+4. with `--directions`, emits each pose in **two facings** — **`-right`** (the
+   sheet's own orientation) and **`-left`** (its horizontal mirror) — and
+5. writes them under the character's name:
+   `images/<character>/<character>-<pose>-{right,left}.png` (plus the
+   facing-neutral base `<character>-<pose>.png`), and a `sprite.manifest`.
 
-The two real sheets became **`images/adventurer/`** and **`images/warden/`**
-(three ~910×1527 frames each). Re-run on any sheet with
+The two real sheets became **`images/adventurer/`** and **`images/warden/`** —
+each with **nine PNGs**: start/mid/stop × {base, right, left} (~910×1527 and
+~913×1519 respectively). The `-left` frames are verified exact horizontal
+mirrors of `-right`. Re-run on any sheet with
 `make sprites SHEET=images/<file>.jpeg CHARACTER=<name>`.
 
-### The walk — the character moves like he's walking
+### The walk — the character moves like he's walking, left and right
 
 [`MoriaAnimation.sleela`](game/MoriaAnimation.sleela) drives a `Walker` from the
 three sampled frames: each `step()` advances the **gait** (START → MID → STOP →
 MID, looped) **and** the walker's position by one cell along its heading, so the
-character reads as walking. The hero in the live dungeon carries a `Walker`;
-`stepHeroTo()` faces and steps it on every move, and `heroFrame()`/`heroSprite()`
-report the current frame and its PNG under `images/adventurer/`.
+character reads as walking. Facing is tracked separately from motion, so a
+walker **faces right when heading east and left when heading west** (and keeps
+its last horizontal facing when walking straight up/down); `framePath()` returns
+the matching **`-right`/`-left`** sprite. The hero in the live dungeon carries a
+`Walker`; `stepHeroTo()` faces and steps it on every move, and
+`heroFrame()`/`heroSprite()` report the current frame and its facing PNG under
+`images/adventurer/`.
 
 ### 2000+ dungeons, sized for the GUI gameboard — and the times
 
