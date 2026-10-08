@@ -25,6 +25,7 @@ TEST_SRC := game/AirportTycoonTest.sleela
 UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
 TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
+ROUTE_ECONOMY_SRC := game/RouteProfitabilityModel.sleela
 DESK_SRC := game/BusinessDesk.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
@@ -35,7 +36,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run network-client check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run network-client check clean help route-economy
 
 all: game check ui
 
@@ -49,6 +50,9 @@ game:
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
 	fi
+
+route-economy:
+	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
 
 run:
 	$(SLEELA) run $(GAME_SRC)
