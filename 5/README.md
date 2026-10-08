@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition (Edition 5) — *Imperial Horizons*
 
 > **Edition 5 — Imperial Horizons, the Grand Strategy Era.** Built on the complete, self-contained
