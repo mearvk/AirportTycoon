@@ -16,6 +16,17 @@ All game logic is SLeeLa source. The GUI is **SleelaUI™** (SLeeLa's own
 cross-platform native toolkit), painting the dungeon into a text canvas. The
 game is fully playable **headless** too — the same text read drives both.
 
+## Meaning of Moria — Middle-earth
+
+**2. *The Lord of the Rings* (Middle-earth)**
+
+- **Subterranean city:** Also known in Dwarvish as **Khazad-dûm**, Moria is a vast,
+  ancient underground Dwarf city-kingdom and mine network beneath the Misty
+  Mountains.
+- **Meaning in Elvish:** In J.R.R. Tolkien's Sindarin language, *Moria* means
+  the **"Black Chasm"** or **"Black Pit"**.
+
+
 
 ## Gameplay & Goals
 
