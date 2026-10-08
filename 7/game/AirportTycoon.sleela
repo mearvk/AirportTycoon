@@ -24,7 +24,7 @@
 // provides scalars, `struct` (reference type) and `new StructName()` only
 // (SLEELA.syntax Sec. 3.4 / 5). So every collection here is modelled as a
 // singly-linked list of struct nodes, which is fully within the 1.6 grammar
-// and respects the 4096-live-instance cap. Field access uses the `.` operator;
+// and respects the 496-live-instance cap. Field access uses the `.` operator;
 // list walking uses `while` + a `next` reference.
 
 // ---------------------------------------------------------------------------
@@ -115,6 +115,44 @@ class AirportTycoon {
     int    comboTips   = 0;      // cash earned from combo milestones (Edition 2)
     boolean running    = true;
     boolean gameOver   = false;
+
+
+    // ---------------------------------------------------------------------
+    // Edition 7 Reservation module integration.
+    // Reservations is a separate business module; the tower simulation
+    // remains authoritative for aircraft movement. The module exposes
+    // booking, confirmation, friend-party, and Reservation IQ state.
+    // ---------------------------------------------------------------------
+    Reservations reservationBook;
+    int reservationIQ = 0;
+
+    void setupReservations() {
+        reservationBook = new Reservations();
+        reservationBook.setup();
+    }
+
+    boolean bookReservation(String guestId, String guestName, String flight,
+                            int partySize, int startTick, int duration) {
+        if (reservationBook == null) { setupReservations(); }
+        Reservation r = reservationBook.book(guestId, guestName, flight,
+                                             partySize, startTick, duration);
+        if (r == null) { return false; }
+        reservationIQ = reservationBook.reservationIQ();
+        return true;
+    }
+
+    boolean confirmReservation(int reservationId) {
+        if (reservationBook == null) { return false; }
+        boolean ok = reservationBook.confirm(reservationId);
+        reservationIQ = reservationBook.reservationIQ();
+        return ok;
+    }
+
+    String reservationSnapshot() {
+        if (reservationBook == null) { return "RESERVATIONS|empty=yes"; }
+        reservationIQ = reservationBook.reservationIQ();
+        return reservationBook.snapshot();
+    }
 
     // ---------------------------------------------------------------------
     // Deterministic PRNG. Keeps the simulation reproducible from a seed so the
@@ -395,6 +433,10 @@ class AirportTycoon {
         lock(SERVICE_LOCK);
 
         tick = tick + 1;
+        if (reservationBook != null) {
+            reservationBook.step();
+            reservationIQ = reservationBook.reservationIQ();
+        }
 
         // Cool runways down.
         Runway r = runways;
@@ -561,6 +603,7 @@ class AirportTycoon {
     // ---------------------------------------------------------------------
     String snapshot() {
         String out = "ATC|tick=" + tick + "|cash=" + cash
+            + "|reservationIQ=" + reservationIQ
             + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
             + "|gates=" + openGates + "|runways=" + openRunways
             + "|planes=" + planeCount + "|over=" + gameOver
@@ -586,6 +629,7 @@ class AirportTycoon {
         print(role("Pipeline") + ": inbound -> gate -> runway");
 
         buildWorld();
+        setupReservations();
 
         int frames = 0;
         while (running && frames < 600) {
