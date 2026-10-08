@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Edition 3 — *Platinum Ascension*
 
 > **Version:** 3
