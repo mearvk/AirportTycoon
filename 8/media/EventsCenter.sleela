@@ -1,0 +1,344 @@
+#sleela 1.6
+//
+// Airport Tycoon — the Events / Media Center (the mid :: center area)
+// ===================================================================
+// The background-events engine for the First Edition. It is a 300-rated model:
+// the sharpest in the program, driving what happens in the center of the media.
+// A separate 220-rated Reporter (the Boss — see Reporter.sleela) observes this
+// center and interprets it, fusing the Author viewpoint with East 5.0 (Asia).
+//
+// FOCUS (First Edition):
+//   * Asia routes — a Great area; the game focuses here (East 5.0 leans hardest).
+//   * Euro-American routes — Northern Europe + Chinese-influence hubs near the
+//     UK and France, feeding the Americas (AM). Author viewpoint leans hardest.
+//
+// REAL VALUES this model carries:
+//   * Countries, each measured/contained by exactly 3 major national theories.
+//   * A price scale of 6 real tiers, 1.0 .. 6.0 (6 = most luxurious).
+//   * Flights that are MAINLY on time, clamped by each country's theories.
+//   * A SOFT ECONOMIC PAD: a cushioning buffer that smooths month-to-month
+//     economics so the First Edition is enjoyable rather than punishing.
+//
+// All arithmetic is deterministic. Collections are struct linked lists (SLeeLa
+// 1.6 has no arrays).
+
+// ---------------------------------------------------------------------------
+// Domain structs
+// ---------------------------------------------------------------------------
+
+// A country, measured and contained by exactly 3 major national theories.
+// Each theory contributes an on-time ceiling (percent) and a delay damping.
+struct Country {
+    int     id;
+    String  name;
+    String  region;        // "ASIA" or "EUAM" (Euro-American)
+    // Theory 1: On-Time Doctrine — the baseline punctuality the state targets.
+    String  theory1;
+    int     onTimeCeiling; // 0..100 — max on-time % the doctrine allows
+    // Theory 2: Containment Theory — how hard delays are damped once they start.
+    String  theory2;
+    int     delayDamping;  // 0..100 — higher = delays contained faster
+    // Theory 3: Market Theory — the country's baseline luxury price tier (x10).
+    String  theory3;
+    int     baseTierX10;   // price tier * 10, in [10, 60] (1.0 .. 6.0)
+    Country next;
+}
+
+// A route between two country hubs, the unit the game focuses on.
+struct Route {
+    int     id;
+    String  label;         // e.g. "Shanghai -> Tokyo"
+    int     fromId;        // Country id
+    int     toId;          // Country id
+    String  region;        // "ASIA" or "EUAM"
+    int     tierX10;       // this route's luxury tier * 10 (1.0..6.0)
+    int     onTimePct;     // measured on-time percentage this cycle
+    int     demand;        // soft demand index (passengers wanting this route)
+    Route   next;
+}
+
+class EventsCenter {
+
+    // The center model's rating. The sharpest model in the program.
+    static int CENTER_IQ = 300;
+
+    // Price tiers are 6 real values, 1.0 .. 6.0 (stored x10 to stay integer).
+    static int TIER_MIN_X10 = 10;   // 1.0
+    static int TIER_MAX_X10 = 60;   // 6.0 — the most luxurious
+
+    // The SOFT ECONOMIC PAD. Revenue and price swings are blended toward their
+    // previous value by this percentage, so the economy moves gently. 0 = raw,
+    // 100 = frozen. 35 keeps the First Edition pleasant without being static.
+    static int SOFT_PAD_PERCENT = 35;
+
+    Country countries;     // head of the country list
+    Route   routes;        // head of the route list
+    int     cycle;         // events cycle counter
+    int     rngState;      // deterministic PRNG
+
+    // Economic pad memory (previous padded figures).
+    int     padInit;
+    int     prevFareIndex; // last cycle's padded fare index (x100)
+
+    // -----------------------------------------------------------------------
+    // Deterministic PRNG
+    // -----------------------------------------------------------------------
+    int nextRand() {
+        int x = rngState + 2654435761;
+        if (x < 0) { x = -x; }
+        rngState = x;
+        return x;
+    }
+    int randRange(int lo, int hi) {
+        if (hi <= lo) { return lo; }
+        return lo + (nextRand() % (hi - lo));
+    }
+
+    // -----------------------------------------------------------------------
+    // Build the world: the focus countries + their 3 national theories, and
+    // the Asia and Euro-American routes the game focuses on. REAL values.
+    // -----------------------------------------------------------------------
+    void build() {
+        cycle = 0;
+        rngState = 700300;    // seeded to the 300 model
+        padInit = 0;
+        prevFareIndex = 0;
+
+        countries = null;
+        routes = null;
+
+        // --- Asia (the Great area the game focuses on) ---
+        addCountry(1, "China", "ASIA",
+            "High-Speed Punctuality Doctrine", 96,
+            "State Flow Containment", 80,
+            "Belt Luxury Market", 40);              // base tier 4.0
+        addCountry(2, "Japan", "ASIA",
+            "Teiji Un'ei (on-time operations)", 98,
+            "Kaizen Delay Containment", 88,
+            "Omotenashi Premium Market", 50);       // base tier 5.0
+
+        // --- Euro-American focus: N. Europe + Chinese-influence hubs near the
+        //     UK and France, feeding the Americas (AM). ---
+        addCountry(3, "United Kingdom", "EUAM",
+            "Slot Discipline Doctrine", 90,
+            "Heathrow Flow Containment", 72,
+            "City Premium Market", 45);             // base tier 4.5
+        addCountry(4, "France", "EUAM",
+            "Ponctualite Nationale", 91,
+            "ATC Containment Nationale", 74,
+            "Luxe Market", 55);                     // base tier 5.5
+        addCountry(5, "Chile (Americas gateway)", "EUAM",
+            "Puntualidad Andina", 88,
+            "Pacific Flow Containment", 68,
+            "Americas Access Market", 30);          // base tier 3.0
+
+        // --- Routes (REAL focus routes) ---
+        // Asia routes — the heart of the game.
+        addRoute(1, "Shanghai -> Tokyo", 1, 2, "ASIA");
+        addRoute(2, "Tokyo -> Shanghai", 2, 1, "ASIA");
+        // Euro-American routes — N. Europe/UK/France feeding the Americas.
+        addRoute(3, "London -> Santiago (AM)", 3, 5, "EUAM");
+        addRoute(4, "Paris -> Santiago (AM)", 4, 5, "EUAM");
+        addRoute(5, "Shanghai -> London", 1, 3, "EUAM");  // Chinese influence near UK
+        addRoute(6, "Shanghai -> Paris", 1, 4, "EUAM");   // Chinese influence near FR
+    }
+
+    void addCountry(int id, String name, String region,
+                    String t1, int ceiling, String t2, int damping,
+                    String t3, int baseTierX10) {
+        Country c = new Country();
+        c.id = id;
+        c.name = name;
+        c.region = region;
+        c.theory1 = t1;
+        c.onTimeCeiling = ceiling;
+        c.theory2 = t2;
+        c.delayDamping = damping;
+        c.theory3 = t3;
+        c.baseTierX10 = clampTier(baseTierX10);
+        c.next = countries;
+        countries = c;
+    }
+
+    void addRoute(int id, String label, int fromId, int toId, String region) {
+        Route r = new Route();
+        r.id = id;
+        r.label = label;
+        r.fromId = fromId;
+        r.toId = toId;
+        r.region = region;
+        // Route luxury tier = average of the two endpoints' base tiers.
+        Country a = countryById(fromId);
+        Country b = countryById(toId);
+        int t = 40;
+        if (a != null && b != null) {
+            t = (a.baseTierX10 + b.baseTierX10) / 2;
+        }
+        r.tierX10 = clampTier(t);
+        r.onTimePct = 90;
+        r.demand = 50;
+        r.next = routes;
+        routes = r;
+    }
+
+    Country countryById(int id) {
+        Country c = countries;
+        while (c != null) {
+            if (c.id == id) { return c; }
+            c = c.next;
+        }
+        return null;
+    }
+
+    int clampTier(int x10) {
+        if (x10 < TIER_MIN_X10) { return TIER_MIN_X10; }
+        if (x10 > TIER_MAX_X10) { return TIER_MAX_X10; }
+        return x10;
+    }
+
+    // -----------------------------------------------------------------------
+    // The fare for a luxury tier (real tier 1.0..6.0). Tier 6 is the most
+    // luxurious and the most expensive. Fares in whole dollars.
+    //   tier 1 -> $120, 2 -> $200, 3 -> $320, 4 -> $520, 5 -> $840, 6 -> $1360
+    // (a gentle geometric climb; 6 is clearly the premium).
+    // -----------------------------------------------------------------------
+    int fareForTierX10(int tierX10) {
+        int t = tierX10 / 10;        // 1..6
+        if (t <= 1) { return 120; }
+        if (t == 2) { return 200; }
+        if (t == 3) { return 320; }
+        if (t == 4) { return 520; }
+        if (t == 5) { return 840; }
+        return 1360;                  // tier 6 — most luxurious
+    }
+
+    // -----------------------------------------------------------------------
+    // Advance one events cycle. Flights are MAINLY on time, but each route's
+    // on-time percentage is measured and CONTAINED by the origin country's 3
+    // theories: capped by the On-Time Doctrine ceiling, and any dip is damped
+    // by the Containment Theory. Demand drifts with a soft pad.
+    // -----------------------------------------------------------------------
+    void tick() {
+        cycle = cycle + 1;
+
+        Route r = routes;
+        while (r != null) {
+            Country origin = countryById(r.fromId);
+            if (origin != null) {
+                // Mainly on time: start high (92..99), then contain.
+                int raw = 92 + randRange(0, 8);         // 92..99
+                // Occasional disruption event (the 300 model's background noise).
+                if (randRange(0, 100) < 12) {
+                    raw = raw - randRange(10, 30);       // a delay event
+                }
+                // Theory 1 — On-Time Doctrine: cap at the country ceiling.
+                if (raw > origin.onTimeCeiling) { raw = origin.onTimeCeiling; }
+                // Theory 2 — Containment: damp the gap below the ceiling.
+                int gap = origin.onTimeCeiling - raw;
+                int contained = raw + (gap * origin.delayDamping) / 100;
+                r.onTimePct = clampPct(contained);
+
+                // Theory 3 — Market: nudge the route tier toward the country's
+                // base luxury tier, softly (the soft economic pad in action).
+                int target = (origin.baseTierX10 + r.tierX10) / 2;
+                r.tierX10 = clampTier(softPad(r.tierX10, target));
+
+                // Demand drifts with on-time quality, softly padded.
+                int demandTarget = 30 + (r.onTimePct - 70);
+                if (demandTarget < 10) { demandTarget = 10; }
+                r.demand = softPad(r.demand, demandTarget);
+            }
+            r = r.next;
+        }
+    }
+
+    // The SOFT ECONOMIC PAD: blend current toward target so values move gently.
+    //   padded = current + (target - current) * (100 - SOFT_PAD_PERCENT) / 100
+    int softPad(int current, int target) {
+        int move = (target - current) * (100 - SOFT_PAD_PERCENT);
+        return current + move / 100;
+    }
+
+    int clampPct(int v) {
+        if (v < 0) { return 0; }
+        if (v > 100) { return 100; }
+        return v;
+    }
+
+    // -----------------------------------------------------------------------
+    // Read-side: aggregate on-time % and padded fare index for a region.
+    // -----------------------------------------------------------------------
+    int regionOnTime(String region) {
+        int sum = 0;
+        int n = 0;
+        Route r = routes;
+        while (r != null) {
+            if (r.region == region) { sum = sum + r.onTimePct; n = n + 1; }
+            r = r.next;
+        }
+        if (n == 0) { return 0; }
+        return sum / n;
+    }
+
+    // Average fare across a region's routes (real tier fares), soft-padded over
+    // cycles so the headline fare index does not jump.
+    int regionFareIndex(String region) {
+        int sum = 0;
+        int n = 0;
+        Route r = routes;
+        while (r != null) {
+            if (r.region == region) {
+                sum = sum + fareForTierX10(r.tierX10);
+                n = n + 1;
+            }
+            r = r.next;
+        }
+        if (n == 0) { return 0; }
+        int raw = sum / n;
+        if (padInit == 0) { prevFareIndex = raw; padInit = 1; }
+        prevFareIndex = softPad(prevFareIndex, raw);
+        return prevFareIndex;
+    }
+
+    int centerIQ() { return CENTER_IQ; }
+
+    // -----------------------------------------------------------------------
+    // Snapshot for the Reporter and the UI.
+    // -----------------------------------------------------------------------
+    String snapshot() {
+        String out = "CENTER|iq=" + CENTER_IQ + "|cycle=" + cycle
+            + "|pad=" + SOFT_PAD_PERCENT
+            + "|asiaOnTime=" + regionOnTime("ASIA")
+            + "|asiaFare=" + regionFareIndex("ASIA")
+            + "|euamOnTime=" + regionOnTime("EUAM")
+            + "|euamFare=" + regionFareIndex("EUAM");
+        Route r = routes;
+        while (r != null) {
+            out = out + "\nROUTE|" + r.label
+                + "|region=" + r.region
+                + "|tier=" + (r.tierX10 / 10) + "." + (r.tierX10 % 10)
+                + "|fare=" + fareForTierX10(r.tierX10)
+                + "|onTime=" + r.onTimePct
+                + "|demand=" + r.demand;
+            r = r.next;
+        }
+        return out;
+    }
+
+    // -----------------------------------------------------------------------
+    // Headless demo.
+    // -----------------------------------------------------------------------
+    void main() {
+        print("Airport Tycoon — Events Center (IQ " + CENTER_IQ + ")");
+        print("Focus: Asia routes + Euro-American routes (N. Europe/UK/France -> AM)");
+        build();
+
+        int i = 0;
+        while (i < 6) { tick(); i = i + 1; }
+
+        print(snapshot());
+        print("Price tiers: 1.0=$" + fareForTierX10(10)
+            + "  3.0=$" + fareForTierX10(30)
+            + "  6.0=$" + fareForTierX10(60) + " (most luxurious)");
+    }
+}

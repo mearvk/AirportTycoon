@@ -1,0 +1,286 @@
+#sleela 1.6
+//
+// Airport Tycoon — the Author Terminal
+// ====================================
+// A text-input terminal for the program with some basic OS functionality,
+// built on SLeeLa's real `lib/os` surface (vendored under ../sources/os). It
+// greets the user, asks whether they are the Author, and otherwise asks for
+// their Number and responds appropriately.
+//
+// FLOW
+//   1. Print a banner with live OS facts (platform, host, user, cwd).
+//   2. Ask: "Are you the Author? (yes/no)"
+//        - yes -> respond as to the Author: the one who knew the clues and
+//                 wins in 1001 moves every time.
+//        - otherwise -> ask "What is your Number?" and respond to the number:
+//            * 1001            -> the author's number; "you are the Author."
+//            * 1..12           -> a Federal Reserve District (civic greeting);
+//                                 1,2,3,5,6 are Major Eastern.
+//            * other           -> a courteous default.
+//   3. Then accept simple OS commands until `exit`.
+//
+// INPUT MODEL. SLeeLa's surface has `print` for output and the `os*` bridge for
+// OS calls, but no first-class stdin built-in (the lib/io console classes are
+// stubs). So this Wrapper exposes a pure, testable decision core — handleLine()
+// and the ask/answer helpers — and the host terminal (the Java AuthorTerminal in
+// ../ui, which can read real stdin) feeds lines in and prints what these return.
+// `main()` runs a scripted self-demo so `sleela run` shows the behavior.
+
+class AuthorTerminal {
+
+    static int AUTHOR_NUMBER = 1001;   // the author wins in 1001 moves
+
+    // Conversation state.
+    static int STATE_ASK_AUTHOR = 0;   // waiting for yes/no to "are you the Author?"
+    static int STATE_ASK_NUMBER = 1;   // waiting for a number
+    static int STATE_SHELL      = 2;   // accepting OS commands
+
+    int state;
+    boolean isAuthor;
+
+    void start() {
+        state = STATE_ASK_AUTHOR;
+        isAuthor = false;
+    }
+
+    // ---- Banner / prompts (strings the host prints) -----------------------
+
+    String banner() {
+        return "Airport Tycoon — Author Terminal\n"
+            + "platform=" + osPlatform()
+            + " host=" + osHostName()
+            + " user=" + osUserName()
+            + " cwd=" + osCurrentDir() + "\n"
+            + "Type 'help' once inside the shell. " + authorQuestion();
+    }
+
+    String authorQuestion() { return "Are you the Author? (yes/no)"; }
+    String numberQuestion() { return "What is your Number?"; }
+
+    // The prompt shown for the current state.
+    String prompt() {
+        if (state == STATE_ASK_AUTHOR) { return authorQuestion() + " > "; }
+        if (state == STATE_ASK_NUMBER) { return numberQuestion() + " > "; }
+        return "atc$ ";
+    }
+
+    // ---- The decision core: take one input line, return the response ------
+    // Returns the text the host should print. Advances `state` as needed.
+    String handleLine(String line) {
+        String s = trimLower(line);
+
+        if (state == STATE_ASK_AUTHOR) {
+            if (isYes(s)) {
+                isAuthor = true;
+                state = STATE_SHELL;
+                return authorGreeting();
+            }
+            if (isNo(s)) {
+                state = STATE_ASK_NUMBER;
+                return numberQuestion();
+            }
+            // Anything else: treat as "otherwise" and ask for the number.
+            state = STATE_ASK_NUMBER;
+            return "I'll take that as a no. " + numberQuestion();
+        }
+
+        if (state == STATE_ASK_NUMBER) {
+            state = STATE_SHELL;
+            return answerForNumber(parseInt(s));
+        }
+
+        // STATE_SHELL: basic OS commands.
+        return runCommand(s);
+    }
+
+    // ---- Responses --------------------------------------------------------
+
+    String authorGreeting() {
+        return "Welcome back, Author. You knew the clues.\n"
+            + "Your path wins in " + AUTHOR_NUMBER + " moves, every time.\n"
+            + "The shell is yours. Type 'help'.";
+    }
+
+    // Respond appropriately to the Number the (non-author) user gave.
+    String answerForNumber(int n) {
+        if (n == AUTHOR_NUMBER) {
+            isAuthor = true;
+            return "That is the author's number. You are the Author after all.\n"
+                + "The path wins in " + AUTHOR_NUMBER + " moves, every time. "
+                + "Type 'help'.";
+        }
+        if (n >= 1 && n <= 12) {
+            String region = districtName(n);
+            String tier = isMajorEast(n) ? "a Major Eastern Region" : "a region";
+            return "Number " + n + ": the " + region + " Federal Reserve District — "
+                + tier + ". Welcome, traveler. Type 'help'.";
+        }
+        if (n < 0) {
+            return "A number can't be negative here. Starting the shell anyway. "
+                + "Type 'help'.";
+        }
+        return "Number " + n + " noted. You're not the Author, and that's fine — "
+            + "most winners aren't. Type 'help'.";
+    }
+
+    // ---- Basic OS shell ---------------------------------------------------
+
+    String runCommand(String cmd) {
+        if (cmd == "" || cmd == "help") { return helpText(); }
+        if (cmd == "whoami")   { return osUserName(); }
+        if (cmd == "host")     { return osHostName(); }
+        if (cmd == "pwd")      { return osCurrentDir(); }
+        if (cmd == "platform") { return osPlatform(); }
+        if (cmd == "pid")      { return "" + osProcessId(); }
+        if (cmd == "temp")     { return osTempDir(); }
+        if (cmd == "whoami?")  { return whoAmINow(); }
+        if (cmd == "author?")  { return yn(isAuthor); }
+        if (cmd == "exit" || cmd == "quit") { return "bye"; }
+        return "unknown command: " + cmd + " (try 'help')";
+    }
+
+    String helpText() {
+        return "commands: help  whoami  host  pwd  platform  pid  temp  "
+            + "author?  whoami?  exit";
+    }
+
+    String whoAmINow() {
+        if (isAuthor) { return "You are the Author (number " + AUTHOR_NUMBER + ")."; }
+        return "You are a traveler.";
+    }
+
+    boolean isExit(String line) { return trimLower(line) == "exit"
+        || trimLower(line) == "quit"; }
+
+    // ---- Federal Reserve district helpers (match the imported FederalReserveID) --
+    boolean isMajorEast(int d) {
+        return d == 1 || d == 2 || d == 3 || d == 5 || d == 6;
+    }
+    String districtName(int d) {
+        if (d == 1)  { return "Boston"; }
+        if (d == 2)  { return "New York"; }
+        if (d == 3)  { return "Philadelphia"; }
+        if (d == 4)  { return "Cleveland"; }
+        if (d == 5)  { return "Richmond"; }
+        if (d == 6)  { return "Atlanta"; }
+        if (d == 7)  { return "Chicago"; }
+        if (d == 8)  { return "St. Louis"; }
+        if (d == 9)  { return "Minneapolis"; }
+        if (d == 10) { return "Kansas City"; }
+        if (d == 11) { return "Dallas"; }
+        if (d == 12) { return "San Francisco"; }
+        return "Unknown";
+    }
+
+    // ---- Tiny string helpers (SLeeLa Strings are Java-style) --------------
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+
+    boolean isYes(String s) {
+        return s == "yes" || s == "y" || s == "yeah" || s == "yep" || s == "true";
+    }
+    boolean isNo(String s) {
+        return s == "no" || s == "n" || s == "nope" || s == "false";
+    }
+
+    // Lowercase + trim a line to a canonical token (handles the common cases
+    // this terminal needs: surrounding spaces and ASCII upper/lower).
+    String trimLower(String raw) {
+        if (raw == null) { return ""; }
+        String s = raw;
+        // trim leading/trailing spaces
+        while (s.length() > 0 && s.substring(0, 1) == " ") {
+            s = s.substring(1, s.length());
+        }
+        while (s.length() > 0 && s.substring(s.length() - 1, s.length()) == " ") {
+            s = s.substring(0, s.length() - 1);
+        }
+        return toLower(s);
+    }
+
+    String toLower(String s) {
+        String out = "";
+        int i = 0;
+        while (i < s.length()) {
+            out = out + lowerChar(s.substring(i, i + 1));
+            i = i + 1;
+        }
+        return out;
+    }
+
+    String lowerChar(String c) {
+        if (c == "A") { return "a"; } if (c == "B") { return "b"; }
+        if (c == "C") { return "c"; } if (c == "D") { return "d"; }
+        if (c == "E") { return "e"; } if (c == "F") { return "f"; }
+        if (c == "G") { return "g"; } if (c == "H") { return "h"; }
+        if (c == "I") { return "i"; } if (c == "J") { return "j"; }
+        if (c == "K") { return "k"; } if (c == "L") { return "l"; }
+        if (c == "M") { return "m"; } if (c == "N") { return "n"; }
+        if (c == "O") { return "o"; } if (c == "P") { return "p"; }
+        if (c == "Q") { return "q"; } if (c == "R") { return "r"; }
+        if (c == "S") { return "s"; } if (c == "T") { return "t"; }
+        if (c == "U") { return "u"; } if (c == "V") { return "v"; }
+        if (c == "W") { return "w"; } if (c == "X") { return "x"; }
+        if (c == "Y") { return "y"; } if (c == "Z") { return "z"; }
+        return c;
+    }
+
+    // Parse a non-negative integer from a token; -1 if it isn't all digits.
+    int parseInt(String s) {
+        if (s == null || s.length() == 0) { return -1; }
+        int val = 0;
+        int i = 0;
+        while (i < s.length()) {
+            int d = digit(s.substring(i, i + 1));
+            if (d < 0) { return -1; }
+            val = val * 10 + d;
+            i = i + 1;
+        }
+        return val;
+    }
+    int digit(String c) {
+        if (c == "0") { return 0; } if (c == "1") { return 1; }
+        if (c == "2") { return 2; } if (c == "3") { return 3; }
+        if (c == "4") { return 4; } if (c == "5") { return 5; }
+        if (c == "6") { return 6; } if (c == "7") { return 7; }
+        if (c == "8") { return 8; } if (c == "9") { return 9; }
+        return -1;
+    }
+
+    // ---- Scripted self-demo so `sleela run` shows the behavior ------------
+    void main() {
+        start();
+        print(banner());
+
+        // Script A: a traveler who answers "no", then gives Number 2 (NY).
+        print("");
+        print("--- demo: a traveler ---");
+        print("> no");
+        print(handleLine("no"));
+        print("> 2");
+        print(handleLine("2"));
+        print("> whoami?");
+        print(handleLine("whoami?"));
+        print("> platform");
+        print(handleLine("platform"));
+        print("> exit");
+        print(handleLine("exit"));
+
+        // Script B: the Author answers "yes".
+        start();
+        print("");
+        print("--- demo: the Author ---");
+        print("> yes");
+        print(handleLine("yes"));
+        print("> author?");
+        print(handleLine("author?"));
+
+        // Script C: a user who gives the author's number 1001.
+        start();
+        print("");
+        print("--- demo: number 1001 ---");
+        print("> no");
+        print(handleLine("no"));
+        print("> 1001");
+        print(handleLine("1001"));
+    }
+}

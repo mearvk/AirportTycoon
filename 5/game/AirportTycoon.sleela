@@ -1,0 +1,609 @@
+#sleela 1.6
+//
+// Airport Tycoon — Business Edition
+// =================================
+// The SLeeLa business-logic Wrapper(TM) for the game. This file owns ALL game
+// state and the simulation step. It is the single source of truth; the JavaFX
+// "Sleela UI" (../ui) is only a presentation/animation substrate that renders
+// the state this Wrapper exposes and feeds player intents back in.
+//
+// Architecture (see ../README.md and SLeeLa gui/INTEGRATION.md, Path 2):
+//
+//     SLeeLa program  (this file: state + rules + tick)
+//           |
+//           v   GUI intent / named operation
+//     SleelaGuiRuntime  (../ui)
+//           |
+//           +---- JavaFX  (window, canvas, animation loop)
+//
+// The game is deliberately fast-paced: planes arrive on a shrinking timer, you
+// have a bounded number of gates and runways, and every unserved plane that
+// times out costs reputation. Run out of reputation and the airport closes.
+//
+// IMPORTANT — language fidelity: SLeeLa 1.6 has NO array type. The grammar
+// provides scalars, `struct` (reference type) and `new StructName()` only
+// (SLEELA.syntax Sec. 3.4 / 5). So every collection here is modelled as a
+// singly-linked list of struct nodes, which is fully within the 1.6 grammar
+// and respects the 4096-live-instance cap. Field access uses the `.` operator;
+// list walking uses `while` + a `next` reference.
+
+// ---------------------------------------------------------------------------
+// Domain structs (syntax 1.2+ named aggregates; reference types, VM-handles)
+// ---------------------------------------------------------------------------
+
+struct Plane {
+    int    id;          // stable identity for the UI to track/animate
+    String flight;      // display callsign, e.g. "SL204"
+    int    state;       // PLANE_* constant below
+    int    sizeClass;   // 0 small, 1 medium, 2 heavy (fare + service weight)
+    int    patience;    // ticks remaining before the plane gives up
+    int    maxPatience; // original patience (for UI progress bars)
+    int    gateIdx;     // assigned gate index (1-based), or 0 for none
+    int    runwayIdx;   // assigned runway index (1-based), or 0 for none
+    int    serviceLeft; // ticks of ground service remaining when at a gate
+    double posX;        // UI hint: normalized 0..1 position for animation
+    double posY;
+    Plane  next;        // intrusive singly-linked list link
+}
+
+struct Gate {
+    int     index;      // 1-based position (stable id for the UI)
+    int     occupant;   // Plane.id parked here, or 0 when free
+    boolean open;       // whether the player has unlocked/opened this gate
+    Gate    next;
+}
+
+struct Runway {
+    int     index;      // 1-based position
+    int     occupant;   // Plane.id using the runway, or 0 when free
+    int     cooldown;   // ticks until the runway is clear again
+    boolean open;
+    Runway  next;
+}
+
+// ---------------------------------------------------------------------------
+// Airport business logic
+// ---------------------------------------------------------------------------
+
+class AirportTycoon {
+
+    // --- Tunable constitution of the simulation (configurable; see config/) ---
+    static int MAX_GATES    = 8;
+    static int MAX_RUNWAYS  = 3;
+    static int SERVICE_LOCK = 0;     // lock-table slot guarding shared state
+
+    // --- Edition 2: economic feedback loop (service premium + on-time combo) ---
+    // Fares are scaled by a "service premium" tied to reputation: a well-run,
+    // high-reputation airport earns tips on every departure, while a struggling
+    // one must discount. The premium is a percentage, clamped to [MIN, MAX],
+    // and is exactly 100% at the reference reputation (Edition 1's fares are the
+    // neutral midpoint). On top of that, every COMBO_STEP consecutive on-time
+    // departures pays a flat COMBO_TIP; a single angry departure breaks it.
+    static int PREMIUM_REF_REP = 60;   // reputation giving a neutral 100%
+    static int PREMIUM_MIN_PCT = 70;   // worst-case discount floor
+    static int PREMIUM_MAX_PCT = 150;  // best-case tip ceiling
+    static int COMBO_STEP      = 5;    // departures per combo milestone
+    static int COMBO_TIP       = 150;  // cash tip at each milestone
+
+    // --- Plane lifecycle states ---
+    static int PLANE_INBOUND    = 1; // circling, needs a runway to land
+    static int PLANE_LANDING    = 2; // on a runway, descending
+    static int PLANE_TAXI_IN    = 3; // heading to an assigned gate (0 => waiting)
+    static int PLANE_AT_GATE    = 4; // being serviced (earns fare on departure)
+    static int PLANE_DEPARTING   = 6; // on a runway, taking off
+    static int PLANE_DONE        = 7; // left the airport (removed from list)
+    static int PLANE_LEFT_ANGRY  = 8; // ran out of patience (reputation hit)
+
+    // --- Shared game state (fields are thread-safe core globals) ---
+    Plane   planes;              // head of the active-plane linked list
+    Gate    gates;               // head of the gate list (length MAX_GATES)
+    Runway  runways;             // head of the runway list (length MAX_RUNWAYS)
+
+    int    cash        = 2000;   // money to spend on gates/runways/upgrades
+    int    reputation  = 100;    // 0 => game over
+    int    served      = 0;      // planes successfully departed
+    int    lost        = 0;      // planes that left angry
+    int    tick        = 0;      // simulation tick counter
+    int    rngState    = 123457; // deterministic PRNG seed (configurable)
+    int    spawnTimer  = 20;     // ticks until the next arrival
+    int    spawnEvery  = 20;     // current gap between arrivals (shrinks = harder)
+    int    openGates   = 2;      // how many gates start open
+    int    openRunways = 1;      // how many runways start open
+    int    nextPlaneId = 1;
+    int    planeCount  = 0;      // live planes currently in the list
+    int    streak      = 0;      // consecutive on-time departures (Edition 2)
+    int    comboTips   = 0;      // cash earned from combo milestones (Edition 2)
+    boolean running    = true;
+    boolean gameOver   = false;
+
+    // ---------------------------------------------------------------------
+    // Deterministic PRNG. Keeps the simulation reproducible from a seed so the
+    // UI replay and tests agree.
+    // ---------------------------------------------------------------------
+    int nextRand() {
+        int x = rngState + 2654435761;
+        if (x < 0) { x = -x; }
+        rngState = x;
+        return x;
+    }
+
+    int randRange(int lo, int hi) {
+        if (hi <= lo) { return lo; }
+        int span = hi - lo;
+        return lo + (nextRand() % span);
+    }
+
+    // ---------------------------------------------------------------------
+    // World construction (build the fixed gate/runway lists once)
+    // ---------------------------------------------------------------------
+    void buildWorld() {
+        // Gates
+        int i = MAX_GATES;
+        Gate gh = null;
+        while (i > 0) {
+            Gate g = new Gate();
+            g.index = i;
+            g.occupant = 0;
+            g.open = (i <= openGates);
+            g.next = gh;
+            gh = g;
+            i = i - 1;
+        }
+        gates = gh;
+
+        // Runways
+        i = MAX_RUNWAYS;
+        Runway rh = null;
+        while (i > 0) {
+            Runway r = new Runway();
+            r.index = i;
+            r.occupant = 0;
+            r.cooldown = 0;
+            r.open = (i <= openRunways);
+            r.next = rh;
+            rh = r;
+            i = i - 1;
+        }
+        runways = rh;
+
+        planes = null;
+        planeCount = 0;
+    }
+
+    // ---------------------------------------------------------------------
+    // Spawning — prepend a new inbound plane to the list.
+    // ---------------------------------------------------------------------
+    void spawnPlane() {
+        if (planeCount >= 24) { return; }   // sky is full; skip this arrival
+
+        int sizeClass = randRange(0, 3);
+        int patience  = 90 - (sizeClass * 10) + randRange(0, 20);
+
+        Plane p = new Plane();
+        p.id = nextPlaneId;
+        p.flight = "SL" + nextPlaneId;
+        p.state = PLANE_INBOUND;
+        p.sizeClass = sizeClass;
+        p.patience = patience;
+        p.maxPatience = patience;
+        p.gateIdx = 0;
+        p.runwayIdx = 0;
+        p.serviceLeft = 10 + (sizeClass * 6);
+        p.posX = 0.05;
+        p.posY = 0.15 + (nextPlaneId % 5) * 0.12;
+        p.next = planes;
+        planes = p;
+
+        nextPlaneId = nextPlaneId + 1;
+        planeCount = planeCount + 1;
+    }
+
+    // ---------------------------------------------------------------------
+    // Resource lookup helpers (walk the lists)
+    // ---------------------------------------------------------------------
+    Gate gateAt(int index) {
+        Gate g = gates;
+        while (g != null) {
+            if (g.index == index) { return g; }
+            g = g.next;
+        }
+        return null;
+    }
+
+    Runway runwayAt(int index) {
+        Runway r = runways;
+        while (r != null) {
+            if (r.index == index) { return r; }
+            r = r.next;
+        }
+        return null;
+    }
+
+    Gate freeGate() {
+        Gate g = gates;
+        while (g != null) {
+            if (g.open && g.occupant == 0) { return g; }
+            g = g.next;
+        }
+        return null;
+    }
+
+    Runway freeRunway() {
+        Runway r = runways;
+        while (r != null) {
+            if (r.open && r.occupant == 0 && r.cooldown == 0) { return r; }
+            r = r.next;
+        }
+        return null;
+    }
+
+    Plane planeById(int planeId) {
+        Plane p = planes;
+        while (p != null) {
+            if (p.id == planeId) { return p; }
+            p = p.next;
+        }
+        return null;
+    }
+
+    // Edition 1 base fare for a size class (the neutral, pre-premium value).
+    int baseFareFor(int sizeClass) {
+        if (sizeClass == 0) { return 120; }
+        if (sizeClass == 1) { return 260; }
+        return 540;
+    }
+
+    // Edition 2 service premium (percent): scales one-for-one with reputation
+    // around a neutral 100% at PREMIUM_REF_REP, clamped to [MIN, MAX]. This
+    // gives reputation a direct, legible effect on the bottom line.
+    int servicePremiumPct() {
+        int pct = 100 + (reputation - PREMIUM_REF_REP);
+        if (pct < PREMIUM_MIN_PCT) { pct = PREMIUM_MIN_PCT; }
+        if (pct > PREMIUM_MAX_PCT) { pct = PREMIUM_MAX_PCT; }
+        return pct;
+    }
+
+    // The actual fare paid on departure: base fare times the service premium.
+    int fareFor(int sizeClass) {
+        return (baseFareFor(sizeClass) * servicePremiumPct()) / 100;
+    }
+
+    // ---------------------------------------------------------------------
+    // Player intents — called by the UI (Path 2 named operations).
+    // Each returns a boolean "accepted" so the UI can give feedback.
+    // ---------------------------------------------------------------------
+
+    // Clear an inbound plane to land on the first available runway.
+    boolean clearToLand(int planeId) {
+        Plane p = planeById(planeId);
+        if (p == null) { return false; }
+        if (p.state != PLANE_INBOUND) { return false; }
+        Runway rw = freeRunway();
+        if (rw == null) { return false; }
+        p.state = PLANE_LANDING;
+        p.runwayIdx = rw.index;
+        rw.occupant = planeId;
+        rw.cooldown = 3;
+        return true;
+    }
+
+    // Assign a landed/taxiing plane to a gate (gateIndex 0 => auto-pick).
+    boolean assignGate(int planeId, int gateIndex) {
+        Plane p = planeById(planeId);
+        if (p == null) { return false; }
+        if (p.state != PLANE_TAXI_IN && p.state != PLANE_LANDING) {
+            return false;
+        }
+        Gate g = null;
+        if (gateIndex == 0) { g = freeGate(); }
+        else { g = gateAt(gateIndex); }
+        if (g == null) { return false; }
+        if (!g.open) { return false; }
+        if (g.occupant != 0) { return false; }
+        p.gateIdx = g.index;
+        p.state = PLANE_TAXI_IN;
+        g.occupant = planeId;
+        return true;
+    }
+
+    // Push a serviced plane back and send it to a runway to depart.
+    boolean clearForTakeoff(int planeId) {
+        Plane p = planeById(planeId);
+        if (p == null) { return false; }
+        if (p.state != PLANE_AT_GATE) { return false; }
+        if (p.serviceLeft > 0) { return false; } // not finished boarding yet
+        Runway rw = freeRunway();
+        if (rw == null) { return false; }
+        if (p.gateIdx != 0) {
+            Gate g = gateAt(p.gateIdx);
+            if (g != null) { g.occupant = 0; }
+        }
+        p.gateIdx = 0;
+        p.state = PLANE_DEPARTING;
+        p.runwayIdx = rw.index;
+        rw.occupant = planeId;
+        rw.cooldown = 3;
+        return true;
+    }
+
+    // Spend cash to open the next gate / runway (upgrades).
+    boolean buyGate() {
+        int cost = 600 + openGates * 150;
+        if (cash < cost) { return false; }
+        if (openGates >= MAX_GATES) { return false; }
+        cash = cash - cost;
+        Gate g = gateAt(openGates + 1);
+        if (g != null) { g.open = true; }
+        openGates = openGates + 1;
+        return true;
+    }
+
+    boolean buyRunway() {
+        int cost = 1500 + openRunways * 800;
+        if (cash < cost) { return false; }
+        if (openRunways >= MAX_RUNWAYS) { return false; }
+        cash = cash - cost;
+        Runway r = runwayAt(openRunways + 1);
+        if (r != null) { r.open = true; }
+        openRunways = openRunways + 1;
+        return true;
+    }
+
+    // ---------------------------------------------------------------------
+    // Auto-pilot convenience: an "AUTO" button in the UI calls this to make a
+    // sensible move for the most urgent plane. Keeps the game fast and fun.
+    // ---------------------------------------------------------------------
+    // Edition 2 priority score for auto-assist: lower is more urgent. Urgency
+    // is dominated by remaining patience (times 4), but a plane's value shaves
+    // the score so the tower protects heavies on a near-tie. The size term is
+    // smaller than one patience point, so it only breaks ties and never lets a
+    // comfortable heavy jump a tiny plane that is about to leave.
+    int priorityScore(Plane p) {
+        return p.patience * 4 - p.sizeClass;
+    }
+
+    void autoAssist() {
+        Plane p = planes;
+        Plane best = null;
+        int bestScore = 100000000;
+        while (p != null) {
+            boolean actionable = (p.state == PLANE_INBOUND)
+                || (p.state == PLANE_TAXI_IN && p.gateIdx == 0)
+                || (p.state == PLANE_AT_GATE && p.serviceLeft == 0);
+            if (actionable) {
+                int score = priorityScore(p);
+                if (score < bestScore) {
+                    bestScore = score;
+                    best = p;
+                }
+            }
+            p = p.next;
+        }
+        if (best == null) { return; }
+        if (best.state == PLANE_INBOUND)  { clearToLand(best.id); }
+        else if (best.state == PLANE_TAXI_IN) { assignGate(best.id, 0); }
+        else { clearForTakeoff(best.id); }
+    }
+
+    // ---------------------------------------------------------------------
+    // The simulation step. The UI's animation loop calls step() at a fixed
+    // cadence (e.g. 10 Hz). All timing is in ticks so it is deterministic.
+    // ---------------------------------------------------------------------
+    void step() {
+        if (gameOver) { return; }
+
+        lock(SERVICE_LOCK);
+
+        tick = tick + 1;
+
+        // Cool runways down.
+        Runway r = runways;
+        while (r != null) {
+            if (r.cooldown > 0) { r.cooldown = r.cooldown - 1; }
+            r = r.next;
+        }
+
+        // Advance each plane.
+        Plane p = planes;
+        while (p != null) {
+            advancePlane(p);
+            p = p.next;
+        }
+
+        // Remove finished/abandoned planes from the list.
+        reapPlanes();
+
+        // Arrivals: shrink the gap over time to ramp difficulty.
+        spawnTimer = spawnTimer - 1;
+        if (spawnTimer <= 0) {
+            spawnPlane();
+            if (spawnEvery > 6) { spawnEvery = spawnEvery - 1; }
+            spawnTimer = spawnEvery;
+        }
+
+        if (reputation <= 0) {
+            reputation = 0;
+            gameOver = true;
+            running = false;
+        }
+
+        unlock(SERVICE_LOCK);
+    }
+
+    void advancePlane(Plane p) {
+        int s = p.state;
+        if (s == PLANE_DONE || s == PLANE_LEFT_ANGRY) { return; }
+
+        // Patience burns while the plane waits on the player: circling inbound,
+        // holding on the apron with no gate, or fully serviced at a gate.
+        boolean waiting = (s == PLANE_INBOUND)
+            || (s == PLANE_TAXI_IN && p.gateIdx == 0)
+            || (s == PLANE_AT_GATE && p.serviceLeft == 0);
+        if (waiting) {
+            p.patience = p.patience - 1;
+            if (p.patience <= 0) {
+                abandon(p);
+                return;
+            }
+        }
+
+        if (s == PLANE_INBOUND) {
+            if (p.posX < 0.35) { p.posX = p.posX + 0.01; }
+            return;
+        }
+
+        if (s == PLANE_LANDING) {
+            p.posX = 0.45;
+            p.posY = 0.78;
+            if (p.runwayIdx != 0) {
+                Runway rw = runwayAt(p.runwayIdx);
+                if (rw != null) { rw.occupant = 0; }
+                p.runwayIdx = 0;
+            }
+            // Try to dock immediately; otherwise hold on the apron.
+            if (!assignGate(p.id, 0)) {
+                p.state = PLANE_TAXI_IN;
+                p.gateIdx = 0;
+            }
+            return;
+        }
+
+        if (s == PLANE_TAXI_IN) {
+            if (p.gateIdx == 0) {
+                Gate g = freeGate();
+                if (g != null) { assignGate(p.id, g.index); }
+                return;
+            }
+            double gx = 0.6 + (p.gateIdx % 4) * 0.09;
+            double gy = 0.3 + (p.gateIdx / 4) * 0.18;
+            p.posX = gx;
+            p.posY = gy;
+            p.state = PLANE_AT_GATE;
+            return;
+        }
+
+        if (s == PLANE_AT_GATE) {
+            if (p.serviceLeft > 0) { p.serviceLeft = p.serviceLeft - 1; }
+            return;
+        }
+
+        if (s == PLANE_DEPARTING) {
+            p.posX = 0.9;
+            p.posY = 0.82;
+            if (p.runwayIdx != 0) {
+                Runway rw = runwayAt(p.runwayIdx);
+                if (rw != null) { rw.occupant = 0; }
+                p.runwayIdx = 0;
+            }
+            cash = cash + fareFor(p.sizeClass);
+            served = served + 1;
+            if (reputation < 100) { reputation = reputation + 1; }
+            // Edition 2: a clean, on-time departure extends the combo. Every
+            // COMBO_STEP in a row pays a flat tip on top of the fare.
+            streak = streak + 1;
+            if (streak % COMBO_STEP == 0) {
+                cash = cash + COMBO_TIP;
+                comboTips = comboTips + COMBO_TIP;
+            }
+            p.state = PLANE_DONE;
+            return;
+        }
+    }
+
+    void abandon(Plane p) {
+        if (p.gateIdx != 0) {
+            Gate g = gateAt(p.gateIdx);
+            if (g != null) { g.occupant = 0; }
+            p.gateIdx = 0;
+        }
+        if (p.runwayIdx != 0) {
+            Runway rw = runwayAt(p.runwayIdx);
+            if (rw != null) { rw.occupant = 0; }
+            p.runwayIdx = 0;
+        }
+        p.state = PLANE_LEFT_ANGRY;
+        lost = lost + 1;
+        reputation = reputation - 12;
+        // Edition 2: an angry departure breaks the on-time combo.
+        streak = 0;
+    }
+
+    // Unlink any PLANE_DONE / PLANE_LEFT_ANGRY nodes from the list.
+    void reapPlanes() {
+        // Drop leading dead nodes.
+        while (planes != null
+               && (planes.state == PLANE_DONE
+                   || planes.state == PLANE_LEFT_ANGRY)) {
+            planes = planes.next;
+            planeCount = planeCount - 1;
+        }
+        Plane prev = planes;
+        if (prev == null) { return; }
+        Plane cur = prev.next;
+        while (cur != null) {
+            if (cur.state == PLANE_DONE || cur.state == PLANE_LEFT_ANGRY) {
+                // Unlink cur; keep prev fixed and step cur to the new successor.
+                prev.next = cur.next;
+                planeCount = planeCount - 1;
+                cur = prev.next;
+            } else {
+                prev = cur;
+                cur = cur.next;
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Snapshot: the ONLY data crossing into the UI each frame. The header is a
+    // compact pipe-delimited line; each live plane is emitted via structPack
+    // (self-describing JSON) so the JavaFX side can rebuild typed Plane records
+    // with structUnpack(Plane, json) for animation. See ../ui.
+    // ---------------------------------------------------------------------
+    String snapshot() {
+        String out = "ATC|tick=" + tick + "|cash=" + cash
+            + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
+            + "|gates=" + openGates + "|runways=" + openRunways
+            + "|planes=" + planeCount + "|over=" + gameOver
+            + "|streak=" + streak + "|premium=" + servicePremiumPct();
+        Plane p = planes;
+        while (p != null) {
+            if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
+                out = out + "\n" + structPack(p);
+            }
+            p = p.next;
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------------
+    // Entry point. In production the UI drives step() from its animation loop;
+    // this main() is a headless self-play demo so `sleela run` shows the game
+    // working without the JavaFX layer.
+    // ---------------------------------------------------------------------
+    void main() {
+        print("Airport Tycoon — SLeeLa edition");
+        print("system depth=" + sysdepth() + " degree<=" + degreemax());
+        print(role("Pipeline") + ": inbound -> gate -> runway");
+
+        buildWorld();
+
+        int frames = 0;
+        while (running && frames < 600) {
+            step();
+            autoAssist();
+            if (tick % 30 == 0) {
+                print("t=" + tick + " cash=" + cash + " rep=" + reputation
+                    + " served=" + served + " lost=" + lost
+                    + " planes=" + planeCount
+                    + " streak=" + streak + " premium%=" + servicePremiumPct());
+            }
+            frames = frames + 1;
+        }
+
+        print("=== SHIFT OVER ===");
+        print("served=" + served + " lost=" + lost + " cash=" + cash
+            + " reputation=" + reputation
+            + " best-streak-tips=" + comboTips);
+        if (gameOver) { print("The airport closed. Reputation hit zero."); }
+    }
+}

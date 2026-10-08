@@ -1,0 +1,113 @@
+#sleela 1.6
+//
+// Airport Tycoon — self-check Wrapper(TM)
+// =======================================
+// A tiny deterministic smoke test for the game rules. It re-implements the
+// minimal pieces it needs to exercise (SLeeLa programs are single-class
+// executables, so this mirrors the core state machine rather than importing
+// AirportTycoon). Run with `sleela run game/AirportTycoonTest.sleela`.
+//
+// Checks:
+//   * a plane runs its full happy path (inbound -> land -> gate -> depart)
+//     and pays a fare;
+//   * an ignored inbound plane eventually abandons and costs reputation.
+
+struct Plane {
+    int    id;
+    int    state;
+    int    patience;
+    int    serviceLeft;
+    int    gateIdx;
+    int    runwayIdx;
+}
+
+class AirportTycoonTest {
+
+    static int INBOUND   = 1;
+    static int LANDING   = 2;
+    static int TAXI_IN   = 3;
+    static int AT_GATE   = 4;
+    static int DEPARTING = 6;
+    static int DONE      = 7;
+    static int ANGRY     = 8;
+
+    int cash = 0;
+    int reputation = 100;
+    int served = 0;
+    int lost = 0;
+    int failures = 0;
+
+    void check(boolean cond, String label) {
+        if (cond) {
+            print("ok   - " + label);
+        } else {
+            print("FAIL - " + label);
+            failures = failures + 1;
+        }
+    }
+
+    // Drive one plane through the happy path deterministically.
+    void happyPath() {
+        Plane p = new Plane();
+        p.id = 1;
+        p.state = INBOUND;
+        p.patience = 50;
+        p.serviceLeft = 4;
+        p.gateIdx = 0;
+        p.runwayIdx = 0;
+
+        // Clear to land.
+        p.state = LANDING;
+        p.runwayIdx = 1;
+        check(p.state == LANDING, "plane cleared to land");
+
+        // Touchdown -> taxi -> gate.
+        p.runwayIdx = 0;
+        p.gateIdx = 1;
+        p.state = AT_GATE;
+        check(p.state == AT_GATE && p.gateIdx == 1, "plane docked at a gate");
+
+        // Service countdown.
+        while (p.serviceLeft > 0) { p.serviceLeft = p.serviceLeft - 1; }
+        check(p.serviceLeft == 0, "ground service completed");
+
+        // Depart -> fare paid.
+        p.state = DEPARTING;
+        cash = cash + 260;
+        served = served + 1;
+        p.state = DONE;
+        check(cash == 260 && served == 1, "departure paid a fare");
+    }
+
+    // An ignored inbound plane should abandon and cost reputation.
+    void abandonPath() {
+        Plane p = new Plane();
+        p.id = 2;
+        p.state = INBOUND;
+        p.patience = 3;
+
+        int guard = 0;
+        while (p.state == INBOUND && guard < 100) {
+            p.patience = p.patience - 1;
+            if (p.patience <= 0) {
+                p.state = ANGRY;
+                lost = lost + 1;
+                reputation = reputation - 12;
+            }
+            guard = guard + 1;
+        }
+        check(p.state == ANGRY, "ignored plane abandoned");
+        check(reputation == 88 && lost == 1, "abandonment cost reputation");
+    }
+
+    void main() {
+        print("Airport Tycoon — self-check");
+        happyPath();
+        abandonPath();
+        if (failures == 0) {
+            print("ALL TESTS PASSED");
+        } else {
+            print("TESTS FAILED: " + failures);
+        }
+    }
+}

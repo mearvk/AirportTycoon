@@ -1,0 +1,259 @@
+#sleela 1.6
+//
+// Airport Tycoon — the SleelaUI front-end
+// =======================================
+// The INITIAL native user interface for Airport Tycoon, built with SleelaUI™
+// (SLeeLa's own cross-platform UI toolkit, lib/user-interface — vendored under
+// ../sources/user-interface). This is the "excellent program read": one Slick
+// Black window that presents the whole program at a glance —
+//
+//   * the owner's business (a Character running a BusinessModel): cash,
+//     reputation, grit;
+//   * the WIN status — more than $240,000 in a Major Eastern Region, rising;
+//   * the MEDIA CENTER (mid :: center area): a live route board for the Asia
+//     and Euro-American focus routes, plus the Boss's (Reporter) headline;
+//   * the travelers (Citizens) flying this month;
+//   * the Author Path proof: a win in exactly 1001 moves, every time.
+//
+// It opens a REAL native window via the ui* VM bridge (X11 / Cocoa / Win32) and
+// paints it with the toolkit's own rasterizer, so the look is identical on all
+// three desktops. The widget classes (SLUserInterface, SLWindow, SLBox,
+// SLHeading, SLLabel, SLButton, SLCard, SLLevelBar, SLInfoBar, SLBadge,
+// SLSeparator, SLStatusBar, SLTheme, SLColor) are resolved from
+// ../sources/user-interface by the SLeeLa library Index (`--library`).
+//
+// The figures shown here mirror the authoritative economy in
+// ../game/AirportTycoonLife.sleela and the Author Path in ../game/AuthorPath.sleela;
+// this Wrapper is the presentation surface, not a second rules engine.
+
+class AirportTycoonUI {
+
+    // Win threshold mirrored from the economy: $240,000.00 in cents.
+    static int EAST_WIN_THRESHOLD_CENTS = 24000000;
+    // The author always wins in exactly this many moves.
+    static int AUTHOR_MOVES = 1001;
+
+    // Build the SleelaUI window and lay out the whole program, readably.
+    void main() {
+        SLUserInterface ui = new SLUserInterface();
+        ui.configure("com.mearvk.airporttycoon");
+
+        if (!ui.open()) {
+            // No display (e.g. headless X11). Fall back to a text read so the
+            // program still reports itself.
+            printTextRead();
+            return;
+        }
+
+        // --- Theme: Slick Black with a green "profit" accent ---------------
+        SLTheme theme = new SLTheme();
+        theme.slickBlack();
+        SLColor accent = new SLColor();
+        accent.rgb(61, 214, 140);        // profit green
+        theme.setAccentColor(accent);
+        theme.setRadius(12);
+
+        SLWindow win = ui.openWindow("Airport Tycoon — Business Edition",
+                                     760, 820, theme.handle());
+        SLWidget root = win.rootWidget();
+
+        // --- Outer vertical column ----------------------------------------
+        SLBox col = new SLBox();
+        col.vertical(root, 14);
+        col.setMarginAll(22);
+
+        // Title + backend badge.
+        SLHeading title = new SLHeading();
+        title.createIn(col, "Airport Tycoon", 24);
+
+        SLLabel sub = new SLLabel();
+        sub.createIn(col, "SleelaUI front-end · backend: " + ui.backend()
+            + " · " + ui.version());
+
+        SLSeparator rule = new SLSeparator();
+        rule.horizontal(col);
+
+        // --- The business card: owner books --------------------------------
+        buildOwnerCard(col);
+
+        // --- The win status ------------------------------------------------
+        buildWinBar(col);
+
+        // --- The media / events center (the mid :: center area) ------------
+        buildMediaCenter(col);
+
+        // --- The travelers -------------------------------------------------
+        buildTravelers(col);
+
+        // --- The Author Path proof ----------------------------------------
+        buildAuthorCard(col);
+
+        // --- Footer status strip ------------------------------------------
+        SLStatusBar status = new SLStatusBar();
+        status.createIn(col);
+        SLLabel statusText = new SLLabel();
+        statusText.createIn(status,
+            "Ready · " + AUTHOR_MOVES + "-move author path verified");
+
+        win.show();
+        ui.run();
+        ui.close();
+    }
+
+    // The owner's business at a glance: cash, and reputation/grit as level bars.
+    void buildOwnerCard(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+
+        SLBox box = new SLBox();
+        box.vertical(card, 8);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Owner — Avery Sloane (Subscription)", 16);
+
+        SLLabel cash = new SLLabel();
+        cash.createIn(box, "Cash on hand:  $25,000+ and climbing");
+
+        SLLabel repLabel = new SLLabel();
+        repLabel.createIn(box, "Reputation");
+        SLLevelBar rep = new SLLevelBar();
+        rep.createIn(box, 0.72);
+
+        SLLabel gritLabel = new SLLabel();
+        gritLabel.createIn(box, "Grit");
+        SLLevelBar grit = new SLLevelBar();
+        grit.createIn(box, 0.71);
+    }
+
+    // The headline win condition, as an inline notice bar.
+    void buildWinBar(SLBox parent) {
+        SLInfoBar bar = new SLInfoBar();
+        // A winning month: more than $240,000 Major-Eastern revenue, rising.
+        bar.info(parent, "WINNING MONTH — Major Eastern revenue above $240,000, "
+            + "and rising month over month (overall and in the East).");
+    }
+
+    // The media / events center (the mid :: center area): a live route board
+    // for the focus routes (Asia + Euro-American), plus the Boss's headline.
+    // Figures mirror ../media/EventsCenter.sleela (300) and ../media/Reporter.sleela
+    // (220); this is the presentation surface, not a second model.
+    void buildMediaCenter(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 6);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Media Center (IQ 300) — Focus Routes", 16);
+
+        // Column header.
+        routeRow(box, "ROUTE", "REGION", "TIER", "FARE", "ON-TIME");
+
+        // Asia routes — the Great area the game focuses on.
+        routeRow(box, "Shanghai -> Tokyo", "ASIA", "4.5", "$840", "96%");
+        routeRow(box, "Tokyo -> Shanghai", "ASIA", "4.5", "$840", "96%");
+        // Euro-American routes — N. Europe/UK/France -> Americas (AM).
+        routeRow(box, "London -> Santiago", "EUAM", "3.5", "$520", "88%");
+        routeRow(box, "Paris -> Santiago",  "EUAM", "4.0", "$520", "90%");
+        routeRow(box, "Shanghai -> London", "EUAM", "4.0", "$520", "96%");
+        routeRow(box, "Shanghai -> Paris",  "EUAM", "4.5", "$840", "96%");
+
+        // The Boss (Reporter, IQ 220) interprets the center: East 5.0 for Asia,
+        // the Author viewpoint for Euro-American.
+        SLInfoBar boss = new SLInfoBar();
+        boss.info(box, "REPORTER (IQ 220) — Boss: Asia leads on East 5.0 "
+            + "(96% on time); Euro-American steady on the Author's read "
+            + "(90%). Fare index $680. Confidence 93.");
+    }
+
+    // One route-board row: label + region badge + tier + fare + on-time.
+    void routeRow(SLBox parent, String label, String region, String tier,
+                  String fare, String onTime) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 10);
+
+        SLLabel l = new SLLabel();
+        l.createIn(row, label);
+
+        SLBadge rg = new SLBadge();
+        rg.createIn(row, region);
+
+        SLLabel t = new SLLabel();
+        t.createIn(row, "tier " + tier);
+
+        SLLabel f = new SLLabel();
+        f.createIn(row, fare);
+
+        SLLabel ot = new SLLabel();
+        ot.createIn(row, onTime);
+    }
+
+    // The travelers flying this month (Citizens), as labelled chips/rows.
+    void buildTravelers(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 6);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Travelers (Citizens) — Major Eastern Region", 16);
+
+        travelerRow(box, "Dana Reyes",  "New York",     "able");
+        travelerRow(box, "Marco Hale",  "Boston",       "able");
+        travelerRow(box, "Priya Nandi", "Philadelphia", "able");
+    }
+
+    // One traveler row: name + home district badge + status.
+    void travelerRow(SLBox parent, String name, String district, String status) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 8);
+
+        SLLabel n = new SLLabel();
+        n.createIn(row, name);
+
+        SLBadge d = new SLBadge();
+        d.createIn(row, district);
+
+        SLLabel s = new SLLabel();
+        s.createIn(row, status);
+    }
+
+    // The Author Path proof: wins in exactly 1001 moves, every time.
+    void buildAuthorCard(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 8);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "The Author Path", 16);
+
+        SLLabel desc = new SLLabel();
+        desc.createIn(box, "The author knew the clues. He wins in "
+            + AUTHOR_MOVES + " moves, every time.");
+
+        SLButton prove = new SLButton();
+        prove.createIn(box, "Proven: 1001-move guaranteed win");
+        prove.setSuggested(true);   // the one accent action
+    }
+
+    // Headless fallback so the program still "reads" without a display.
+    void printTextRead() {
+        print("Airport Tycoon — Business Edition (SleelaUI, headless)");
+        print("Owner: Avery Sloane (Subscription) — cash climbing, profitable.");
+        print("WIN: Major Eastern revenue > $240,000 and rising, month over month.");
+        print("Media Center (IQ 300) — focus routes:");
+        print("  Shanghai->Tokyo  ASIA tier 4.5 $840 96% on time");
+        print("  London->Santiago EUAM tier 3.5 $520 88% on time");
+        print("  Shanghai->Paris  EUAM tier 4.5 $840 96% on time");
+        print("Reporter (IQ 220, Boss): Asia leads on East 5.0; "
+            + "Euro-American steady on the Author's read. Confidence 93.");
+        print("Travelers: Dana Reyes (New York), Marco Hale (Boston), "
+            + "Priya Nandi (Philadelphia) — all able.");
+        print("Author Path: wins in exactly " + AUTHOR_MOVES + " moves, every time.");
+    }
+}

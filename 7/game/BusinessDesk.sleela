@@ -1,0 +1,284 @@
+#sleela 1.6
+//
+// Airport Tycoon — The Business Desk (Edition 2)
+// ==============================================
+// The SLeeLa business-logic Wrapper(TM) for the Business Desk: the place the
+// player steps up to to create a MOVE or TRANSACTION while the tower game runs.
+//
+// The desk starts EMPTY — a player who has only "tried on their genius" has
+// opened no ventures yet. From the desk the player can run SIDE GAMES in
+// parallel with flying planes: CASINO MANAGEMENT and INVESTMENT MANAGEMENT,
+// modelled here as CHEMISTRY — each venture is a seeded reaction that settles a
+// weekly transaction onto the owner's book:
+//
+//   * Casino Management   — an EXOTHERMIC reaction: high variance, a small
+//                           positive edge, big swings week to week.
+//   * Investment Management — a TITRATION reaction: a steady, compounding
+//                           weekly yield with the occasional drawdown.
+//
+// MAJOR LEVEL-5 MOVES. A venture accrues IQ from sustained profitable weeks.
+// When a venture reaches IQ LEVEL 5 it fires the GREAT ASSIMILATION — the "IQ
+// reordering of the Orient by assimilation of US capitalist interests": a large
+// multiplier on Major-Eastern revenue for a run of weeks. Those are the weeks
+// that RAKE IN THE MONEY. This is the Edition 2 bridge from the desk into the
+// East 5.0 / Major-Eastern win economy (AirportTycoonLife.sleela).
+//
+// LANGUAGE FIDELITY: SLeeLa 1.6 has no array type, so the open ventures are a
+// singly-linked list of Venture struct nodes, walked with `while` loops — the
+// same pattern the tower game uses for planes/gates/runways.
+
+// ---------------------------------------------------------------------------
+// Domain struct (syntax 1.2+ named aggregate; reference type)
+// ---------------------------------------------------------------------------
+
+struct Venture {
+    int     kind;            // VENTURE_* below
+    String  name;            // display name
+    int     reaction;        // REACTION_* (its Chemistry)
+    int     stakeCents;      // working capital committed
+    int     balanceCents;    // current value of the venture
+    int     iq;              // accrued IQ (sustained-performance score)
+    int     goodWeeks;       // consecutive profitable weeks
+    int     lastSettleCents; // last weekly transaction (+/-)
+    boolean majorFired;      // has this venture fired its Level-5 move?
+    Venture next;            // intrusive singly-linked list link
+}
+
+class BusinessDesk {
+
+    // --- Venture kinds ---
+    static int VENTURE_CASINO     = 1;  // Casino Management
+    static int VENTURE_INVESTMENT = 2;  // Investment Management
+
+    // --- Chemistry of each venture ---
+    static int REACTION_EXOTHERMIC = 1; // volatile, big swings
+    static int REACTION_TITRATION  = 2; // steady, compounding
+
+    // --- The Major Level-5 move ---
+    static int MAJOR_MOVE_LEVEL     = 5;   // IQ level that fires a major move
+    static int IQ_PER_GOOD_WEEK     = 1;   // IQ gained per profitable week
+    static int IQ_PER_LEVEL         = 1;   // IQ per level, so level == net IQ
+    static int ASSIMILATION_WEEKS   = 6;   // weeks the Great Assimilation runs
+    static int ASSIMILATION_EAST_PCT = 300; // 3x Eastern revenue — "raked it in"
+
+    // --- Shared desk state ---
+    Venture ventures;              // head of the open-venture list
+    int ventureCount = 0;
+    int week = 0;
+    int rngState = 90210;          // deterministic PRNG seed
+    int deskProfitCents = 0;       // cumulative profit the desk has booked
+    int assimilationWeeksLeft = 0; // >0 while the Great Assimilation runs
+    int majorMoves = 0;            // how many Level-5 moves have fired
+
+    // ---------------------------------------------------------------------
+    // Deterministic PRNG — identical to the tower game and media center.
+    // ---------------------------------------------------------------------
+    int nextRand() {
+        int x = rngState + 2654435761;
+        if (x < 0) { x = -x; }
+        rngState = x;
+        return x;
+    }
+
+    int randRange(int lo, int hi) {
+        if (hi <= lo) { return lo; }
+        int span = hi - lo;
+        return lo + (nextRand() % span);
+    }
+
+    void setup() {
+        ventures = null;
+        ventureCount = 0;
+        week = 0;
+        deskProfitCents = 0;
+        assimilationWeeksLeft = 0;
+        majorMoves = 0;
+    }
+
+    // The desk is EMPTY until the player tries on a venture.
+    boolean isEmpty() { return ventureCount == 0; }
+
+    int level(Venture v) { return v.iq / IQ_PER_LEVEL; }
+
+    // ---------------------------------------------------------------------
+    // The player's moves at the desk: open a side game (the first real
+    // "transaction"). Each venture is prepended to the list.
+    // ---------------------------------------------------------------------
+    Venture openVenture(int kind, String name, int reaction, int stakeCents) {
+        int stake = stakeCents;
+        if (stake < 0) { stake = 0; }
+        Venture v = new Venture();
+        v.kind = kind;
+        v.name = name;
+        v.reaction = reaction;
+        v.stakeCents = stake;
+        v.balanceCents = stake;
+        v.iq = 0;
+        v.goodWeeks = 0;
+        v.lastSettleCents = 0;
+        v.majorFired = false;
+        v.next = ventures;
+        ventures = v;
+        ventureCount = ventureCount + 1;
+        return v;
+    }
+
+    Venture openCasino(int stakeCents) {
+        return openVenture(VENTURE_CASINO, "Casino Management",
+                           REACTION_EXOTHERMIC, stakeCents);
+    }
+
+    Venture openInvestment(int stakeCents) {
+        return openVenture(VENTURE_INVESTMENT, "Investment Management",
+                           REACTION_TITRATION, stakeCents);
+    }
+
+    // Run one venture's Chemistry reaction for a week; return the P/L (cents).
+    int runReaction(Venture v) {
+        if (v.reaction == REACTION_EXOTHERMIC) {
+            // Casino: exothermic — wide swings around a small positive edge.
+            int pot = v.stakeCents / 10;
+            if (pot < 1) { pot = 1; }
+            int swing = randRange(-55, 76);   // percent of the pot (mean ~ +10%)
+            return (pot * swing) / 100;
+        }
+        // Investment: a steady titration — a dependable weekly yield with an
+        // occasional, smaller drawdown. Net clearly positive => builds IQ.
+        int yieldBp = randRange(80, 200);     // basis points of the balance
+        int gain = (v.balanceCents * yieldBp) / 10000;
+        if (randRange(0, 100) < 15) {
+            gain = gain - (v.balanceCents * randRange(40, 120)) / 10000;
+        }
+        return gain;
+    }
+
+    // ---------------------------------------------------------------------
+    // Settle one week across every open venture: run its reaction, book the
+    // weekly transaction, accrue IQ, and fire the Level-5 move the first time a
+    // venture's sustained genius reaches level 5. Returns the week's net cash.
+    // ---------------------------------------------------------------------
+    int settleWeek() {
+        week = week + 1;
+        int weekNet = 0;
+
+        Venture v = ventures;
+        while (v != null) {
+            int settle = runReaction(v);
+            v.lastSettleCents = settle;
+            v.balanceCents = v.balanceCents + settle;
+            if (v.balanceCents < 0) { v.balanceCents = 0; }
+            weekNet = weekNet + settle;
+
+            if (settle > 0) {
+                v.goodWeeks = v.goodWeeks + 1;
+                v.iq = v.iq + IQ_PER_GOOD_WEEK;
+            } else {
+                v.goodWeeks = 0;
+                if (v.iq > 0) { v.iq = v.iq - 1; }
+            }
+
+            if (!v.majorFired && level(v) >= MAJOR_MOVE_LEVEL) {
+                v.majorFired = true;
+                majorMoves = majorMoves + 1;
+                assimilationWeeksLeft = ASSIMILATION_WEEKS;
+            }
+
+            v = v.next;
+        }
+
+        if (assimilationWeeksLeft > 0) {
+            assimilationWeeksLeft = assimilationWeeksLeft - 1;
+        }
+
+        deskProfitCents = deskProfitCents + weekNet;
+        return weekNet;
+    }
+
+    // The bridge into the win economy: scale a month's Major-Eastern revenue by
+    // the Great Assimilation while it is active (the weeks that rake it in).
+    int applyAssimilation(int eastRevenueCents) {
+        if (assimilationWeeksLeft > 0) {
+            return (eastRevenueCents * ASSIMILATION_EAST_PCT) / 100;
+        }
+        return eastRevenueCents;
+    }
+
+    boolean assimilationActive() { return assimilationWeeksLeft > 0; }
+    int assimilationWeeksLeft() { return assimilationWeeksLeft; }
+    int majorMoves() { return majorMoves; }
+    int deskProfitCents() { return deskProfitCents; }
+    int ventureCount() { return ventureCount; }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
+
+    String reactionName(int reaction) {
+        if (reaction == REACTION_EXOTHERMIC) { return "exothermic"; }
+        return "titration";
+    }
+
+    // ---------------------------------------------------------------------
+    // Snapshot for the UI — a compact, pipe-delimited line, same shape as the
+    // tower and life snapshots.
+    // ---------------------------------------------------------------------
+    String snapshot() {
+        String out = "DESK|week=" + week
+            + "|empty=" + yn(ventureCount == 0)
+            + "|ventures=" + ventureCount
+            + "|deskProfit=" + deskProfitCents
+            + "|majorMoves=" + majorMoves
+            + "|assimilation=" + yn(assimilationWeeksLeft > 0)
+            + "|assimLeft=" + assimilationWeeksLeft;
+        Venture v = ventures;
+        while (v != null) {
+            out = out + "\nVEN|name=" + v.name
+                + "|reaction=" + reactionName(v.reaction)
+                + "|balance=" + v.balanceCents
+                + "|iq=" + v.iq
+                + "|level=" + level(v)
+                + "|lastSettle=" + v.lastSettleCents
+                + "|major=" + yn(v.majorFired);
+            v = v.next;
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------------
+    // Headless self-play demo: open both side games and run a campaign so a
+    // reviewer sees the desk fill, the IQ climb, the Level-5 move fire, and the
+    // Great Assimilation rake in the money.
+    // ---------------------------------------------------------------------
+    void main() {
+        print("Airport Tycoon — The Business Desk (Edition 2)");
+        print("system depth=" + sysdepth() + " degree<=" + degreemax());
+        print(role("Pipeline") + ": try on genius -> moves -> major Level-5 moves");
+
+        setup();
+        print("desk empty? " + yn(isEmpty()));
+
+        openCasino(400000);       // $4,000 at the tables
+        openInvestment(600000);   // $6,000 under management
+        print("opened ventures — desk empty? " + yn(isEmpty()));
+
+        int w = 0;
+        int firstMajorWeek = 0;
+        while (w < 60) {
+            settleWeek();
+            if (firstMajorWeek == 0 && majorMoves > 0) {
+                firstMajorWeek = week;
+            }
+            if (week % 10 == 0) {
+                print("week " + week
+                    + " deskProfit=$" + (deskProfitCents / 100)
+                    + " majorMoves=" + majorMoves
+                    + " assimilation=" + yn(assimilationWeeksLeft > 0));
+            }
+            w = w + 1;
+        }
+
+        print("=== DESK CLOSED ===");
+        print("first Level-5 move on week " + firstMajorWeek
+            + ", total major moves " + majorMoves);
+        print("while assimilation runs, $240,000 East becomes $"
+            + (applyAssimilation(24000000) / 100));
+    }
+}
