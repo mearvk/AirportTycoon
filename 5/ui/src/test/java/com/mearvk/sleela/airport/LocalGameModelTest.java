@@ -55,6 +55,8 @@ public final class LocalGameModelTest {
         // --- Edition 5: Imperial Horizons / Imperial Reserve ---
         testImperialReserveAppearsInSnapshot();
         testImperialReserveCanAward();
+        testNetworkSnapshotRoundTrip();
+        testNetworkProtocolEncoding();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -547,6 +549,30 @@ public final class LocalGameModelTest {
                 "same seed yields the same desk profit");
         check(a.majorMoves() == b.majorMoves(),
                 "same seed fires the same number of major moves");
+    }
+
+    private static void testNetworkSnapshotRoundTrip() {
+        LocalGameModel m = new LocalGameModel();
+        m.step();
+        GameSnapshot original = m.snapshot();
+        GameSnapshot copy = GameSnapshot.parse(original.toWire());
+        check(copy.tick == original.tick, "network snapshot preserves tick");
+        check(copy.cash == original.cash && copy.reputation == original.reputation,
+                "network snapshot preserves economy");
+        check(copy.reserveFloor == original.reserveFloor,
+                "network snapshot preserves reserve configuration");
+    }
+
+    private static void testNetworkProtocolEncoding() {
+        String name = "Player | One";
+        String message = "Hello, airport! 你好";
+        String line = MultiplayerProtocol.chat(name, message);
+        String[] parts = line.split("\\|", 3);
+        check(parts.length == 3, "chat protocol preserves framing");
+        check(MultiplayerProtocol.dec(parts[1]).equals(name),
+                "chat protocol preserves player name");
+        check(MultiplayerProtocol.dec(parts[2]).equals(message),
+                "chat protocol preserves UTF-8 chat");
     }
 
     private static void testImperialReserveAppearsInSnapshot() {
