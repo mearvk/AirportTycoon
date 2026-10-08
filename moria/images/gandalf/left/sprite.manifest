@@ -1,0 +1,4 @@
+# gandalf — facing left
+action	start	left/start/gandalf-left-start.png
+action	mid	left/mid/gandalf-left-mid.png
+action	end	left/end/gandalf-left-end.png

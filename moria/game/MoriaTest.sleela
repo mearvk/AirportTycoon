@@ -562,6 +562,30 @@ class MoriaTest {
             an.spritePath("gandalf", an.FRAME_STOP, "right")
                 == "images/gandalf/gandalf-end-right.png");
 
+        // The nested <direction>/<action>/ folder layout resolves too: the four
+        // direction folders, each with start/mid/end, carefully filed.
+        check("nested top/start folder path",
+            an.nestedSpritePath("gandalf", an.FRAME_START, "top")
+                == "images/gandalf/top/start/gandalf-top-start.png");
+        check("nested left/mid folder path",
+            an.nestedSpritePath("gandalf", an.FRAME_MID, "left")
+                == "images/gandalf/left/mid/gandalf-left-mid.png");
+        check("nested down/end folder path",
+            an.nestedSpritePath("gandalf", an.FRAME_STOP, "down")
+                == "images/gandalf/down/end/gandalf-down-end.png");
+        check("nested right/end folder path",
+            an.nestedSpritePath("gandalf", an.FRAME_STOP, "right")
+                == "images/gandalf/right/end/gandalf-right-end.png");
+        check("the direction folder is named by facing",
+            an.directionFolder("gandalf", "left") == "images/gandalf/left/");
+        // A walker's current pose resolves in the nested tree as well.
+        Walker gn = an.spawn("gandalf", 5, 5);
+        an.stepToward(gn, gn.x, gn.y - 1);   // walk up -> top
+        check("a walker resolves its nested top sprite",
+            an.framePath4Nested(gn) == "images/gandalf/top/"
+                + an.frameLabelEnd(an.frameOf(gn)) + "/gandalf-top-"
+                + an.frameLabelEnd(an.frameOf(gn)) + ".png");
+
         // --- The 2000+ dungeon catalog, sized for the GUI gameboard ----------
         MoriaDungeonCatalog cat = new MoriaDungeonCatalog();
         check("the catalog names 2000+ dungeons", cat.catalogSize() >= 2000);

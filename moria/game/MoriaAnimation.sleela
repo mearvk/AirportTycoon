@@ -194,6 +194,36 @@ class MoriaAnimation {
              + "-" + label + "-" + dir + ".png";
     }
 
+    // =======================================================================
+    // NESTED directional/action folder layout:
+    //   images/<character>/<direction>/<action>/<character>-<direction>-<action>.png
+    // The same sprites as the flat layout, carefully filed under a folder per
+    // facing (top/left/down/right) and a folder per action (start/mid/end).
+    // These accessors resolve that tree so the folders "show up" in code too.
+    // =======================================================================
+
+    // The nested sprite for an explicit (frame, direction) pair.
+    String nestedSpritePath(String character, int frame, String direction) {
+        String action = frameLabelEnd(frame);     // start / mid / end
+        String dir = direction;
+        if (dir == null) { dir = "down"; }
+        return "images/" + character + "/" + dir + "/" + action + "/"
+             + character + "-" + dir + "-" + action + ".png";
+    }
+
+    // The nested sprite for a walker's current frame AND four-way direction.
+    String framePath4Nested(Walker w) {
+        return nestedSpritePath(w.character, frameOf(w), facing4(w));
+    }
+
+    // The folder that holds a direction's three action sprites, e.g.
+    // "images/gandalf/left/". A front-end can list it to find start/mid/end.
+    String directionFolder(String character, String direction) {
+        String dir = direction;
+        if (dir == null) { dir = "down"; }
+        return "images/" + character + "/" + dir + "/";
+    }
+
     // A heading word for the gait read — the direction of THIS step's motion.
     String headingWord(Walker w) {
         if (w.moveX > 0) { return "east"; }
@@ -260,5 +290,13 @@ class MoriaAnimation {
             + spritePath("gandalf", FRAME_START, "top") + ", "
             + spritePath("gandalf", FRAME_MID, "left") + ", "
             + spritePath("gandalf", FRAME_STOP, "right") + ")");
+
+        // The same sprites, filed in the nested <direction>/<action>/ folders.
+        print("");
+        print("Gandalf — nested direction/action folders:");
+        print("  top/start -> " + nestedSpritePath("gandalf", FRAME_START, "top"));
+        print("  left/mid  -> " + nestedSpritePath("gandalf", FRAME_MID, "left"));
+        print("  down/end  -> " + nestedSpritePath("gandalf", FRAME_STOP, "down"));
+        print("  right/end -> " + nestedSpritePath("gandalf", FRAME_STOP, "right"));
     }
 }
