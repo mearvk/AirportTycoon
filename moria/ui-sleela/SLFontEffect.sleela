@@ -1,0 +1,102 @@
+#sleela 1.6
+//
+// SLFontEffect — a SleelaUI light/glow emitter descriptor
+// =======================================================
+// The light-effect vocabulary the Moria scoreboard (CityLights) and the title
+// throbber describe in SLeeLa, bound onto a real emitter by a SleelaUI build.
+// It mirrors the toolkit's referenced lib/user-interface/SLFontEffect: a
+// GLOW / LIGHT / EMITTER kind, a packed 0xRRGGBBAA colour, an emitter radius,
+// and an intensity — plus a DIRECTION, so an emitter can throw its light one
+// way only (here: straight DOWN, onto the canvas beneath it).
+//
+// This lives in the Moria tree (not the byte-for-byte vendored toolkit) and
+// binds through the `ui*` SLVM bridge built-ins `uiFontEffect*`. When those
+// built-ins are absent (an older runtime), bind() returns false and callers
+// fall back to the plain widget, so the UI always reads.
+//
+class SLFontEffect {
+
+    // ---- Effect kinds (mirror the toolkit's SLFontEffect kinds) -----------
+    static int FX_NONE    = 0;
+    static int FX_SHADOW  = 1;
+    static int FX_GLOW    = 2;   // soft halo around the text/surface
+    static int FX_LIGHT   = 3;   // a lit wash
+    static int FX_EMITTER = 4;   // a point/strip that casts light outward
+
+    // ---- Emitter direction ------------------------------------------------
+    // An emitter may radiate every way (RADIAL) or be masked to a single
+    // direction so the light only "comes out" one side. Moria's title throbber
+    // uses DOWN: the light falls out of the strip onto the Descriptive Canvas.
+    static int DIR_RADIAL = 0;
+    static int DIR_UP     = 1;
+    static int DIR_DOWN   = 2;
+    static int DIR_LEFT   = 3;
+    static int DIR_RIGHT  = 4;
+
+    int handle;        // VM-local effect handle (-1 = none / not bound)
+    int kind;
+    int color;         // 0xRRGGBBAA, packed exactly like SLColor
+    int radiusPx;      // emitter radius / reach in px
+    int intensity;     // 0..255 brightness of the cast light
+    int direction;     // DIR_*
+
+    void begin() {
+        handle = -1;
+        kind = FX_EMITTER;
+        color = pack(255, 255, 255, 255);   // opaque white (0xFFFFFFFF)
+        radiusPx = 4;
+        intensity = 255;
+        direction = DIR_RADIAL;
+    }
+
+    // Configure a directional emitter in one call.
+    void emitter(int packedColor, int radius, int lightIntensity, int dir) {
+        kind = FX_EMITTER;
+        color = packedColor;
+        radiusPx = radius;
+        intensity = clamp255(lightIntensity);
+        direction = dir;
+    }
+
+    // Bind this descriptor onto a widget so the toolkit casts the light. The
+    // built-in receives every field; a build without it leaves handle < 0 and
+    // the caller keeps the plain widget. Returns true when the light is live.
+    boolean bindTo(SLWidget target) {
+        if (target == null || !target.valid()) { return false; }
+        handle = uiFontEffectBind(target.handle(), kind, color,
+                                  radiusPx, intensity, direction);
+        return handle >= 0;
+    }
+
+    // Push updated emitter state onto an already-bound effect (per-frame
+    // animation: moving colour/intensity for the 3D light-ebb). No-op if the
+    // effect never bound.
+    void update() {
+        if (handle >= 0) {
+            uiFontEffectUpdate(handle, kind, color, radiusPx, intensity,
+                               direction);
+        }
+    }
+
+    boolean bound() { return handle >= 0; }
+
+    int clamp255(int v) {
+        if (v < 0) { return 0; }
+        if (v > 255) { return 255; }
+        return v;
+    }
+
+    // Pack 0xRRGGBBAA the same arithmetic way SLColor.rgba() does.
+    int pack(int r, int g, int b, int a) {
+        int rr = r & 255; int gg = g & 255; int bb = b & 255; int aa = a & 255;
+        return (rr * 16777216) + (gg * 65536) + (bb * 256) + aa;
+    }
+
+    String directionName(int dir) {
+        if (dir == DIR_DOWN)  { return "down"; }
+        if (dir == DIR_UP)    { return "up"; }
+        if (dir == DIR_LEFT)  { return "left"; }
+        if (dir == DIR_RIGHT) { return "right"; }
+        return "radial";
+    }
+}

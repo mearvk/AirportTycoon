@@ -1,0 +1,162 @@
+#sleela 1.6
+//
+// Moria — the Title Throbber
+// ==========================
+// A thin, full-width light STRIP that sits directly under the title/menubar and
+// casts a radiant white-and-yellow light DOWNWARD ONLY — out of its bottom edge,
+// onto and into the Descriptive Canvas the dungeon board is drawn on. It never
+// stops: the host ticks it every frame so the light ebbs and fades for the whole
+// life of the program.
+//
+// Shape
+//   * ~2..4 px tall, the FULL WIDTH of the window, and it RESIZES with it
+//     (setExpand horizontal, a 2..4 px height request — the strip tracks width).
+//   * The strip itself is a theme-coloured horizontal rule (SLSeparator); the
+//     light is an SLFontEffect EMITTER bound to it with DIR_DOWN, so none of the
+//     glow escapes upward over the title — it only falls onto the canvas.
+//
+// The 3D moving light
+//   * A travelling bright spot sweeps across the strip (a horizontal phase),
+//     while a second, slower phase breathes the whole emitter's intensity and
+//     lifts the colour between white and warm yellow. Together they read as a
+//     band of light moving in 3D — rolling across (x), pulsing toward the viewer
+//     (intensity/‘z’), and warming/cooling (hue) — as time ebbs and fades.
+//   * Deterministic and smooth: phases advance by a fixed step per frame and
+//     wrap, so the motion is constant and seamless until the user quits.
+//
+// Graceful degradation: if the SLFontEffect bridge is absent the strip still
+// draws (just without the cast light), and if even the strip can't be made the
+// throbber is simply inert — the UI always reads.
+//
+class MoriaThrobber {
+
+    // ---- Geometry: 2..4 px tall, full width -------------------------------
+    static int MIN_PX = 2;
+    static int MAX_PX = 4;
+    static int HEIGHT_PX = 3;        // within the 2..4 px band
+
+    // ---- The two light colours: effective (bright) white and warm yellow --
+    //   WHITE  (255,255,255) — the effective, radiant core
+    //   YELLOW (255,214, 92) — the warm edge the light lifts toward
+    static int WHITE_R = 255; static int WHITE_G = 255; static int WHITE_B = 255;
+    static int YELL_R  = 255; static int YELL_G  = 214; static int YELL_B  =  92;
+
+    // ---- Animation steps (per frame; phases wrap over [0,1)) --------------
+    // The sweep rolls faster than the breath, so the two never beat in lockstep.
+    static int SWEEP_STEP_MILLI = 23;    // horizontal travel  (0.023 / frame)
+    static int BREATH_STEP_MILLI = 7;    // intensity + hue ebb (0.007 / frame)
+
+    // ---- The light reach downward (how far it falls onto the canvas) ------
+    static int REACH_PX = 18;            // emitter radius, in px, cast DOWN
+
+    SLSeparator strip;       // the full-width 2..4 px bar
+    SLFontEffect light;      // the DIR_DOWN emitter bound to the strip
+    boolean lit;             // true once the emitter actually bound
+
+    int sweepMilli;          // 0..999 travelling-spot phase
+    int breathMilli;         // 0..999 intensity/hue breathing phase
+
+    // Build the throbber as the next child of `parent` (a vertical box), so it
+    // lands directly under whatever precedes it (the title / menubar) and
+    // directly above the canvas card. Returns true if the strip was created.
+    boolean createIn(SLWidget parent) {
+        sweepMilli = 0;
+        breathMilli = 0;
+        lit = false;
+
+        strip = new SLSeparator();
+        strip.horizontal(parent);
+        if (!strip.valid()) { return false; }
+
+        // Full width, fixed thin height; it resizes horizontally with the GUI.
+        strip.setExpand(true, false);
+        strip.setSizeRequest(0, clampHeight(HEIGHT_PX));
+        // Flush under the title: no vertical gap, so the light meets the canvas.
+        strip.setMargin(0, 0, 0, 0);
+        strip.setAlign(SLWidget.ALIGN_FILL, SLWidget.ALIGN_START);
+
+        // Bind the downward emitter. Start white, full intensity.
+        light = new SLFontEffect();
+        light.begin();
+        light.emitter(pack(WHITE_R, WHITE_G, WHITE_B, 255), REACH_PX, 255,
+                      SLFontEffect.DIR_DOWN);
+        lit = light.bindTo(strip);
+        return true;
+    }
+
+    boolean isLit() { return lit; }
+
+    // Advance one animation frame: roll the sweep, breathe the intensity, warm
+    // the colour, and push the new emitter state. Called every frame by the
+    // host for the whole run — constant until the user ends the program.
+    void tick() {
+        sweepMilli = wrap(sweepMilli + SWEEP_STEP_MILLI);
+        breathMilli = wrap(breathMilli + BREATH_STEP_MILLI);
+        if (!lit) { return; }
+
+        // Breathing: a triangle wave 0..1..0 over the breath phase gives the
+        // intensity its ebb/fade; map it to a lively 150..255 so the light
+        // stays "quite visible" at its dimmest.
+        int tri = triangle(breathMilli);           // 0..1000
+        int intensity = 150 + (tri * 105) / 1000;  // 150..255
+
+        // Hue ebb: the same breath lifts the colour from bright white toward
+        // warm yellow and back, so the band is white-and-yellow in motion.
+        int r = lerp(WHITE_R, YELL_R, tri);
+        int g = lerp(WHITE_G, YELL_G, tri);
+        int b = lerp(WHITE_B, YELL_B, tri);
+
+        // The sweep's travelling spot nudges the reach a touch (nearer/farther),
+        // which reads as the lit band moving in 3D — toward and away — as it
+        // rolls across. A second triangle, offset by the sweep, drives it.
+        int depth = triangle(sweepMilli);          // 0..1000
+        int reach = REACH_PX + (depth * REACH_PX) / 2000;   // REACH..1.5xREACH
+
+        light.emitter(pack(r, g, b, 255), reach, intensity,
+                      SLFontEffect.DIR_DOWN);
+        light.update();
+    }
+
+    // ---- helpers ----------------------------------------------------------
+
+    int clampHeight(int px) {
+        if (px < MIN_PX) { return MIN_PX; }
+        if (px > MAX_PX) { return MAX_PX; }
+        return px;
+    }
+
+    // Wrap a milli-phase into [0,1000).
+    int wrap(int m) {
+        int v = m;
+        while (v >= 1000) { v = v - 1000; }
+        while (v < 0) { v = v + 1000; }
+        return v;
+    }
+
+    // Triangle wave: 0 -> 1000 -> 0 as the phase goes 0..500..1000. Smooth,
+    // symmetric ebb and fade with no jump at the wrap.
+    int triangle(int milli) {
+        if (milli <= 500) { return milli * 2; }
+        return (1000 - milli) * 2;
+    }
+
+    // Linear blend a..b by t in [0,1000].
+    int lerp(int a, int b, int t) {
+        return a + ((b - a) * t) / 1000;
+    }
+
+    // Pack 0xRRGGBBAA exactly like SLColor.rgba().
+    int pack(int r, int g, int b, int a) {
+        int rr = r & 255; int gg = g & 255; int bb = b & 255; int aa = a & 255;
+        return (rr * 16777216) + (gg * 65536) + (bb * 256) + aa;
+    }
+
+    // A one-line read of the current light state (for the headless/status read).
+    String describe() {
+        String where = "down onto the canvas";
+        String bind = "unbound";
+        if (lit) { bind = "lit"; }
+        return "throbber: full-width " + clampHeight(HEIGHT_PX)
+            + "px white/yellow emitter, " + where + " (" + bind + ")";
+    }
+}

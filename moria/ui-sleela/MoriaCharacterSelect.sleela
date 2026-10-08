@@ -1,0 +1,208 @@
+#sleela 1.6
+//
+// Moria — Character Select (choose or create), the GUI startup step
+// =================================================================
+// Before the descent, the Adventurer is settled: the player may CHOOSE a
+// ready-made hero from a small roster, or CREATE one with the character
+// generator's allowances and lifetime feats. This neat startup panel presents
+// both, and yields the chosen Creature0 for MoriaDungeon.beginFromCharacter().
+//
+// It builds on the existing model (MoriaCreator / Creature0) — it adds no new
+// rules, only the front-of-house choice. The pre-made roster is produced by the
+// same generator (rolled, point-set, old-wisdoms, with feats), so a "chosen"
+// hero and a "created" one are the same kind of object downstream.
+//
+// GUI: a titled "Choose your Adventurer" frame with one selectable row per
+// ready-made hero (name + a one-line read), then a "…or forge a new one"
+// create row. The selection is recorded; resolve() returns the Creature0. With
+// no display (or until the player picks) a sensible DEFAULT is chosen so the
+// game always begins.
+//
+class MoriaCharacterSelect {
+
+    // ---- Selection kinds --------------------------------------------------
+    static int PICK_NONE   = 0;   // nothing chosen yet
+    static int PICK_ROSTER = 1;   // a ready-made hero (by index)
+    static int PICK_CREATE = 2;   // a freshly forged hero
+
+    MoriaCreator creator;
+
+    // The ready-made roster (parallel data; no arrays — a small fixed set
+    // built on demand, matching the Wrappers' array-free style).
+    static int ROSTER_SIZE = 4;
+
+    int pick;         // PICK_*
+    int rosterIndex;  // which roster hero, when pick == PICK_ROSTER
+    boolean built;    // GUI built at least once
+
+    // The forged character, when the player creates one (set by onCreate()).
+    Creature0 forged;
+
+    void begin() {
+        creator = new MoriaCreator();
+        creator.begin();
+        pick = PICK_NONE;
+        rosterIndex = 0;
+        built = false;
+        forged = null;
+    }
+
+    // ---- The ready-made roster -------------------------------------------
+    // Four pre-made heroes, each a full Creature0 from the generator, so a
+    // chosen hero is as real as a created one. Deterministic (fixed seeds /
+    // builds), so the roster reads the same every run.
+    Creature0 rosterHero(int i) {
+        if (creator == null) { begin(); }
+        if (i == 0) {
+            // A seasoned veteran — Old Wisdoms, read truer, law-honoured.
+            Creature0 g = creator.oldWisdoms("Durin, Elder of the Deep", 36);
+            creator.grantFeat(g, creator.FEAT_LAW_DEGREE);
+            creator.grantFeat(g, creator.FEAT_KNIGHTHOOD);
+            return g;
+        }
+        if (i == 1) {
+            // A chosen, balanced build — the picky player's deliberate hero.
+            Creature0 g = creator.pointSet("Nerith the Chosen", 15, 14, 14, 13, 12, 15);
+            creator.grantFeat(g, creator.FEAT_UNI_TRUSTS);
+            return g;
+        }
+        if (i == 2) {
+            // A well-endowed scholar — great wealth and an endowed chair.
+            Creature0 g = creator.pointSet("Lady Avra, the Endowed", 12, 13, 13, 16, 14, 14);
+            creator.grantFeat(g, creator.FEAT_GREAT_WEALTH);
+            creator.grantFeat(g, creator.FEAT_ENDOWED_CHAIR);
+            return g;
+        }
+        // A fresh, rolled recruit — the quick start.
+        Creature0 g = creator.rollBase("Pip, a Rolled Recruit", 1428, 90210, 70300, 31337, 5, 777);
+        return g;
+    }
+
+    String rosterName(int i) {
+        if (i == 0) { return "Durin, Elder of the Deep"; }
+        if (i == 1) { return "Nerith the Chosen"; }
+        if (i == 2) { return "Lady Avra, the Endowed"; }
+        return "Pip, a Rolled Recruit";
+    }
+
+    String rosterTagline(int i) {
+        if (i == 0) { return "Old Wisdoms · Law Degree, Knighthood · reads truer"; }
+        if (i == 1) { return "Point-set build · University Trusts"; }
+        if (i == 2) { return "Great Wealth · Endowed Chair · a deep purse"; }
+        return "Rolled fresh · quick start";
+    }
+
+    // =======================================================================
+    // Building the startup panel in the GUI
+    // =======================================================================
+
+    // Build the choose/create panel as the next child of `parent`. Each roster
+    // row is a LinkButton that records the pick; the create row forges a new
+    // hero from the generator. The panel is neat and self-contained.
+    void buildIn(SLWidget parent) {
+        built = true;
+
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 6);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Choose your Adventurer", 16);
+
+        SLLabel caption = new SLLabel();
+        caption.createIn(box, "Pick a ready-made hero, or forge a new one. "
+            + "Your choice walks into the Mines.");
+
+        int i = 0;
+        while (i < ROSTER_SIZE) {
+            SLBox row = new SLBox();
+            row.horizontal(box, 10);
+
+            SLBadge num = new SLBadge();
+            num.createIn(row, "" + (i + 1));
+
+            SLLinkButton choose = new SLLinkButton();
+            choose.createIn(row, rosterName(i));
+
+            SLLabel tag = new SLLabel();
+            tag.createIn(row, rosterTagline(i));
+            tag.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+            i = i + 1;
+        }
+
+        SLSeparator rule = new SLSeparator();
+        rule.horizontal(box);
+
+        // The create row.
+        SLBox createRow = new SLBox();
+        createRow.horizontal(box, 10);
+        SLBadge plus = new SLBadge();
+        plus.createIn(createRow, "+");
+        SLButton forgeBtn = new SLButton();
+        forgeBtn.createIn(createRow, "Forge a new Adventurer");
+        forgeBtn.setSuggested(true);
+        SLLabel forgeTag = new SLLabel();
+        forgeTag.createIn(createRow, "Rolled · Point-set · Old Wisdoms, then the lifetime feats");
+    }
+
+    // ---- Selection callbacks (wired to the rows by a full SleelaUI build) --
+    void onChooseRoster(int i) {
+        if (i < 0) { i = 0; }
+        if (i >= ROSTER_SIZE) { i = ROSTER_SIZE - 1; }
+        pick = PICK_ROSTER;
+        rosterIndex = i;
+    }
+
+    // Forge a new hero. A full build would open a sub-form for the allowance
+    // and feats; here we forge a solid, distinguished default build so "create"
+    // yields a complete, playable Adventurer immediately.
+    void onCreate(String name) {
+        if (creator == null) { begin(); }
+        String who = name;
+        if (who == null || who.length() == 0) { who = "the New Adventurer"; }
+        Creature0 g = creator.oldWisdoms(who, 12);
+        creator.grantFeat(g, creator.FEAT_EXCEPTION);   // the exception that reads truer
+        forged = g;
+        pick = PICK_CREATE;
+    }
+
+    boolean chosen() { return pick != PICK_NONE; }
+
+    // =======================================================================
+    // Resolving the choice into a Creature0 to adopt.
+    // =======================================================================
+
+    // The chosen (or created) Adventurer. If the player made no pick (headless,
+    // or they dove straight in), default to the seasoned veteran at roster[0]
+    // so a distinguished hero always begins the descent.
+    Creature0 resolve() {
+        if (pick == PICK_CREATE && forged != null) { return forged; }
+        if (pick == PICK_ROSTER) { return rosterHero(rosterIndex); }
+        return rosterHero(0);               // sensible default
+    }
+
+    // A one-line read of the resolved choice, for the status/headless read.
+    String describeChoice() {
+        if (pick == PICK_CREATE) { return "created: a forged Adventurer"; }
+        if (pick == PICK_ROSTER) { return "chosen: " + rosterName(rosterIndex); }
+        return "default: " + rosterName(0);
+    }
+
+    // =======================================================================
+    // Headless read: the same roster the GUI shows, so selection reads with no
+    // display and the chosen hero is reported.
+    // =======================================================================
+    String renderRoster() {
+        String out = "Choose your Adventurer (or forge a new one):";
+        int i = 0;
+        while (i < ROSTER_SIZE) {
+            out = out + "\n  " + (i + 1) + ". " + rosterName(i)
+                + "  — " + rosterTagline(i);
+            i = i + 1;
+        }
+        out = out + "\n  +. Forge a new Adventurer (Rolled / Point-set / Old Wisdoms + feats)";
+        return out;
+    }
+}

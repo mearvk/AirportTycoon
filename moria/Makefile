@@ -24,6 +24,21 @@ GAME_SRC := game/MoriaDungeon.sleela
 LIGHTS_SRC := game/CityLights.sleela
 TEST_SRC := game/MoriaTest.sleela
 UI_SRC   := ui-sleela/MoriaUI.sleela
+# The presentation helpers beside MoriaUI (kept in the Moria tree so the
+# vendored toolkit stays byte-for-byte with upstream):
+#   SLImageFile          — the file loader: loads a real image from a path.
+#   SLFontEffect         — the light/glow emitter descriptor (down-directional).
+#   MoriaTitleLogo       — the D&D mark as a cool title logo (uses SLImageFile).
+#   MoriaThrobber        — the thin full-width white/yellow downward light bar.
+#   MoriaCharacterSelect — the choose/create-a-hero GUI startup step.
+UI_LOADER_SRC := ui-sleela/SLImageFile.sleela
+UI_FX_SRC     := ui-sleela/SLFontEffect.sleela
+UI_LOGO_SRC   := ui-sleela/MoriaTitleLogo.sleela
+UI_THROB_SRC  := ui-sleela/MoriaThrobber.sleela
+UI_SELECT_SRC := ui-sleela/MoriaCharacterSelect.sleela
+# All the Moria-side UI helpers, in dependency-friendly order (loaders/effects
+# first, then the widgets that use them).
+UI_EXTRA_SRC  := $(UI_LOADER_SRC) $(UI_FX_SRC) $(UI_LOGO_SRC) $(UI_THROB_SRC) $(UI_SELECT_SRC)
 # The RPG layer: stats (incl. Constitution + Character#), the spellbook (the
 # Fireball = 1d28 + 6/level), the armoury (+4 or greater), and Save/Load/Alter.
 STATS_SRC   := game/MoriaStats.sleela
@@ -51,7 +66,7 @@ all: game test
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -113,7 +128,7 @@ creator:
 
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
-	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
+	$(SLEELA) run $(UI_SRC) $(UI_EXTRA_SRC) --library $(UI_SOURCES)
 
 # Deterministic self-check (no display required).
 test:

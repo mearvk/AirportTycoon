@@ -31,9 +31,17 @@ class MoriaUI {
     static int TORCH_B = 60;
 
     void main() {
-        // The model does the whole descent; we present the result.
+        // --- Character select: choose a ready-made hero or forge a new one.
+        // The chosen Adventurer walks into the Mines. With no display (or no
+        // pick) a sensible, distinguished default is resolved so play begins.
+        MoriaCharacterSelect select = new MoriaCharacterSelect();
+        select.begin();
+        Creature0 hero = select.resolve();
+
+        // The model does the whole descent; we present the result. The hero is
+        // adopted from character select (stats, gold, standing, lifetime feats).
         MoriaDungeon dungeon = new MoriaDungeon();
-        dungeon.begin("Adventurer", 1428);
+        dungeon.beginFromCharacter(hero, 1428);
         dungeon.autoDescend(600);
 
         // The scoreboard lighting: cities learned from trusted sources, each
@@ -51,7 +59,7 @@ class MoriaUI {
         ui.configure("com.mearvk.moria");
 
         if (!ui.open()) {
-            printTextRead(dungeon, lights, "headless");
+            printTextRead(dungeon, lights, select, "headless");
             return;
         }
 
@@ -74,16 +82,35 @@ class MoriaUI {
         col.vertical(root, 12);
         col.setMarginAll(20);
 
-        // Title + backend badge.
-        SLHeading title = new SLHeading();
-        title.createIn(col, "The Mines of Moria", 24);
+        // --- Character select (startup): choose a ready-made hero or forge a
+        // new one, neatly, before the dungeon panes. The pick is already
+        // resolved into `hero` above; this panel shows the roster + create.
+        select.buildIn(col);
+
+        // Title: the D&D mark as a cool title logo (trimmed, transparent
+        // background), with the text heading as a graceful fallback when the
+        // image cannot be bound (headless, missing asset, or a build without
+        // the image-file bridge).
+        MoriaTitleLogo logo = new MoriaTitleLogo();
+        if (!logo.createIn(col, 64)) {
+            SLHeading title = new SLHeading();
+            title.createIn(col, "The Mines of Moria", 24);
+        }
+
+        // --- The Throbber: a thin (2..4 px) full-width light strip DIRECTLY
+        // under the title, casting a radiant white/yellow light DOWNWARD ONLY
+        // onto the Descriptive Canvas below. It is animated constantly (see the
+        // frame loop) so the light ebbs and fades in 3D for the whole run.
+        MoriaThrobber throbber = new MoriaThrobber();
+        if (!throbber.createIn(col)) {
+            // No strip could be made — fall back to the plain hairline rule.
+            SLSeparator rule = new SLSeparator();
+            rule.horizontal(col);
+        }
 
         SLLabel sub = new SLLabel();
         sub.createIn(col, "SleelaUI text pane · backend: " + ui.backend()
             + " · " + ui.version() + " · simple new video-game theatrics");
-
-        SLSeparator rule = new SLSeparator();
-        rule.horizontal(col);
 
         // --- The HUD status strip -----------------------------------------
         buildHud(col, dungeon);
@@ -114,8 +141,46 @@ class MoriaUI {
             + " turns · depth " + dungeon.currentDepth() + "/8");
 
         win.show();
-        ui.run();
+
+        // The throbber never stops: drive the event loop ourselves so we can
+        // tick the light every frame, redrawing the strip, for the whole life
+        // of the program. pump(false) dispatches pending host events without
+        // blocking; it returns < 0 once the window has closed (the user ended
+        // the program), at which point we stop. If this build cannot pump
+        // (older runtime), fall back to the blocking run loop so the window
+        // still lives — the throbber then simply holds its lit state.
+        animate(ui, win, throbber);
         ui.close();
+    }
+
+    // The constant animation loop. Ticks the throbber each frame and asks the
+    // window to repaint, pumping host events without blocking, until the loop
+    // reports the window is gone (pump < 0). The loop is controlled by a
+    // `running` flag — the dialect's while-with-condition idiom — not break.
+    void animate(SLUserInterface ui, SLWindow win, MoriaThrobber throbber) {
+        boolean running = true;
+        boolean pumpedEver = false;
+        while (running) {
+            throbber.tick();            // advance the 3D light ebb/fade
+            win.requestRedraw();        // repaint the strip + canvas
+
+            int n = ui.pump(false);     // dispatch pending events, don't block
+            if (n < 0) {
+                // The window closed (user ended the program) — or this build
+                // can't pump at all. Either way, leave the frame loop.
+                running = false;
+            } else {
+                pumpedEver = true;
+                // A small per-frame sleep (~16 ms ≈ 60 fps) so the light ebbs
+                // smoothly without burning the CPU. uiSleepMillis is the
+                // toolkit's frame-pacing bridge; harmless if it no-ops.
+                uiSleepMillis(16);
+            }
+        }
+        // If the very first pump failed, this runtime has no non-blocking
+        // pump — fall back to the blocking run loop so the window still shows
+        // (the throbber then holds a lit, static state).
+        if (!pumpedEver) { ui.run(); }
     }
 
     // The HUD: a single themed status line inside a thin card.
@@ -300,10 +365,21 @@ class MoriaUI {
     }
 
     // Headless fallback: the same read the GUI shows, so the game always
-    // "reads" without a display — map, HUD, chronicle, and the city lights.
-    void printTextRead(MoriaDungeon d, CityLights lights, String why) {
+    // "reads" without a display — character select, map, HUD, chronicle, the
+    // city lights, and the title throbber's light descriptor.
+    void printTextRead(MoriaDungeon d, CityLights lights,
+                       MoriaCharacterSelect select, String why) {
         print("Moria — Dungeon Crawler (SleelaUI, " + why + ")");
         print("================================================");
+        print(select.renderRoster());
+        print("  -> " + select.describeChoice());
+        print("");
+        // The title throbber (built fresh here only to read its descriptor):
+        // a thin, full-width, white/yellow emitter casting light down onto the
+        // canvas. In the GUI it animates constantly; headless, we read it.
+        MoriaThrobber throbber = new MoriaThrobber();
+        print(throbber.describe());
+        print("");
         print(d.renderGrid());
         print("");
         print(d.statusLine());
