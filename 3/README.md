@@ -359,3 +359,16 @@ SLEELA_HOME=/path/to/SLeeLa make ui-run   # UI drives the real .sleela logic
 Edit [`config/airport.conf`](config/airport.conf) to retune the economy,
 capacity, pace, and RNG seed. The matching `static` fields at the top of
 `AirportTycoon.sleela` are the authoritative defaults.
+
+
+## Timeless Route Profitability Model
+
+Edition 3 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
