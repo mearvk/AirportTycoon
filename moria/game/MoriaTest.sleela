@@ -23,6 +23,50 @@ class MoriaTest {
         }
     }
 
+    // Every active figuring piece is within the map bounds.
+    boolean figuresInBounds(MoriaDungeon d) {
+        int i = 0;
+        int n = d.figures_();
+        while (i < n) {
+            if (d.figureActive(i)) {
+                int x = d.figureCol(i);
+                int y = d.figureRow(i);
+                if (x < 0 || y < 0 || x >= d.width() || y >= d.height()) {
+                    return false;
+                }
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // No active figure occupies the hero's own cell.
+    boolean noFigureOnHero(MoriaDungeon d) {
+        int i = 0;
+        int n = d.figures_();
+        while (i < n) {
+            if (d.figureActive(i)
+                && d.figureCol(i) == d.heroCol()
+                && d.figureRow(i) == d.heroRow()) { return false; }
+            i = i + 1;
+        }
+        return true;
+    }
+
+    // No active figure stands where the map paints a wall (they never clip).
+    boolean noFigureInWall(MoriaDungeon d) {
+        int i = 0;
+        int n = d.figures_();
+        while (i < n) {
+            if (d.figureActive(i)) {
+                String g = d.cellGlyph(d.figureCol(i), d.figureRow(i));
+                if (g == "#") { return false; }
+            }
+            i = i + 1;
+        }
+        return true;
+    }
+
     void main() {
         passed = 0;
         failed = 0;
@@ -43,8 +87,16 @@ class MoriaTest {
             d.renderRow(0) != "" && d.renderRow(0) != null);
         check("opening chronicle has lines", d.logLines() > 0);
 
+        // The figuring pieces: the Original Characters are mustered at the start.
+        check("the Fellowship is mustered (5 companions)", d.figures_() == 5);
+        check("every figure starts in bounds", figuresInBounds(d));
+        check("companions do not share the hero's start cell",
+            noFigureOnHero(d));
+
         // Run the scripted descent and check it terminates sanely.
         d.autoDescend(600);
+        check("figures remain in bounds after the descent", figuresInBounds(d));
+        check("figures never clip into a wall", noFigureInWall(d));
         check("game is over or still valid after the run",
             d.over() || d.isAlive());
         check("hero remained in bounds after the run",
@@ -64,6 +116,10 @@ class MoriaTest {
             d.isAlive() == e.isAlive());
         check("same seed => same gold",
             d.goldCount() == e.goldCount());
+        check("same seed => same figure count",
+            d.figures_() == e.figures_());
+        check("same seed => same first-figure position",
+            d.figureCol(0) == e.figureCol(0) && d.figureRow(0) == e.figureRow(0));
 
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");

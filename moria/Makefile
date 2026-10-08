@@ -8,6 +8,8 @@
 #
 #   make game    Type/parse-check the Wrappers with Sleelvac (if present)
 #   make run     Headless self-descent of the dungeon model
+#   make lights  Scoreboard city-lights demo (orange/green/purple, 2-4 mm)
+#   make figures The figuring pieces — Original Characters roaming the board
 #   make ui      Open the native SleelaUI text-pane front-end (real window)
 #   make test    Run the deterministic self-check Wrapper
 #   make all     game + test
@@ -23,7 +25,7 @@ UI_SRC   := ui-sleela/MoriaUI.sleela
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights ui test help
+.PHONY: all game run lights figures ui test help
 
 all: game test
 
@@ -44,6 +46,11 @@ run:
 lights:
 	$(SLEELA) run $(LIGHTS_SRC)
 
+# The figuring-pieces read: the headless self-descent shows the roster of
+# Original Characters and their positions on the board (same as `make run`).
+figures:
+	$(SLEELA) run $(GAME_SRC)
+
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
 	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
@@ -57,6 +64,7 @@ help:
 	@echo "  make game   Type/parse-check the Wrappers (Sleelvac)"
 	@echo "  make run    Headless self-descent (prints map + HUD + chronicle)"
 	@echo "  make lights Scoreboard city-lights demo (orange/green/purple, 2-4 mm)"
+	@echo "  make figures The figuring pieces — Original Characters roaming the board"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"

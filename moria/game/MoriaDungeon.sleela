@@ -50,6 +50,22 @@ struct Change {
     Change next;
 }
 
+// A FIGURING PIECE — one of the Original Characters of the tale, rendered as a
+// movable figure (a token) that wanders the UI's dungeon pane. Each piece has a
+// stable glyph, a short name, a role, a live position, and a deterministic
+// per-turn drift. Pieces are held in an intrusive singly-linked list, exactly
+// like Change and Msg, so the model stays array-free (SLeeLa 1.6).
+struct Figure {
+    String name;    // "Gandalf", "Frodo", ...
+    String glyph;   // the one-character token painted on the pane
+    String role;    // "Companion of the Fellowship" / "Foe of the Deep"
+    int    x;
+    int    y;
+    boolean friendly; // true for the Fellowship, false for a named foe
+    boolean active;   // on the current depth and in play
+    Figure next;
+}
+
 class MoriaDungeon {
 
     // ---- Map dimensions (a comfortable torch-lit chamber) -----------------
@@ -67,6 +83,16 @@ class MoriaDungeon {
     static String G_TROLL    = "T";
     static String G_BALROG   = "B";
     static String G_DOOR     = "+";
+
+    // ---- Figuring-piece glyphs: the Original Characters of the tale --------
+    // Each is a distinct token the pane paints as a wandering figure. Chosen so
+    // none collides with a terrain/monster glyph above.
+    static String G_GANDALF  = "G";   // Gandalf the Grey — the guide
+    static String G_FRODO    = "F";   // Frodo — the ring-bearer
+    static String G_ARAGORN  = "A";   // Aragorn — the ranger
+    static String G_LEGOLAS  = "L";   // Legolas — the elf
+    static String G_GIMLI    = "D";   // Gimli — the dwarf (D, so as not to clash)
+    static String G_SAURON   = "S";   // the Eye's reach — a named foe that stalks
 
     // ---- Deterministic RNG (seeded MINSTD) --------------------------------
     static int RNG_MOD  = 2147483647;
@@ -93,6 +119,10 @@ class MoriaDungeon {
 
     // ---- Mutations layered over the procedural base -----------------------
     Change changes;          // head of the change list (newest first)
+
+    // ---- The figuring pieces: Original Characters that roam the UI ---------
+    Figure figures;          // head of the figure list
+    int    figureCount;      // how many pieces are on the board
 
     // ---- The scrollback chronicle -----------------------------------------
     Msg  logHead;            // oldest
@@ -122,9 +152,13 @@ class MoriaDungeon {
         monstersSlain = 0;
         alive = true;
         descended = false;
+        figures = null;
+        figureCount = 0;
         carveLevel();
+        musterFellowship();
         say("You step into the Mines of Moria. The dark is patient.");
         say("Depth 1. Your torch throws a small, brave circle of light.");
+        say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
     }
 
     int normalizeSeed(int s) {
@@ -237,6 +271,152 @@ class MoriaDungeon {
         return baseGlyph(x, y);
     }
 
+    // =======================================================================
+    // The figuring pieces: the Original Characters that move around the UI.
+    // =======================================================================
+
+    // Add one figure at a deterministic open cell derived from (seed, depth,
+    // slot). Pieces never spawn on a wall, the stair, or the hero's start.
+    void addFigure(String name, String glyph, String role, boolean friendly, int slot) {
+        Figure f = new Figure();
+        f.name = name;
+        f.glyph = glyph;
+        f.role = role;
+        f.friendly = friendly;
+        f.active = true;
+        // Seek a deterministic open cell for this piece on this depth.
+        int tries = 0;
+        int fx = 3;
+        int fy = 2;
+        while (tries < 64) {
+            int hx = 2 + (hash(depth, slot, tries, 11) % (W - 4));
+            int hy = 1 + (hash(depth, slot, tries, 22) % (H - 2));
+            if (isOpenForFigure(hx, hy)) { fx = hx; fy = hy; tries = 64; }
+            else { tries = tries + 1; }
+        }
+        f.x = fx;
+        f.y = fy;
+        f.next = figures;
+        figures = f;
+        figureCount = figureCount + 1;
+    }
+
+    // Muster the Fellowship (and the one named foe that stalks the deep). This
+    // is the "one-off figuring pieces" roster of Original Characters.
+    void musterFellowship() {
+        addFigure("Gandalf", G_GANDALF, "Companion — the Guide",     true, 1);
+        addFigure("Frodo",   G_FRODO,   "Companion — the Bearer",    true, 2);
+        addFigure("Aragorn", G_ARAGORN, "Companion — the Ranger",    true, 3);
+        addFigure("Legolas", G_LEGOLAS, "Companion — the Elf",       true, 4);
+        addFigure("Gimli",   G_GIMLI,   "Companion — the Dwarf",     true, 5);
+        // The Eye's reach appears from the middle depths onward.
+        if (depth >= 4) {
+            addFigure("Sauron's Eye", G_SAURON, "Foe — the Stalker", false, 6);
+        }
+    }
+
+    // A cell a figure may stand on: in bounds, not a wall, not the stair, not a
+    // base monster/treasure, and not already holding another figure.
+    boolean isOpenForFigure(int x, int y) {
+        if (!inBounds(x, y)) { return false; }
+        if (x == heroX && y == heroY) { return false; }
+        String g = cell(x, y);
+        if (g == G_WALL) { return false; }
+        if (g == G_STAIR) { return false; }
+        if (g == G_DOOR) { return false; }
+        if (g == G_ORC || g == G_TROLL || g == G_BALROG) { return false; }
+        if (g == G_TREASURE) { return false; }
+        if (figureAt(x, y) != null) { return false; }
+        return true;
+    }
+
+    // The figure occupying (x,y) on the current board, or null.
+    Figure figureAt(int x, int y) {
+        Figure f = figures;
+        while (f != null) {
+            if (f.active && f.x == x && f.y == y) { return f; }
+            f = f.next;
+        }
+        return null;
+    }
+
+    // Re-muster the roster for a new depth: every piece seeks a fresh open cell
+    // so the Original Characters follow the hero down the Mines.
+    void remusterForDepth() {
+        Figure f = figures;
+        int slot = 0;
+        while (f != null) {
+            slot = slot + 1;
+            // The stalker only haunts the deeper halls.
+            if (!f.friendly && depth < 4) { f.active = false; }
+            else { f.active = true; relocateFigure(f, slot); }
+            f = f.next;
+        }
+    }
+
+    // Move one figure to a deterministic open cell on the current depth.
+    void relocateFigure(Figure f, int slot) {
+        int tries = 0;
+        while (tries < 64) {
+            int hx = 2 + (hash(depth, slot, tries, 33) % (W - 4));
+            int hy = 1 + (hash(depth, slot, tries, 44) % (H - 2));
+            if (isOpenForFigure(hx, hy)) { f.x = hx; f.y = hy; tries = 64; }
+            else { tries = tries + 1; }
+        }
+    }
+
+    // Advance every figure one deterministic step. Companions drift gently
+    // toward the hero (they keep formation); the stalker drifts toward him with
+    // intent. A blocked step is simply skipped — pieces never overlap or clip
+    // through walls, which keeps the board readable and in-bounds.
+    void stepFigures() {
+        Figure f = figures;
+        while (f != null) {
+            if (f.active) { driftFigure(f); }
+            f = f.next;
+        }
+    }
+
+    void driftFigure(Figure f) {
+        // Preferred direction: toward the hero (sign of the delta), with a
+        // small seeded wobble so the formation looks alive but stays stable.
+        int wob = hash(turns, f.x, f.y, 55) % 3;   // 0,1,2
+        int dx = signTowardWithWobble(heroX - f.x, wob);
+        int dy = signTowardWithWobble(heroY - f.y, wob);
+        // Try the diagonal first, then each axis, then stand still.
+        if (tryFigureStep(f, dx, dy)) { return; }
+        if (tryFigureStep(f, dx, 0))  { return; }
+        if (tryFigureStep(f, 0, dy))  { return; }
+        // otherwise the piece holds its ground this turn.
+    }
+
+    // Move toward a target along one axis: -1, 0, or +1, nudged by a wobble so
+    // the pieces do not march in a dead-straight line.
+    int signTowardWithWobble(int delta, int wob) {
+        int s = 0;
+        if (delta > 0) { s = 1; }
+        else if (delta < 0) { s = 0 - 1; }
+        if (wob == 2) { s = 0 - s; }   // occasional backstep: the figure meanders
+        return s;
+    }
+
+    boolean tryFigureStep(Figure f, int dx, int dy) {
+        if (dx == 0 && dy == 0) { return false; }
+        int nx = f.x + dx;
+        int ny = f.y + dy;
+        if (!isOpenForFigure(nx, ny)) { return false; }
+        f.x = nx;
+        f.y = ny;
+        return true;
+    }
+
+    // The figure glyph to paint at (x,y), or null if no active figure is there.
+    String figureGlyphAt(int x, int y) {
+        Figure f = figureAt(x, y);
+        if (f == null) { return null; }
+        return f.glyph;
+    }
+
     boolean inBounds(int x, int y) { return x >= 0 && y >= 0 && x < W && y < H; }
     boolean isWall(int x, int y)  { return cell(x, y) == G_WALL; }
 
@@ -273,6 +453,7 @@ class MoriaDungeon {
         }
 
         stepHeroTo(nx, ny);
+        stepFigures();            // the Original Characters move around the UI
         if (roll(1, 100) <= 6) {
             say("Your torch gutters. The shadows lean closer.");
         }
@@ -346,6 +527,10 @@ class MoriaDungeon {
         say("You take the stair down. Depth " + depth
             + ". You catch your breath (+" + heal + " HP).");
         carveLevel();
+        remusterForDepth();      // the Fellowship follows you down the Mines
+        if (depth == 4) {
+            say("A prickle at the neck: something named now stalks the deep.");
+        }
     }
 
     // =======================================================================
@@ -405,16 +590,32 @@ class MoriaDungeon {
         return cell(x, y);
     }
 
-    // One row of the map, with the hero overlaid at his position.
+    // One row of the map, with the hero and the figuring pieces overlaid.
+    // The hero always wins a cell; otherwise an active figure within torchlight
+    // paints its glyph over the terrain; otherwise the fog-of-war terrain shows.
     String renderRow(int y) {
         String row = "";
         int x = 0;
         while (x < W) {
             if (x == heroX && y == heroY && alive) { row = row + G_HERO; }
-            else { row = row + visibleGlyph(x, y); }
+            else { row = row + figureOrTerrain(x, y); }
             x = x + 1;
         }
         return row;
+    }
+
+    // A figure's glyph if one stands on a lit cell here, else the fog-of-war
+    // terrain glyph. Figures beyond the torch radius fade into the dark, like
+    // everything else, so the torchlight rule stays consistent.
+    String figureOrTerrain(int x, int y) {
+        int dx = x - heroX; if (dx < 0) { dx = 0 - dx; }
+        int dy = y - heroY; if (dy < 0) { dy = 0 - dy; }
+        int dist = dx + dy;
+        if (dist <= torch) {
+            String fg = figureGlyphAt(x, y);
+            if (fg != null) { return fg; }
+        }
+        return visibleGlyph(x, y);
     }
 
     // The whole map as a newline-joined block.
@@ -451,9 +652,60 @@ class MoriaDungeon {
     int heroRow() { return heroY; }
     int width() { return W; }
     int height() { return H; }
+    // The effective terrain glyph at a cell (mutation or procedural base), for
+    // the GUI and the self-check — no hero/figure overlay.
+    String cellGlyph(int x, int y) { return cell(x, y); }
     boolean isAlive() { return alive; }
     boolean hasWon() { return descended; }
     boolean over() { return !alive || descended; }
+
+    // --- Figuring-piece queries for the GUI front-end ----------------------
+    int figures_() { return figureCount; }
+
+    // The i-th figure node (0-based), walking the list; null if out of range.
+    Figure figureIndex(int i) {
+        if (i < 0 || i >= figureCount) { return null; }
+        Figure f = figures;
+        int k = 0;
+        while (k < i && f != null) { f = f.next; k = k + 1; }
+        return f;
+    }
+
+    String figureName(int i)  { Figure f = figureIndex(i); if (f == null) { return ""; } return f.name; }
+    String figureGlyph(int i) { Figure f = figureIndex(i); if (f == null) { return ""; } return f.glyph; }
+    String figureRole(int i)  { Figure f = figureIndex(i); if (f == null) { return ""; } return f.role; }
+    int figureCol(int i)      { Figure f = figureIndex(i); if (f == null) { return 0; } return f.x; }
+    int figureRow(int i)      { Figure f = figureIndex(i); if (f == null) { return 0; } return f.y; }
+    boolean figureActive(int i)   { Figure f = figureIndex(i); if (f == null) { return false; } return f.active; }
+    boolean figureFriendly(int i) { Figure f = figureIndex(i); if (f == null) { return false; } return f.friendly; }
+
+    // A readable roster block for the headless read and the UI's figure panel:
+    // each Original Character's glyph, name, role, and current position (or a
+    // note that it is not on this depth).
+    String renderRoster() {
+        String out = "The Figuring Pieces — Original Characters on the board:";
+        int i = 0;
+        while (i < figureCount) {
+            Figure f = figureIndex(i);
+            if (f != null) {
+                String where = "";
+                if (f.active) { where = "(" + f.x + "," + f.y + ")"; }
+                else { where = "(not on this depth)"; }
+                out = out + "\n  " + f.glyph + "  " + pad(f.name, 14)
+                    + " " + pad(f.role, 28) + " " + where;
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+
+    // Pad a string with spaces to at least `n` characters (left-aligned).
+    String pad(String s, int n) {
+        String out = s;
+        int len = s.length();
+        while (len < n) { out = out + " "; len = len + 1; }
+        return out;
+    }
 
     // =======================================================================
     // A scripted self-descent, for `make run` and the self-check. Deterministic:
@@ -491,6 +743,8 @@ class MoriaDungeon {
         print(renderGrid());
         print("");
         print(statusLine());
+        print("");
+        print(renderRoster());
         print("");
         print("Recent chronicle:");
         print(recentLog(6));

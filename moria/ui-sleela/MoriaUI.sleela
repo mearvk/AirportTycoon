@@ -94,6 +94,9 @@ class MoriaUI {
         // --- The glyph legend ---------------------------------------------
         buildLegend(col);
 
+        // --- The figuring pieces: Original Characters on the board --------
+        buildFigures(col, dungeon);
+
         // --- The chronicle (scrollback log) pane --------------------------
         buildChronicle(col, dungeon);
 
@@ -180,6 +183,50 @@ class MoriaUI {
         m.createIn(row, meaning);
     }
 
+    // The FIGURING PIECES panel: one row per Original Character — its glyph as
+    // a badge, its name and role, and where the token currently stands on the
+    // board (or that it is not on this depth). These are the pieces that move
+    // around the UI each turn as the hero descends.
+    void buildFigures(SLBox parent, MoriaDungeon d) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 4);
+        box.setMarginAll(12);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "The Fellowship — Figuring Pieces", 15);
+
+        SLLabel caption = new SLLabel();
+        caption.createIn(box, "Original Characters that roam the dungeon pane. "
+            + "Companions keep formation with the hero; a named foe stalks the "
+            + "deeper halls.");
+
+        int i = 0;
+        int n = d.figures_();
+        while (i < n) {
+            SLBox row = new SLBox();
+            row.horizontal(box, 10);
+
+            SLBadge g = new SLBadge();
+            g.createIn(row, d.figureGlyph(i));
+
+            SLLabel name = new SLLabel();
+            name.createIn(row, d.figureName(i));
+
+            SLLabel role = new SLLabel();
+            role.createIn(row, d.figureRole(i));
+
+            SLLabel where = new SLLabel();
+            if (d.figureActive(i)) {
+                where.createIn(row, "at (" + d.figureCol(i) + "," + d.figureRow(i) + ")");
+            } else {
+                where.createIn(row, "(not on this depth)");
+            }
+            i = i + 1;
+        }
+    }
+
     // The CHRONICLE pane: the scrollback message log, newest last. A scrollbar
     // sits beside it so a picky Adventurer can read the whole descent.
     void buildChronicle(SLBox parent, MoriaDungeon d) {
@@ -260,6 +307,8 @@ class MoriaUI {
         print(d.renderGrid());
         print("");
         print(d.statusLine());
+        print("");
+        print(d.renderRoster());
         print("");
         print(lights.renderScoreboard());
         print("");
