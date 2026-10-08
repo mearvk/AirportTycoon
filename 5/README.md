@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 4)
+# Airport Tycoon — Business Edition (Edition 5)
 
-> **Edition 4 — Sovereign Skies, the Dominion Era.** Built on the complete, self-contained
+> **Edition 5 — Imperial Horizons, the Grand Strategy Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -102,6 +102,13 @@ The snapshot exposes `contractChain`, `contractLadderStep`, and
 `contractLadderCap`, so the UI can make the escalating reward visible. Edition
 4 rewards not only solving the current traffic problem, but building a sustained
 operating record without turning the ladder into a second mandatory win condition.
+
+
+### What's new in Edition 5 — Imperial Reserve
+
+Edition 5 builds on the Prosperity Ladder with an **Imperial Reserve**. Keep at least **$3,000** on hand for **180 consecutive ticks** and the treasury awards **$750** and up to **+2 reputation**. Dropping below the reserve floor resets only the qualification clock.
+
+The reserve is deliberately not a failure condition. It adds a long-range capital-management choice alongside aircraft flow, upgrades, fares, contracts, and the Prosperity Ladder. Snapshot fields expose the reserve floor, progress, goal, reward, and award count so the UI can present the financial objective.
 
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
