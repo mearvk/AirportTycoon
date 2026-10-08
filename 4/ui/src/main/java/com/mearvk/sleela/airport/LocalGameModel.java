@@ -587,7 +587,8 @@ public final class LocalGameModel implements SleelaRuntime {
                 openGates, openRunways, planes.size(), gameOver, views,
                 streak, servicePremiumPct(), contractTargetSize,
                 contractProgress, CONTRACT_GOAL, contractDeadline,
-                contractsCompleted);
+                contractsCompleted, CONTRACT_EARLY_TICKS, CONTRACT_EARLY_BONUS,
+                contractChain, CONTRACT_LADDER_STEP, CONTRACT_LADDER_CAP);
     }
 
     @Override
@@ -621,4 +622,5 @@ public final class LocalGameModel implements SleelaRuntime {
     int contractDeadline() { return contractDeadline; }
     int contractsCompleted() { return contractsCompleted; }
     int contractEarlyTicks() { return CONTRACT_EARLY_TICKS; }
+    int contractChain() { return contractChain; }
 }
