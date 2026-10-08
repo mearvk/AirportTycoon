@@ -1,4 +1,4 @@
-# Airport Tycoon — Business Edition (Edition 3)
+# Airport Tycoon — Business Edition (Edition 3) — *Platinum Ascension*
 
 > **Edition 3 — Platinum Ascension, the Prosperity Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
