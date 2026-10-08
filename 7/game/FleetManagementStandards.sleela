@@ -9,16 +9,22 @@ class FleetManagementStandards {
     static int MAINTENANCE_THRESHOLD = 85;
     static int PLANES_PER_VERSION = 50;
 
-    int versionLevel = 1;
-    int fleetPlanes = 130;
-    int useRating = 85;
+    int versionLevel = 7;
+    // One-time Edition 7 source/config roll. Re-roll only through a deliberate management action.
+    static int ROLLED_PLANES = 320;
+    static int ROLLED_USE_RATING = 93;
+    int fleetPlanes = ROLLED_PLANES;
+    int useRating = ROLLED_USE_RATING;
     int employeeQuality = 50;
     int resultQuality = 50;
     int operatingCostIndex = 50;
     boolean engineerRequired = false;
     string managementAdjustment = "";
 
-    string name() { return "Fleet Management Standards"; }
+    string name() { return "Fleet Management Standards — Edition 7"; }
+
+    int rolledPlanes() { return ROLLED_PLANES; }
+    int rolledUseRating() { return ROLLED_USE_RATING; }
 
     int setVersionLevel(int level) {
         if (level < 1) { level = 1; }
