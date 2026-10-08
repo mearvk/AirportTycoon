@@ -475,3 +475,12 @@ The desk displays live system-clock values for **UTC, Eastern, Central, Mountain
 The country panel uses public CIA World Factbook reference values for the United States: Washington, DC as capital, a constitutional federal republic as the government type, and total area of **9,833,517 km²**. These are reference facts, not gameplay intelligence. The CIA describes the Agency as providing objective foreign intelligence and analysis to U.S. policymakers; the game's CIA panel is therefore deliberately an **open-reference information layer**, with no classified or operational intelligence.
 
 The network connection remains available through the Edition 7 Java runtime. The UI can connect to the existing authoritative multiplayer TCP service while the server remains authoritative for shared/individual game state.
+
+
+## Client Communication Protocol — CCP/1
+
+Edition 7 retains the multiplayer connection and adds the same explicit **CCP/1** client communication contract. The runtime can maintain a peer list, receive presence events, broadcast a message to the connected group, send a direct peer message, acknowledge delivery, and answer PING/PONG heartbeats.
+
+The authoritative server remains the relay and simulation authority. Clients do not accept arbitrary inbound peer sockets. CCP/1 is intentionally separate from the game CMD and STATE records, so client communication does not become an alternate game-state channel.
+
+The protocol definition is ui/.../ClientCommunicationProtocol.java; Edition 7's SleelaRuntime.java contains the network client implementation and exposes peer-message helpers while preserving the existing JavaFX/UI contract.
