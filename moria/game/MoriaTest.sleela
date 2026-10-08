@@ -524,6 +524,44 @@ class MoriaTest {
             || r.heroSprite() == "images/adventurer/adventurer-mid-left.png"
             || r.heroSprite() == "images/adventurer/adventurer-stop-left.png");
 
+        // --- Gandalf: the four-way directional sprite matrix ----------------
+        // top / down / left / right, each with start / mid / end — the sprites
+        // under images/gandalf/. The engine resolves each direction + frame to
+        // the right file on disk.
+        Walker gw = an.spawn("gandalf", 5, 5);
+        check("a gandalf walker starts facing right (default)",
+            an.facing4(gw) == "right");
+        an.stepToward(gw, gw.x, gw.y - 1);   // walk north
+        check("walking up faces top", an.facing4(gw) == "top");
+        check("the up sprite is a gandalf -top frame",
+            an.framePath4(gw) == "images/gandalf/gandalf-"
+                + an.frameLabelEnd(an.frameOf(gw)) + "-top.png");
+        an.stepToward(gw, gw.x, gw.y + 1);   // walk south
+        check("walking down faces down", an.facing4(gw) == "down");
+        check("the down sprite is a gandalf -down frame",
+            an.framePath4(gw) == "images/gandalf/gandalf-"
+                + an.frameLabelEnd(an.frameOf(gw)) + "-down.png");
+        an.stepToward(gw, gw.x - 1, gw.y);   // walk west
+        check("walking left faces left", an.facing4(gw) == "left");
+        an.stepToward(gw, gw.x + 1, gw.y);   // walk east
+        check("walking right faces right", an.facing4(gw) == "right");
+        // The planted pose is labelled END (the designer's name for STOP).
+        check("the END label names the planted pose",
+            an.frameLabelEnd(an.FRAME_STOP) == "end");
+        // Explicit (frame, direction) sprite paths resolve for all four ways.
+        check("gandalf start-top sprite path",
+            an.spritePath("gandalf", an.FRAME_START, "top")
+                == "images/gandalf/gandalf-start-top.png");
+        check("gandalf mid-left sprite path",
+            an.spritePath("gandalf", an.FRAME_MID, "left")
+                == "images/gandalf/gandalf-mid-left.png");
+        check("gandalf end-down sprite path",
+            an.spritePath("gandalf", an.FRAME_STOP, "down")
+                == "images/gandalf/gandalf-end-down.png");
+        check("gandalf end-right sprite path",
+            an.spritePath("gandalf", an.FRAME_STOP, "right")
+                == "images/gandalf/gandalf-end-right.png");
+
         // --- The 2000+ dungeon catalog, sized for the GUI gameboard ----------
         MoriaDungeonCatalog cat = new MoriaDungeonCatalog();
         check("the catalog names 2000+ dungeons", cat.catalogSize() >= 2000);

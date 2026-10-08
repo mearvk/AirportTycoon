@@ -147,6 +147,53 @@ class MoriaAnimation {
         return "images/" + w.character + "/" + w.character + "-" + label + ".png";
     }
 
+    // =======================================================================
+    // Four-way directional sprites: top / down / left / right, with the frame
+    // labelled start / mid / END (the designer's name for the planted pose —
+    // the same frame frameLabel() calls "stop"). These address the full sprite
+    // matrix under images/<character>/, e.g. gandalf-start-top.png. The
+    // left/right facings mirror facing(); up and down come from the vertical
+    // heading of THIS step's motion (headingY), falling back to the horizontal
+    // facing when the figure is not moving vertically.
+    // =======================================================================
+
+    // The frame label using END for the planted pose (start / mid / end).
+    String frameLabelEnd(int frame) {
+        if (frame == FRAME_START) { return "start"; }
+        if (frame == FRAME_MID)   { return "mid"; }
+        return "end";
+    }
+
+    // Which of the four directions the walker faces: top / down / left / right.
+    // Vertical motion wins (you face the way you step up/down); otherwise the
+    // persistent horizontal facing (left/right) is used.
+    String facing4(Walker w) {
+        if (w.moveY < 0) { return "top"; }
+        if (w.moveY > 0) { return "down"; }
+        if (w.headingX < 0) { return "left"; }
+        return "right";
+    }
+
+    // The on-disk sprite for the current frame AND four-way direction, named
+    // with the END label, e.g. "images/gandalf/gandalf-mid-top.png".
+    String framePath4(Walker w) {
+        String label = frameLabelEnd(frameOf(w));
+        String dir = facing4(w);
+        return "images/" + w.character + "/" + w.character
+             + "-" + label + "-" + dir + ".png";
+    }
+
+    // The directional sprite for an explicit (frame, direction) pair — handy
+    // for a front-end that wants to show a specific pose without a Walker.
+    // `frame` is FRAME_START/MID/STOP; `direction` is "top"/"down"/"left"/"right".
+    String spritePath(String character, int frame, String direction) {
+        String label = frameLabelEnd(frame);
+        String dir = direction;
+        if (dir == null) { dir = "down"; }
+        return "images/" + character + "/" + character
+             + "-" + label + "-" + dir + ".png";
+    }
+
     // A heading word for the gait read — the direction of THIS step's motion.
     String headingWord(Walker w) {
         if (w.moveX > 0) { return "east"; }
@@ -194,5 +241,24 @@ class MoriaAnimation {
         halt(hero);
         print("");
         print("At rest: " + describe(hero) + "   sprite=" + framePath(hero));
+
+        // --- Gandalf: the full four-way directional sprite matrix -----------
+        // top / down / left / right, each with start / mid / end — the sprites
+        // under images/gandalf/. Walk him one step each way and read the frame.
+        print("");
+        print("Gandalf — four-way directional sprites (top/down/left/right):");
+        Walker g = spawn("gandalf", 5, 5);
+        stepToward(g, g.x, g.y - 1);   // north -> top
+        print("  up    -> " + framePath4(g));
+        stepToward(g, g.x, g.y + 1);   // south -> down
+        print("  down  -> " + framePath4(g));
+        stepToward(g, g.x - 1, g.y);   // west  -> left
+        print("  left  -> " + framePath4(g));
+        stepToward(g, g.x + 1, g.y);   // east  -> right
+        print("  right -> " + framePath4(g));
+        print("  (frames: start/mid/end; e.g. "
+            + spritePath("gandalf", FRAME_START, "top") + ", "
+            + spritePath("gandalf", FRAME_MID, "left") + ", "
+            + spritePath("gandalf", FRAME_STOP, "right") + ")");
     }
 }

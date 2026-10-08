@@ -32,6 +32,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaAnimation.sleela`](game/MoriaAnimation.sleela) | **The walk animation** — the character sampled as **START → MID → STOP** (the three autocropped sprite frames), with the character **moving like he walks** (frame + facing + position advance each step). |
 | [`game/MoriaDungeonCatalog.sleela`](game/MoriaDungeonCatalog.sleela) | **The dungeon catalog** — **12,672** distinct dungeons (**> 2000**), each sized at its **original authoring resolution** and then **for the Sleela GUI gameboard**, with the animation **times** (frame holds + ms/tick). |
 | [`tools/autocrop_sprites.py`](tools/autocrop_sprites.py) | **The sprite autocropper** — pure-stdlib Python (baseline-JPEG decoder + PNG writer, no deps/network): decode a sheet, **autocrop to the figure**, slice **start/mid/stop**, and write `images/<character>/<character>-{start,mid,stop}.png`. |
+| [`tools/make_sprite_set.py`](tools/make_sprite_set.py) | **The sprite-set generator** — pure-stdlib Python: writes a **complete directional sprite matrix** for a character (**4 directions × 3 frames**) as valid, labelled placeholder PNGs plus a `sprite.manifest`, in the exact layout the animation engine loads. Used to reserve `images/gandalf/` until real art is dropped in. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, same-seed reproducibility, the ranged arms, the walk animation, and the GUI-fit of the dungeon catalog. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`ui-sleela/SLImageFile.sleela`](ui-sleela/SLImageFile.sleela) | The **file loader**: a SleelaUI image widget that loads a real image **file** from a path (preserving its alpha), scaled to a box while keeping aspect — the loader behind the title logo. Bottoms out in the `uiImageFile` bridge. |
@@ -40,7 +41,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`ui-sleela/MoriaThrobber.sleela`](ui-sleela/MoriaThrobber.sleela) | The **title throbber**: a thin (2–4 px), full-width, resizing light strip directly under the title that casts a radiant **white-and-yellow** light **downward only** onto the Descriptive Canvas, with a constant 3D light-ebb animation that runs until the program ends. |
 | [`ui-sleela/MoriaCharacterSelect.sleela`](ui-sleela/MoriaCharacterSelect.sleela) | The **character-select startup**: choose a ready-made hero from a small roster, or **forge a new one** with the creation generator — the chosen `Creature0` is adopted by `beginFromCharacter`. |
 | [`ui-sleela/BRIDGE.md`](ui-sleela/BRIDGE.md) | The **SLVM bridge manifest**: the new `ui*` built-ins the Moria UI helpers introduce (`uiImageFile`, `uiFontEffectBind/Update`, `uiSleepMillis`), with signatures and the C ABI each should call. |
-| [`images/<character>/`](images/) | **Autocropped sprites**, per character: `adventurer/` and `warden/` each hold `-start`, `-mid`, `-stop` in **three facings** — the base plus **`-right`** (sheet orientation) and **`-left`** (mirrored) — nine PNGs and a `sprite.manifest`. |
+| [`images/<character>/`](images/) | **Per-character sprites.** `adventurer/` and `warden/` each hold `-start`, `-mid`, `-stop` in **three facings** — the base plus **`-right`** (sheet orientation) and **`-left`** (mirrored) — nine PNGs and a `sprite.manifest`. **`gandalf/`** holds the full **four-direction** matrix — `top` / `down` / `left` / `right`, each with **`-start` / `-mid` / `-end`** (plus `stop` aliases and base poses) — 18 PNGs and a `sprite.manifest`. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test` / `animation` / `catalog` / `sprites`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
@@ -220,6 +221,33 @@ each with **nine PNGs**: start/mid/stop × {base, right, left} (~910×1527 and
 ~913×1519 respectively). The `-left` frames are verified exact horizontal
 mirrors of `-right`. Re-run on any sheet with
 `make sprites SHEET=images/<file>.jpeg CHARACTER=<name>`.
+
+### Gandalf — the full four-direction sprite matrix
+
+**`images/gandalf/`** carries the complete directional set a designer asked for:
+the four facings **`top` / `down` / `left` / `right`**, each in the three frames
+**`start` / `mid` / `end`** (where **`end`** is the designer's name for the
+planted pose the engine also calls **`stop`**). The files follow the engine's
+own naming so they load with no extra wiring:
+
+```
+images/gandalf/
+  gandalf-<start|mid|end>.png                 base (facing-neutral)
+  gandalf-<start|mid|end>-<top|down|left|right>.png
+  gandalf-<start|mid|stop>[-left|-right].png  engine 'stop' aliases of 'end'
+  sprite.manifest
+```
+
+These are **valid, labelled placeholder PNGs** (each shows the name, the facing
+arrow, and the pose, in a per-direction colour) generated by
+[`tools/make_sprite_set.py`](tools/make_sprite_set.py) so the slots are filled
+and visibly distinct; drop a real Gandalf sheet in and re-slice with the
+autocropper to replace them. The animation engine resolves them through
+`facing4()` (top/down/left/right), `frameLabelEnd()` (start/mid/**end**),
+`framePath4()` (a walker's current directional sprite), and
+`spritePath(character, frame, direction)` (an explicit pose) — see the
+`MoriaAnimation` demo (`make animation`), which walks Gandalf one step each way
+and prints the matching sprite path.
 
 ### The walk — the character moves like he's walking, left and right
 
