@@ -36,6 +36,9 @@ class Reservations {
     int confirmed = 0;
     int completed = 0;
     int cancelled = 0;
+    int monthlyBooked = 0;
+    int monthlyTarget = 2000;
+    int monthlyExemplary = 0;
     int nextId = 1;
     int tick = 0;
 
@@ -45,6 +48,9 @@ class Reservations {
         confirmed = 0;
         completed = 0;
         cancelled = 0;
+        monthlyBooked = 0;
+        monthlyTarget = 2000;
+        monthlyExemplary = 0;
         nextId = 1;
         tick = 0;
     }
@@ -76,6 +82,8 @@ class Reservations {
         r.next = head;
         head = r;
         count = count + 1;
+        monthlyBooked = monthlyBooked + 1;
+        if (monthlyBooked >= monthlyTarget) { monthlyExemplary = 1; }
         return r;
     }
 
@@ -139,6 +147,15 @@ class Reservations {
         return total;
     }
 
+    boolean monthlyExemplaryTarget() {
+        return monthlyBooked >= monthlyTarget;
+    }
+
+    void resetReservationMonth() {
+        monthlyBooked = 0;
+        monthlyExemplary = 0;
+    }
+
     int reservationIQ() {
         // More confirmed reservations and more accompanying friends increase
         // the Reservation IQ. This is a game score, not a real-world IQ claim.
@@ -166,7 +183,10 @@ class Reservations {
             + "|booked=" + count
             + "|confirmed=" + confirmed
             + "|completed=" + completed
-            + "|cancelled=" + cancelled
+             + "|cancelled=" + cancelled
+            + "|monthReservations=" + monthlyBooked
+            + "|monthTarget=" + monthlyTarget
+            + "|monthlyExemplary=" + monthlyExemplary
             + "|friends=" + activeFriends()
             + "|party=" + activeParty()
             + "|reservationIQ=" + reservationIQ();
