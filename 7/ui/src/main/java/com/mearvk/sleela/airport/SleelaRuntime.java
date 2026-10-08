@@ -68,6 +68,7 @@ final class NetworkRuntime implements SleelaRuntime, AutoCloseable {
     private final AtomicReference<GameSnapshot> current =
             new AtomicReference<>(GameSnapshot.parse(null));
     private final CopyOnWriteArrayList<String> chat = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<String> peers = new CopyOnWriteArrayList<>();
     private Socket socket;
     private PrintWriter out;
     private volatile String status = "connecting";
@@ -107,6 +108,22 @@ final class NetworkRuntime implements SleelaRuntime, AutoCloseable {
                         chat.add(dec(p[1]) + ": " + dec(p[2]));
                         while (chat.size() > 8) chat.remove(0);
                     }
+                } else if (line.startsWith("CCP/1|PEERS|")) {
+                    peers.clear();
+                    peers.addAll(java.util.Arrays.asList(ClientCommunicationProtocol.dec(line.substring("CCP/1|PEERS|".length())).split("\\n")));
+                } else if (line.startsWith("CCP/1|BROADCAST|")) {
+                    String[] p = line.split("\\|", 5);
+                    if (p.length == 5) chat.add("[All] " + ClientCommunicationProtocol.dec(p[3]) + ": " + ClientCommunicationProtocol.dec(p[4]));
+                } else if (line.startsWith("CCP/1|DIRECT|")) {
+                    String[] p = line.split("\\|", 6);
+                    if (p.length == 6) chat.add("[Direct] " + ClientCommunicationProtocol.dec(p[3]) + ": " + ClientCommunicationProtocol.dec(p[5]));
+                } else if (line.startsWith("CCP/1|PRESENCE|")) {
+                    String[] p = line.split("\\|", 6);
+                    if (p.length == 6) chat.add("Network: " + ClientCommunicationProtocol.dec(p[4]) + " " + p[2] + ".");
+                } else if (line.startsWith("CCP/1|ACK|")) {
+                    chat.add("Network: delivered " + ClientCommunicationProtocol.dec(line.substring("CCP/1|ACK|".length())));
+                } else if (line.startsWith("CCP/1|PING|")) {
+                    send(ClientCommunicationProtocol.pong(Long.parseLong(line.substring("CCP/1|PING|".length()))));
                 } else if (line.startsWith("INFO|")) {
                     chat.add("Server: " + dec(line.substring(5)));
                 } else if (line.startsWith("WELCOME|")) {
@@ -124,6 +141,22 @@ final class NetworkRuntime implements SleelaRuntime, AutoCloseable {
 
     private void cmd(String action, int id, int arg) {
         send("CMD|"+action+"|"+id+"|"+arg);
+    }
+
+    public void sendPeerMessage(String message) {
+        if (message == null || message.isBlank()) return;
+        String id = playerName + "-" + System.nanoTime();
+        send(ClientCommunicationProtocol.broadcast(id, playerName, message.trim()));
+    }
+
+    public void sendDirectMessage(String peerId, String message) {
+        if (peerId == null || peerId.isBlank() || message == null || message.isBlank()) return;
+        String id = playerName + "-" + System.nanoTime();
+        send(ClientCommunicationProtocol.direct(id, playerName, peerId.trim(), message.trim()));
+    }
+
+    public String peerText() {
+        return String.join("\\n", peers);
     }
 
     public void sendChat(String message) {
