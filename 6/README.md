@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition (Edition 6) — *Grand Meridian*
 
 > **Edition 6 — Grand Meridian, the Continental Era.** Built on the complete, self-contained
