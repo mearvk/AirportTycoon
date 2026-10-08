@@ -1,0 +1,196 @@
+#sleela 1.6
+//
+// Airport Tycoon — Edition 7 Reservation Engine
+// =============================================
+// Reservation bookings are a first-class business module. More reservations
+// mean more connected travelers, friends, and opportunities for play.
+//
+// This module is intentionally independent of the tower simulation. It can be
+// imported/integrated by AirportTycoon.sleela or used by the UI/server layer.
+// SLeeLa 1.6 collections are linked lists.
+//
+
+struct Reservation {
+    int id;
+    String guestId;
+    String guestName;
+    String flight;
+    int partySize;
+    int tickBooked;
+    int tickStart;
+    int duration;
+    int status;
+    int friends;
+    Reservation next;
+}
+
+class Reservations {
+    static int STATUS_BOOKED = 1;
+    static int STATUS_CONFIRMED = 2;
+    static int STATUS_ACTIVE = 3;
+    static int STATUS_COMPLETED = 4;
+    static int STATUS_CANCELLED = 5;
+
+    Reservation head;
+    int count = 0;
+    int confirmed = 0;
+    int completed = 0;
+    int cancelled = 0;
+    int nextId = 1;
+    int tick = 0;
+
+    void setup() {
+        head = null;
+        count = 0;
+        confirmed = 0;
+        completed = 0;
+        cancelled = 0;
+        nextId = 1;
+        tick = 0;
+    }
+
+    Reservation byId(int id) {
+        Reservation r = head;
+        while (r != null) {
+            if (r.id == id) { return r; }
+            r = r.next;
+        }
+        return null;
+    }
+
+    Reservation book(String guestId, String guestName, String flight,
+                     int partySize, int startTick, int duration) {
+        if (partySize <= 0 || duration <= 0) { return null; }
+        Reservation r = new Reservation();
+        r.id = nextId;
+        nextId = nextId + 1;
+        r.guestId = guestId;
+        r.guestName = guestName;
+        r.flight = flight;
+        r.partySize = partySize;
+        r.tickBooked = tick;
+        r.tickStart = startTick;
+        r.duration = duration;
+        r.status = STATUS_BOOKED;
+        r.friends = partySize - 1;
+        r.next = head;
+        head = r;
+        count = count + 1;
+        return r;
+    }
+
+    boolean confirm(int id) {
+        Reservation r = byId(id);
+        if (r == null || r.status != STATUS_BOOKED) { return false; }
+        r.status = STATUS_CONFIRMED;
+        confirmed = confirmed + 1;
+        return true;
+    }
+
+    boolean cancel(int id) {
+        Reservation r = byId(id);
+        if (r == null) { return false; }
+        if (r.status == STATUS_CANCELLED || r.status == STATUS_COMPLETED) {
+            return false;
+        }
+        if (r.status == STATUS_CONFIRMED) { confirmed = confirmed - 1; }
+        r.status = STATUS_CANCELLED;
+        cancelled = cancelled + 1;
+        return true;
+    }
+
+    boolean complete(int id) {
+        Reservation r = byId(id);
+        if (r == null) { return false; }
+        if (r.status != STATUS_ACTIVE && r.status != STATUS_CONFIRMED) {
+            return false;
+        }
+        if (r.status == STATUS_CONFIRMED) { confirmed = confirmed - 1; }
+        r.status = STATUS_COMPLETED;
+        completed = completed + 1;
+        return true;
+    }
+
+    int activeFriends() {
+        int total = 0;
+        Reservation r = head;
+        while (r != null) {
+            if (r.status == STATUS_BOOKED
+                || r.status == STATUS_CONFIRMED
+                || r.status == STATUS_ACTIVE) {
+                total = total + r.friends;
+            }
+            r = r.next;
+        }
+        return total;
+    }
+
+    int activeParty() {
+        int total = 0;
+        Reservation r = head;
+        while (r != null) {
+            if (r.status == STATUS_BOOKED
+                || r.status == STATUS_CONFIRMED
+                || r.status == STATUS_ACTIVE) {
+                total = total + r.partySize;
+            }
+            r = r.next;
+        }
+        return total;
+    }
+
+    int reservationIQ() {
+        // More confirmed reservations and more accompanying friends increase
+        // the Reservation IQ. This is a game score, not a real-world IQ claim.
+        return (confirmed * 10) + (activeFriends() * 5) + (completed * 15);
+    }
+
+    void step() {
+        tick = tick + 1;
+        Reservation r = head;
+        while (r != null) {
+            if (r.status == STATUS_CONFIRMED && tick >= r.tickStart) {
+                r.status = STATUS_ACTIVE;
+                confirmed = confirmed - 1;
+            } else if (r.status == STATUS_ACTIVE
+                       && tick >= r.tickStart + r.duration) {
+                r.status = STATUS_COMPLETED;
+                completed = completed + 1;
+            }
+            r = r.next;
+        }
+    }
+
+    String snapshot() {
+        String out = "RESERVATIONS|tick=" + tick
+            + "|booked=" + count
+            + "|confirmed=" + confirmed
+            + "|completed=" + completed
+            + "|cancelled=" + cancelled
+            + "|friends=" + activeFriends()
+            + "|party=" + activeParty()
+            + "|reservationIQ=" + reservationIQ();
+        Reservation r = head;
+        while (r != null) {
+            out = out + "
+RESERVATION|id=" + r.id
+                + "|guest=" + r.guestId
+                + "|name=" + r.guestName
+                + "|flight=" + r.flight
+                + "|party=" + r.partySize
+                + "|start=" + r.tickStart
+                + "|duration=" + r.duration
+                + "|status=" + r.status
+                + "|friends=" + r.friends;
+            r = r.next;
+        }
+        return out;
+    }
+
+    void main() {
+        setup();
+        Reservation r = book("P1", "Friend", "SL204", 4, 5, 20);
+        confirm(r.id);
+        print(snapshot());
+    }
+}
