@@ -23,6 +23,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaSpells.sleela`](game/MoriaSpells.sleela) | **The Spellbook** — a name-forge of **18,432** dressed-up spells, and the signature **Fireball = 1d28 + 6 per level**. |
 | [`game/MoriaWeapons.sleela`](game/MoriaWeapons.sleela) | **The Armoury** — a name-forge of **13,440** dressed-up melee weapons (**many +4 or greater**) **plus crossbows and bows**: ranged arms that reach **≥ 8 squares**, enchant **+3 to +28**, and strike for **2d12 + 8**. |
 | [`game/MoriaSave.sleela`](game/MoriaSave.sleela) | **Save / Load / Alter** for creatures and character stats, plus the **saved previous leveling work** (a persisted level-up ledger). |
+| [`game/MoriaBestiary.sleela`](game/MoriaBestiary.sleela) | **The Legends Bestiary** — **24 named legends** (Tiamat, Vecna, Strahd, Drizzt, Elminster, …) keyed to **dungeon depth**: deeper is more experienced. Each is depth/tier-scaled into a full stat block. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
@@ -216,6 +217,35 @@ points, or whole stat block in place. It also keeps a **ledger of previous
 leveling work** — every level-up records the HP it granted and the stat it
 raised, so a character's history survives a save and reads back on the sheet.
 Run the demos with `make stats`, `make spells`, `make weapons`, and `make save`.
+
+### The Legends Bestiary — named foes, keyed to depth
+
+Twenty-four **named legends** may be met in the Mines
+([`game/MoriaBestiary.sleela`](game/MoriaBestiary.sleela)), each keyed to a
+**dungeon depth** on the simple, faithful rule that **deeper is usually more
+experienced**: mortal adventurers and explorers haunt the upper halls, famed
+wizards and heroes the middle depths, darklords and liches below that, and the
+demon princes, archdevils, and draconic deities wait at the very bottom.
+
+| Depth band | Who holds those halls |
+|---|---|
+| **1–3** | Volothamp Geddarm · Minsc · Drizzt Do'Urden |
+| **4–6** | Jarlaxle Baenre · Bigby · Tenser · Elminster Aumar |
+| **7–9** | Halaster Blackcloak · Mordenkainen · Tasha (Iggwilv) · Raistlin Majere · Xanathar |
+| **10–12** | Kas the Betrayer · Lord Soth · Acererak · Strahd von Zarovich |
+| **13–14** | Zariel · Miska the Wolf-Spider · Orcus · Demogorgon |
+| **15–16** | Vecna · Asmodeus · Bahamut · **Tiamat** |
+
+Each legend carries its **Name, Type/Species, Primary Realm/Setting, and Notable
+Role/Title**, plus a **native depth** (1–16) and a **power tier** (1–10, deities
+10, mortals ~2–4). From those, a legend is **materialised into a full stat
+block** (STR/DEX/CON/INT/WIS/CHR#, HP, and a challenge rating) via
+[`MoriaStats`](game/MoriaStats.sleela): deeper native depth and higher tier mean
+mightier numbers, and a **deity reads with a true Character Number** (its numbers
+do not lie). A legend met **at or below its home depth** fights at full strength;
+met as a rare **stray far above its home**, it is weakened — a shadow of itself.
+The dungeon names the **lord of the hero's current depth** on entry and on each
+descent. Run the roster demo with **`make bestiary`**.
 
 ## Theatrics — the glyph alphabet
 

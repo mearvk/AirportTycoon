@@ -11,6 +11,7 @@
 #   make lights  Scoreboard city-lights demo (orange/green/purple, 2-4 mm)
 #   make figures The figuring pieces — Original Characters roaming the board
 #   make stats / spells / weapons / save   The RPG layer self-demos
+#   make bestiary The Legends Bestiary — 24 named legends keyed to depth
 #   make ui      Open the native SleelaUI text-pane front-end (real window)
 #   make test    Run the deterministic self-check Wrapper
 #   make all     game + test
@@ -27,13 +28,15 @@ STATS_SRC   := game/MoriaStats.sleela
 SPELLS_SRC  := game/MoriaSpells.sleela
 WEAPONS_SRC := game/MoriaWeapons.sleela
 SAVE_SRC    := game/MoriaSave.sleela
-RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC)
+# The Legends Bestiary: 24 named legends keyed to dungeon depth.
+BESTIARY_SRC := game/MoriaBestiary.sleela
+RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC)
 
 # The SleelaUI widget toolkit, reused from the Edition 1 vendor drop. These are
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures stats spells weapons save ui test help
+.PHONY: all game run lights figures stats spells weapons save bestiary ui test help
 
 all: game test
 
@@ -72,6 +75,10 @@ weapons:
 save:
 	$(SLEELA) run $(SAVE_SRC)
 
+# The Legends Bestiary: 24 named legends keyed to dungeon depth.
+bestiary:
+	$(SLEELA) run $(BESTIARY_SRC)
+
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
 	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
@@ -90,6 +97,7 @@ help:
 	@echo "  make spells  The spellbook — the Fireball (1d28+6/level) + thousands named"
 	@echo "  make weapons The armoury — thousands named, many +4 or greater"
 	@echo "  make save    Save / Load / Alter demo (+ the leveling ledger)"
+	@echo "  make bestiary The Legends Bestiary — 24 named legends keyed to depth"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"

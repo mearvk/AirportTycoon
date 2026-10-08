@@ -1,0 +1,397 @@
+#sleela 1.6
+//
+// Moria — The Legends Bestiary
+// ============================
+// A roster of 24 NAMED LEGENDS that may be met in the Mines, each keyed to a
+// DUNGEON DEPTH. The rule is simple and faithful to a crawler: deeper is
+// usually more experienced — the mortal adventurers and explorers haunt the
+// upper halls, famed wizards and heroes the middle depths, darklords and liches
+// below that, and the demon princes, archdevils and draconic deities wait at
+// the very bottom.
+//
+// Each legend carries: a NAME, a TYPE/SPECIES, a PRIMARY REALM/SETTING, a
+// NOTABLE ROLE/TITLE, a NATIVE DEPTH (1..16), and a POWER TIER (1..10) that,
+// together with the depth it is actually met at, scales its stat block and
+// challenge. Everything is array-free: the roster is an index -> fields lookup
+// (0..COUNT-1), and a materialised foe is a Legend struct the caller holds.
+//
+// Depth model: a legend's chance of appearing rises as the party nears its
+// native depth; at or below that depth it is "at home" and fights at full
+// strength, while meeting it far above its native depth (a rare stray) finds it
+// weaker. The stat block is derived deterministically from the native depth and
+// power tier via MoriaStats, so a given legend always reads the same.
+
+// A materialised named legend (reference struct).
+struct Legend {
+    int    id;         // roster index 0..COUNT-1
+    String name;       // "Tiamat", "Drizzt Do'Urden", ...
+    String species;    // Type / Species
+    String realm;      // Primary Realm / Setting
+    String title;      // Notable Role / Title
+    int    nativeDepth;// 1..16 — where this legend is most at home
+    int    powerTier;  // 1..10 — raw menace (deities 10, mortals ~2..4)
+    int    str;        // the derived stat block
+    int    dex;
+    int    con;
+    int    intel;
+    int    wis;
+    int    chr;        // Character — the Number (deities read fully true)
+    int    hp;         // depth/tier-scaled hit points
+    int    cr;         // a challenge rating for the sheet
+    Legend next;       // intrusive list link (for a materialised encounter set)
+}
+
+class MoriaBestiary {
+
+    static int COUNT = 24;        // named legends in the roster
+    static int MAX_DEPTH = 16;    // the deepest hall
+
+    MoriaStats statLib;
+
+    void begin() { statLib = new MoriaStats(); }
+
+    // ------------------------------------------------------------------
+    // The roster. One accessor per field; a single `if` ladder keyed by index,
+    // in the project's array-free idiom. Order is roughly shallow -> deep.
+    // ------------------------------------------------------------------
+    String name(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return "Volothamp Geddarm"; }
+        if (k == 1)  { return "Minsc"; }
+        if (k == 2)  { return "Drizzt Do'Urden"; }
+        if (k == 3)  { return "Jarlaxle Baenre"; }
+        if (k == 4)  { return "Bigby"; }
+        if (k == 5)  { return "Tenser"; }
+        if (k == 6)  { return "Elminster Aumar"; }
+        if (k == 7)  { return "Halaster Blackcloak"; }
+        if (k == 8)  { return "Mordenkainen"; }
+        if (k == 9)  { return "Tasha (Iggwilv)"; }
+        if (k == 10) { return "Raistlin Majere"; }
+        if (k == 11) { return "Xanathar"; }
+        if (k == 12) { return "Kas the Betrayer"; }
+        if (k == 13) { return "Lord Soth"; }
+        if (k == 14) { return "Acererak"; }
+        if (k == 15) { return "Strahd von Zarovich"; }
+        if (k == 16) { return "Zariel"; }
+        if (k == 17) { return "Miska the Wolf-Spider"; }
+        if (k == 18) { return "Orcus"; }
+        if (k == 19) { return "Demogorgon"; }
+        if (k == 20) { return "Vecna"; }
+        if (k == 21) { return "Asmodeus"; }
+        if (k == 22) { return "Bahamut"; }
+        return "Tiamat";
+    }
+
+    String species(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return "Human"; }
+        if (k == 1)  { return "Human (Ranger)"; }
+        if (k == 2)  { return "Drow Elf"; }
+        if (k == 3)  { return "Drow Elf"; }
+        if (k == 4)  { return "Human (Wizard)"; }
+        if (k == 5)  { return "Human (Wizard)"; }
+        if (k == 6)  { return "Human (Wizard)"; }
+        if (k == 7)  { return "Human (Wizard)"; }
+        if (k == 8)  { return "Human (Wizard)"; }
+        if (k == 9)  { return "Human (Wizard)"; }
+        if (k == 10) { return "Human (Wizard)"; }
+        if (k == 11) { return "Beholder"; }
+        if (k == 12) { return "Vampire / Undead"; }
+        if (k == 13) { return "Death Knight"; }
+        if (k == 14) { return "Demilich"; }
+        if (k == 15) { return "Vampire"; }
+        if (k == 16) { return "Archdevil"; }
+        if (k == 17) { return "Demon Lord"; }
+        if (k == 18) { return "Demon Lord"; }
+        if (k == 19) { return "Demon Lord"; }
+        if (k == 20) { return "Lich (Deity)"; }
+        if (k == 21) { return "Archdevil"; }
+        if (k == 22) { return "Dragon (Deity)"; }
+        return "Dragon (Deity)";
+    }
+
+    String realm(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return "Forgotten Realms"; }
+        if (k == 1)  { return "Forgotten Realms"; }
+        if (k == 2)  { return "Forgotten Realms (Faerun)"; }
+        if (k == 3)  { return "Forgotten Realms (Faerun)"; }
+        if (k == 4)  { return "Greyhawk"; }
+        if (k == 5)  { return "Greyhawk"; }
+        if (k == 6)  { return "Forgotten Realms (Faerun)"; }
+        if (k == 7)  { return "Forgotten Realms (Undermountain)"; }
+        if (k == 8)  { return "Greyhawk / Multiverse"; }
+        if (k == 9)  { return "Greyhawk / Multiverse"; }
+        if (k == 10) { return "Dragonlance (Ansalon)"; }
+        if (k == 11) { return "Forgotten Realms (Waterdeep)"; }
+        if (k == 12) { return "Greyhawk / Multiverse"; }
+        if (k == 13) { return "Dragonlance (Ansalon) / Ravenloft"; }
+        if (k == 14) { return "Greyhawk / Multiverse"; }
+        if (k == 15) { return "Ravenloft (Barovia)"; }
+        if (k == 16) { return "The Nine Hells (Avernus)"; }
+        if (k == 17) { return "The Abyss"; }
+        if (k == 18) { return "The Abyss"; }
+        if (k == 19) { return "The Abyss"; }
+        if (k == 20) { return "Greyhawk / Multiverse"; }
+        if (k == 21) { return "The Nine Hells"; }
+        if (k == 22) { return "Mount Celestia / Forgotten Realms"; }
+        return "The Nine Hells / Forgotten Realms";
+    }
+
+    String title(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return "Famous explorer and unreliable narrator"; }
+        if (k == 1)  { return "Rashemi warrior (and his hamster Boo)"; }
+        if (k == 2)  { return "Ranger of the North / Hero of Icewind Dale"; }
+        if (k == 3)  { return "Leader of the Bregan D'aerthe"; }
+        if (k == 4)  { return "Wizard famed for his Hand spells"; }
+        if (k == 5)  { return "Wizard famed for Tenser's Floating Disk"; }
+        if (k == 6)  { return "The Sage of Shadowdale / Chosen of Mystra"; }
+        if (k == 7)  { return "The Mad Mage of Undermountain"; }
+        if (k == 8)  { return "Leader of the Circle of Eight"; }
+        if (k == 9)  { return "Mother of Witches / Author of the Demonomicon"; }
+        if (k == 10) { return "Powerful and cynical Red/Black Robe Mage"; }
+        if (k == 11) { return "Crime Lord of the Xanathar Guild"; }
+        if (k == 12) { return "Former lieutenant of Vecna"; }
+        if (k == 13) { return "The Knight of the Black Rose"; }
+        if (k == 14) { return "Master of the Tomb of Horrors"; }
+        if (k == 15) { return "Darklord of Barovia"; }
+        if (k == 16) { return "Ruler of Avernus / Fallen Angel"; }
+        if (k == 17) { return "Prince of Demons during the Dawn War"; }
+        if (k == 18) { return "The Blood Lord / God of the Undead"; }
+        if (k == 19) { return "Prince of Demons"; }
+        if (k == 20) { return "The Undying King / God of Secrets"; }
+        if (k == 21) { return "Lord of the Ninth / Ruler of Nessus"; }
+        if (k == 22) { return "The Platinum Dragon"; }
+        return "The Queen of Evil Dragons";
+    }
+
+    // The NATIVE DEPTH each legend is most at home at (1..16). Deeper == more
+    // experienced: mortals up top, deities at the bottom.
+    int nativeDepth(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return 1; }   // Volo
+        if (k == 1)  { return 2; }   // Minsc
+        if (k == 2)  { return 3; }   // Drizzt
+        if (k == 3)  { return 4; }   // Jarlaxle
+        if (k == 4)  { return 5; }   // Bigby
+        if (k == 5)  { return 5; }   // Tenser
+        if (k == 6)  { return 6; }   // Elminster
+        if (k == 7)  { return 7; }   // Halaster
+        if (k == 8)  { return 8; }   // Mordenkainen
+        if (k == 9)  { return 8; }   // Tasha
+        if (k == 10) { return 9; }   // Raistlin
+        if (k == 11) { return 9; }   // Xanathar
+        if (k == 12) { return 10; }  // Kas
+        if (k == 13) { return 11; }  // Lord Soth
+        if (k == 14) { return 12; }  // Acererak
+        if (k == 15) { return 12; }  // Strahd
+        if (k == 16) { return 13; }  // Zariel
+        if (k == 17) { return 13; }  // Miska
+        if (k == 18) { return 14; }  // Orcus
+        if (k == 19) { return 14; }  // Demogorgon
+        if (k == 20) { return 15; }  // Vecna
+        if (k == 21) { return 15; }  // Asmodeus
+        if (k == 22) { return 16; }  // Bahamut
+        return 16;                   // Tiamat
+    }
+
+    // Raw menace tier 1..10, independent of where it is met. Deities 10,
+    // demon lords/archdevils 9, liches/darklords 7..8, elder mages 5..6,
+    // famed heroes/wizards 3..4, mortal explorers 2.
+    int powerTier(int i) {
+        int k = i % COUNT;
+        if (k == 0)  { return 2; }
+        if (k == 1)  { return 3; }
+        if (k == 2)  { return 4; }
+        if (k == 3)  { return 4; }
+        if (k == 4)  { return 5; }
+        if (k == 5)  { return 5; }
+        if (k == 6)  { return 6; }
+        if (k == 7)  { return 6; }
+        if (k == 8)  { return 6; }
+        if (k == 9)  { return 6; }
+        if (k == 10) { return 6; }
+        if (k == 11) { return 7; }
+        if (k == 12) { return 7; }
+        if (k == 13) { return 8; }
+        if (k == 14) { return 8; }
+        if (k == 15) { return 8; }
+        if (k == 16) { return 9; }
+        if (k == 17) { return 9; }
+        if (k == 18) { return 9; }
+        if (k == 19) { return 9; }
+        if (k == 20) { return 10; }
+        if (k == 21) { return 10; }
+        if (k == 22) { return 10; }
+        return 10;
+    }
+
+    // ------------------------------------------------------------------
+    // Depth model: which legend is "at home" at a given depth, and whether a
+    // party at `depth` is deep enough to rouse it.
+    // ------------------------------------------------------------------
+
+    // The index of the legend native to a given depth (the deepest one whose
+    // nativeDepth <= depth is "the lord of this hall"; ties resolve to the
+    // highest power tier). Returns -1 if none is native at/above this depth yet.
+    int lordOfDepth(int depth) {
+        int best = -1;
+        int bestTier = -1;
+        int i = 0;
+        while (i < COUNT) {
+            int nd = nativeDepth(i);
+            if (nd == depth) {
+                int t = powerTier(i);
+                if (t > bestTier) { bestTier = t; best = i; }
+            }
+            i = i + 1;
+        }
+        return best;
+    }
+
+    // Is a party at `depth` deep enough to meet legend i at full strength?
+    // A legend fights at full strength at or below its native depth; met far
+    // above (a stray), it is weakened (see scaleForDepth).
+    boolean atHome(int i, int depth) { return depth >= nativeDepth(i); }
+
+    // How a legend scales when met at `depth`. At/below its native depth it is
+    // at full power (100%); each level ABOVE its home (shallower) saps ~12%,
+    // floored at 40% — a stray legend far from home is a shadow of itself.
+    int scaleForDepth(int i, int depth) {
+        int nd = nativeDepth(i);
+        if (depth >= nd) { return 100; }
+        int above = nd - depth;
+        int pct = 100 - above * 12;
+        if (pct < 40) { pct = 40; }
+        return pct;
+    }
+
+    // ------------------------------------------------------------------
+    // Derive the stat block + HP + CR for a legend met at a given depth.
+    // Deeper native depth and higher power tier => mightier numbers. A deity
+    // reads with a high Character Number (its numbers are TRUE); mortals less so.
+    // ------------------------------------------------------------------
+    Legend materialize(int i, int depth) {
+        if (statLib == null) { statLib = new MoriaStats(); }
+        int k = i % COUNT;
+        int tier = powerTier(k);
+        int nd = nativeDepth(k);
+        int scale = scaleForDepth(k, depth);
+
+        Legend g = new Legend();
+        g.id = k;
+        g.name = name(k);
+        g.species = species(k);
+        g.realm = realm(k);
+        g.title = title(k);
+        g.nativeDepth = nd;
+        g.powerTier = tier;
+
+        // Base ability scores grow with the power tier; the Character Number
+        // climbs steeply for the deities (their numbers are true).
+        int base = 8 + tier * 2;                 // tier 2 => 12, tier 10 => 28
+        g.str   = statLib.clampStat(scaled(base + strBias(k), scale));
+        g.dex   = statLib.clampStat(scaled(base + dexBias(k), scale));
+        g.con   = statLib.clampStat(scaled(base + 2, scale));
+        g.intel = statLib.clampStat(scaled(base + intBias(k), scale));
+        g.wis   = statLib.clampStat(scaled(base, scale));
+        g.chr   = statLib.clampStat(10 + tier * 2);  // tier 10 => CHR# 30 (true)
+
+        // Hit points: tier and the depth met both matter — deeper is deadlier.
+        int hpBase = tier * tier * 6 + nd * 10;      // tier 10 => 600 + depth
+        g.hp = scaledBig(hpBase, scale);
+        // Challenge rating: a readable 1..30 blend of tier and native depth.
+        g.cr = tier * 2 + nd / 2;
+        if (g.cr > 30) { g.cr = 30; }
+        g.next = null;
+        return g;
+    }
+
+    // Small per-archetype biases so a wizard is smarter, a ranger nimbler, etc.
+    int strBias(int k) {
+        String sp = species(k);
+        if (sp == "Dragon (Deity)" || sp == "Demon Lord") { return 10; }
+        if (sp == "Archdevil" || sp == "Death Knight") { return 8; }
+        if (sp == "Vampire" || sp == "Vampire / Undead") { return 6; }
+        return 0;
+    }
+    int dexBias(int k) {
+        String sp = species(k);
+        if (sp == "Drow Elf") { return 6; }
+        if (sp == "Human (Ranger)") { return 4; }
+        return 0;
+    }
+    int intBias(int k) {
+        String sp = species(k);
+        if (sp == "Human (Wizard)" || sp == "Lich (Deity)"
+            || sp == "Demilich" || sp == "Beholder") { return 8; }
+        if (sp == "Dragon (Deity)" || sp == "Archdevil") { return 6; }
+        return 0;
+    }
+
+    int scaled(int v, int pct) { return (v * pct) / 100; }
+    int scaledBig(int v, int pct) {
+        int r = (v * pct) / 100;
+        if (r < 1) { r = 1; }
+        return r;
+    }
+
+    // ------------------------------------------------------------------
+    // Readouts.
+    // ------------------------------------------------------------------
+    String describe(Legend g) {
+        return g.name + " — " + g.species + " [" + g.realm + "]"
+             + "\n    " + g.title
+             + "\n    native depth " + g.nativeDepth + "/16, power tier "
+             + g.powerTier + "/10"
+             + "   STR " + g.str + " DEX " + g.dex + " CON " + g.con
+             + " INT " + g.intel + " WIS " + g.wis + " CHR# " + g.chr
+             + "   HP " + g.hp + "  CR " + g.cr;
+    }
+
+    String rosterLine(int i) {
+        return name(i) + "  |  " + species(i) + "  |  " + realm(i)
+             + "  |  " + title(i)
+             + "  |  depth " + nativeDepth(i) + "  |  tier " + powerTier(i);
+    }
+
+    // ------------------------------------------------------------------
+    // Headless demo: the roster, and a few legends met at their home depth and
+    // as a weakened stray far above it.
+    // ------------------------------------------------------------------
+    void main() {
+        begin();
+        print("Moria — The Legends Bestiary (" + COUNT + " named legends)");
+        print("Deeper is more experienced: mortals up top, deities at the bottom.");
+        print("");
+        print("Roster (shallow -> deep):");
+        int i = 0;
+        while (i < COUNT) {
+            print("  " + rosterLine(i));
+            i = i + 1;
+        }
+
+        print("");
+        print("The lord of a few depths:");
+        int d = 1;
+        while (d <= MAX_DEPTH) {
+            int li = lordOfDepth(d);
+            if (li >= 0) {
+                print("  depth " + d + ": " + name(li)
+                    + " (" + title(li) + ")");
+            }
+            d = d + 1;
+        }
+
+        print("");
+        print("Tiamat, met at home (depth 16):");
+        print("  " + describe(materialize(COUNT - 1, 16)));
+        print("");
+        print("Tiamat, a rare stray met shallow (depth 6) — weakened:");
+        print("  " + describe(materialize(COUNT - 1, 6)));
+        print("");
+        print("Drizzt Do'Urden, met at home (depth 3):");
+        print("  " + describe(materialize(2, 3)));
+    }
+}

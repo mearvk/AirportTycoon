@@ -250,6 +250,59 @@ class MoriaTest {
         check("altering a saved creature's stats works (or none to alter)",
             r.alterCreatureStats(1, 10, 10, 10, 10, 10, 10) || true);
 
+        // --- The Legends Bestiary: 24 named legends, keyed to depth --------
+        MoriaBestiary bst = new MoriaBestiary();
+        bst.begin();
+        check("the bestiary holds 24 named legends", bst.COUNT == 24);
+        // Every legend has a native depth in 1..16 and a power tier in 1..10.
+        boolean depthsOk = true; boolean tiersOk = true;
+        int bi = 0;
+        while (bi < bst.COUNT) {
+            int nd = bst.nativeDepth(bi);
+            int t = bst.powerTier(bi);
+            if (nd < 1 || nd > 16) { depthsOk = false; }
+            if (t < 1 || t > 10) { tiersOk = false; }
+            bi = bi + 1;
+        }
+        check("every legend's native depth is in 1..16", depthsOk);
+        check("every legend's power tier is in 1..10", tiersOk);
+
+        // Deeper is more experienced: the deepest legends are the deities.
+        check("Tiamat is native to the deepest hall (16)",
+            bst.nativeDepth(bst.COUNT - 1) == 16);
+        check("Tiamat is a top-tier (10) menace",
+            bst.powerTier(bst.COUNT - 1) == 10);
+        check("Volo (a mortal explorer) is native up top (depth 1)",
+            bst.nativeDepth(0) == 1);
+        check("a deity out-tiers a mortal explorer",
+            bst.powerTier(bst.COUNT - 1) > bst.powerTier(0));
+
+        // The lord of a depth is a legend native to it; depth 16 is a deity.
+        int lord16 = bst.lordOfDepth(16);
+        check("depth 16 has a lord", lord16 >= 0);
+        check("the lord of depth 16 is native to depth 16",
+            bst.nativeDepth(lord16) == 16);
+        check("the lord of depth 1 is a shallow mortal",
+            bst.lordOfDepth(1) >= 0 && bst.nativeDepth(bst.lordOfDepth(1)) == 1);
+
+        // Home vs stray scaling: a legend met at home is at full strength; a
+        // stray met far above its home is weaker (fewer HP).
+        Legend home = bst.materialize(bst.COUNT - 1, 16);   // Tiamat at home
+        Legend stray = bst.materialize(bst.COUNT - 1, 6);   // Tiamat met shallow
+        check("a legend at/below home scales to full strength",
+            bst.scaleForDepth(bst.COUNT - 1, 16) == 100);
+        check("a stray far above home is weakened",
+            bst.scaleForDepth(bst.COUNT - 1, 6) < 100);
+        check("the weakened stray has fewer HP than the home legend",
+            stray.hp < home.hp);
+        check("a deity's HP at home is mighty (>= 400)", home.hp >= 400);
+        check("a deity reads with a true Character Number (>= 25)",
+            home.chr >= 25);
+
+        // The dungeon surfaces a named legend as the lord of the hero's depth.
+        check("the dungeon has a lord of the opening depth", r.hasLord());
+        check("the opening lord is named", !(r.lordName() == "none"));
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

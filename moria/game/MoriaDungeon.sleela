@@ -119,10 +119,12 @@ class MoriaDungeon {
     MoriaSpells  spellLib;   // the spellbook (names thousands; owns the Fireball)
     MoriaWeapons armoury;    // the armoury (names thousands; many +4 or greater)
     MoriaSave    book;       // Save / Load / Alter + the leveling ledger
+    MoriaBestiary bestiary;  // the roster of named legends, keyed to depth
     int          level;      // the Adventurer's experience level (grows on descent)
     Weapon       weapon;     // the hero's current melee weapon (forged on descent)
     Weapon       sidearm;    // the hero's ranged arm — a crossbow or bow (>= 8 sq)
     Weapon       mace;       // the signature Mace of the Deep (1d48 + 26)
+    Legend       lord;       // the named legend who holds the current depth
 
     // ---- Per-level derived geometry (computed in carveLevel) --------------
     int stairX;
@@ -170,6 +172,8 @@ class MoriaDungeon {
         armoury = new MoriaWeapons();
         book = new MoriaSave();
         book.begin();
+        bestiary = new MoriaBestiary();
+        bestiary.begin();
         level = 1;
         // Roll the six ability scores from the seeded stream (STR DEX CON INT
         // WIS CHR#). Each draw advances the deterministic RNG.
@@ -205,6 +209,17 @@ class MoriaDungeon {
             + " sq, 2d12+8 +" + sidearm.bonus + ").");
         say("You know the Fireball: " + spellLib.fireballFormula() + ".");
         say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
+        summonLord();
+    }
+
+    // The named legend who holds the current depth. Deeper halls answer to
+    // mightier legends; shallow halls to mere mortals of renown.
+    void summonLord() {
+        int li = bestiary.lordOfDepth(depth);
+        if (li < 0) { lord = null; return; }
+        lord = bestiary.materialize(li, depth);
+        say("A presence holds depth " + depth + ": " + lord.name
+            + " — " + lord.title + " (CR " + lord.cr + ").");
     }
 
     int normalizeSeed(int s) {
@@ -654,6 +669,7 @@ class MoriaDungeon {
         }
         carveLevel();
         remusterForDepth();      // the Fellowship follows you down the Mines
+        summonLord();            // a new named legend may hold this deeper hall
         if (depth == 4) {
             say("A prickle at the neck: something named now stalks the deep.");
         }
@@ -820,6 +836,17 @@ class MoriaDungeon {
         return spellLib.fireballDamage(dieRoll, level, statLib.spellPower(stats));
     }
 
+    // --- the named legend holding this depth (the bestiary) ----------------
+    boolean hasLord() { return lord != null; }
+    String lordName() { if (lord == null) { return "none"; } return lord.name; }
+    String lordTitle() { if (lord == null) { return ""; } return lord.title; }
+    String lordSpecies() { if (lord == null) { return ""; } return lord.species; }
+    int lordCr() { if (lord == null) { return 0; } return lord.cr; }
+    int lordHp() { if (lord == null) { return 0; } return lord.hp; }
+    int lordNativeDepth() { if (lord == null) { return 0; } return lord.nativeDepth; }
+    int legendCount() { return bestiary.COUNT; }
+    String legendRosterLine(int i) { return bestiary.rosterLine(i); }
+
     // =======================================================================
     // Save / Load / Alter — persist the hero and the dungeon's creatures,
     // keeping the saved previous leveling work.
@@ -969,6 +996,10 @@ class MoriaDungeon {
         print("  sidearm: " + sidearmName() + " (range " + sidearmRange()
             + " sq, 2d12+8 +" + sidearmBonus() + ", avg " + sidearmAverage() + ")");
         print("  fireball: " + fireballFormula());
+        if (hasLord()) {
+            print("  the lord of this depth: " + lordName() + " ("
+                + lordSpecies() + ", CR " + lordCr() + ", HP " + lordHp() + ")");
+        }
         print("");
         print(savedLedger());
         print("");
