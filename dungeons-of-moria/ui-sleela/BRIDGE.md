@@ -1,3 +1,5 @@
+<img src="../../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Moria UI — SLVM bridge built-ins
 
 The Moria front-end uses the vendored SleelaUI toolkit (`../../1/sources/user-interface`,
