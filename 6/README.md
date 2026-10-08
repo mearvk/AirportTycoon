@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 6)
+# Airport Tycoon — Business Edition (Edition 6) — *Grand Meridian*
 
-> **Edition 6 — Grand Meridian, the Continental Era.** Built on the complete, self-contained
+> **Edition 6 — Grand Meridian, the Continental Era.
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
