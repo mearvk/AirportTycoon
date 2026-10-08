@@ -586,6 +586,36 @@ class MoriaTest {
                 + an.frameLabelEnd(an.frameOf(gn)) + "/gandalf-top-"
                 + an.frameLabelEnd(an.frameOf(gn)) + ".png");
 
+        // --- The whole cast: each character carries the same sprite set -----
+        // gandalf, gimli, frodo, aragorn, moria-goblin — all lowercase, with
+        // the goblin hyphenated. Flat and nested paths resolve for each.
+        check("gimli flat sprite path",
+            an.spritePath("gimli", an.FRAME_MID, "left")
+                == "images/gimli/gimli-mid-left.png");
+        check("gimli nested sprite path",
+            an.nestedSpritePath("gimli", an.FRAME_START, "down")
+                == "images/gimli/down/start/gimli-down-start.png");
+        check("frodo flat sprite path",
+            an.spritePath("frodo", an.FRAME_STOP, "right")
+                == "images/frodo/frodo-end-right.png");
+        check("frodo nested sprite path",
+            an.nestedSpritePath("frodo", an.FRAME_MID, "top")
+                == "images/frodo/top/mid/frodo-top-mid.png");
+        check("aragorn flat sprite path",
+            an.spritePath("aragorn", an.FRAME_START, "top")
+                == "images/aragorn/aragorn-start-top.png");
+        check("aragorn nested sprite path",
+            an.nestedSpritePath("aragorn", an.FRAME_STOP, "left")
+                == "images/aragorn/left/end/aragorn-left-end.png");
+        check("moria-goblin flat sprite path (hyphenated, lowercase)",
+            an.spritePath("moria-goblin", an.FRAME_MID, "down")
+                == "images/moria-goblin/moria-goblin-mid-down.png");
+        check("moria-goblin nested sprite path",
+            an.nestedSpritePath("moria-goblin", an.FRAME_START, "right")
+                == "images/moria-goblin/right/start/moria-goblin-right-start.png");
+        check("the direction folder for a hyphenated name is lowercase",
+            an.directionFolder("moria-goblin", "top") == "images/moria-goblin/top/");
+
         // --- The 2000+ dungeon catalog, sized for the GUI gameboard ----------
         MoriaDungeonCatalog cat = new MoriaDungeonCatalog();
         check("the catalog names 2000+ dungeons", cat.catalogSize() >= 2000);

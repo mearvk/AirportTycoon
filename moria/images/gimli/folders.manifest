@@ -1,0 +1,16 @@
+# nested sprite tree for gimli
+# layout: <direction>/<action>/gimli-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/gimli-top-start.png
+sprite	top	mid	top/mid/gimli-top-mid.png
+sprite	top	end	top/end/gimli-top-end.png
+sprite	left	start	left/start/gimli-left-start.png
+sprite	left	mid	left/mid/gimli-left-mid.png
+sprite	left	end	left/end/gimli-left-end.png
+sprite	down	start	down/start/gimli-down-start.png
+sprite	down	mid	down/mid/gimli-down-mid.png
+sprite	down	end	down/end/gimli-down-end.png
+sprite	right	start	right/start/gimli-right-start.png
+sprite	right	mid	right/mid/gimli-right-mid.png
+sprite	right	end	right/end/gimli-right-end.png

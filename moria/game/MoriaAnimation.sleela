@@ -298,5 +298,25 @@ class MoriaAnimation {
         print("  left/mid  -> " + nestedSpritePath("gandalf", FRAME_MID, "left"));
         print("  down/end  -> " + nestedSpritePath("gandalf", FRAME_STOP, "down"));
         print("  right/end -> " + nestedSpritePath("gandalf", FRAME_STOP, "right"));
+
+        // --- The whole cast: every character carries the same sprite set ----
+        print("");
+        print("The cast — each has the same four-way, three-action sprite set:");
+        rosterSample("gandalf");
+        rosterSample("gimli");
+        rosterSample("frodo");
+        rosterSample("aragorn");
+        rosterSample("moria-goblin");
+    }
+
+    // Print one line sampling a character's mid-stride sprite each way (flat)
+    // plus one nested path, to show the set is present and resolvable.
+    void rosterSample(String character) {
+        print("  " + character + ": "
+            + spritePath(character, FRAME_MID, "top") + " | "
+            + spritePath(character, FRAME_MID, "left") + " | "
+            + spritePath(character, FRAME_MID, "down") + " | "
+            + spritePath(character, FRAME_MID, "right")
+            + "   nested e.g. " + nestedSpritePath(character, FRAME_START, "right"));
     }
 }

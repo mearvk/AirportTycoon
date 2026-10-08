@@ -1,0 +1,23 @@
+# sprite manifest for aragorn
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	aragorn-start.png	320x480
+frame	start	top	aragorn-start-top.png	320x480
+frame	start	down	aragorn-start-down.png	320x480
+frame	start	left	aragorn-start-left.png	320x480
+frame	start	right	aragorn-start-right.png	320x480
+frame	mid	aragorn-mid.png	320x480
+frame	mid	top	aragorn-mid-top.png	320x480
+frame	mid	down	aragorn-mid-down.png	320x480
+frame	mid	left	aragorn-mid-left.png	320x480
+frame	mid	right	aragorn-mid-right.png	320x480
+frame	end	aragorn-end.png	320x480
+frame	stop	aragorn-stop.png	320x480	(alias of end)
+frame	end	top	aragorn-end-top.png	320x480
+frame	end	down	aragorn-end-down.png	320x480
+frame	end	left	aragorn-end-left.png	320x480
+frame	stop	left	aragorn-stop-left.png	320x480	(alias of end)
+frame	end	right	aragorn-end-right.png	320x480
+frame	stop	right	aragorn-stop-right.png	320x480	(alias of end)

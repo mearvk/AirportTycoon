@@ -1,0 +1,23 @@
+# sprite manifest for moria-goblin
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	moria-goblin-start.png	320x480
+frame	start	top	moria-goblin-start-top.png	320x480
+frame	start	down	moria-goblin-start-down.png	320x480
+frame	start	left	moria-goblin-start-left.png	320x480
+frame	start	right	moria-goblin-start-right.png	320x480
+frame	mid	moria-goblin-mid.png	320x480
+frame	mid	top	moria-goblin-mid-top.png	320x480
+frame	mid	down	moria-goblin-mid-down.png	320x480
+frame	mid	left	moria-goblin-mid-left.png	320x480
+frame	mid	right	moria-goblin-mid-right.png	320x480
+frame	end	moria-goblin-end.png	320x480
+frame	stop	moria-goblin-stop.png	320x480	(alias of end)
+frame	end	top	moria-goblin-end-top.png	320x480
+frame	end	down	moria-goblin-end-down.png	320x480
+frame	end	left	moria-goblin-end-left.png	320x480
+frame	stop	left	moria-goblin-stop-left.png	320x480	(alias of end)
+frame	end	right	moria-goblin-end-right.png	320x480
+frame	stop	right	moria-goblin-stop-right.png	320x480	(alias of end)

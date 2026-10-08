@@ -1,0 +1,23 @@
+# sprite manifest for frodo
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	frodo-start.png	320x480
+frame	start	top	frodo-start-top.png	320x480
+frame	start	down	frodo-start-down.png	320x480
+frame	start	left	frodo-start-left.png	320x480
+frame	start	right	frodo-start-right.png	320x480
+frame	mid	frodo-mid.png	320x480
+frame	mid	top	frodo-mid-top.png	320x480
+frame	mid	down	frodo-mid-down.png	320x480
+frame	mid	left	frodo-mid-left.png	320x480
+frame	mid	right	frodo-mid-right.png	320x480
+frame	end	frodo-end.png	320x480
+frame	stop	frodo-stop.png	320x480	(alias of end)
+frame	end	top	frodo-end-top.png	320x480
+frame	end	down	frodo-end-down.png	320x480
+frame	end	left	frodo-end-left.png	320x480
+frame	stop	left	frodo-stop-left.png	320x480	(alias of end)
+frame	end	right	frodo-end-right.png	320x480
+frame	stop	right	frodo-stop-right.png	320x480	(alias of end)

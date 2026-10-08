@@ -1,0 +1,4 @@
+# frodo — facing left
+action	start	left/start/frodo-left-start.png
+action	mid	left/mid/frodo-left-mid.png
+action	end	left/end/frodo-left-end.png

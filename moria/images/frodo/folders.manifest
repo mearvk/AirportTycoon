@@ -1,0 +1,16 @@
+# nested sprite tree for frodo
+# layout: <direction>/<action>/frodo-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/frodo-top-start.png
+sprite	top	mid	top/mid/frodo-top-mid.png
+sprite	top	end	top/end/frodo-top-end.png
+sprite	left	start	left/start/frodo-left-start.png
+sprite	left	mid	left/mid/frodo-left-mid.png
+sprite	left	end	left/end/frodo-left-end.png
+sprite	down	start	down/start/frodo-down-start.png
+sprite	down	mid	down/mid/frodo-down-mid.png
+sprite	down	end	down/end/frodo-down-end.png
+sprite	right	start	right/start/frodo-right-start.png
+sprite	right	mid	right/mid/frodo-right-mid.png
+sprite	right	end	right/end/frodo-right-end.png

@@ -42,7 +42,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`ui-sleela/MoriaThrobber.sleela`](ui-sleela/MoriaThrobber.sleela) | The **title throbber**: a thin (2–4 px), full-width, resizing light strip directly under the title that casts a radiant **white-and-yellow** light **downward only** onto the Descriptive Canvas, with a constant 3D light-ebb animation that runs until the program ends. |
 | [`ui-sleela/MoriaCharacterSelect.sleela`](ui-sleela/MoriaCharacterSelect.sleela) | The **character-select startup**: choose a ready-made hero from a small roster, or **forge a new one** with the creation generator — the chosen `Creature0` is adopted by `beginFromCharacter`. |
 | [`ui-sleela/BRIDGE.md`](ui-sleela/BRIDGE.md) | The **SLVM bridge manifest**: the new `ui*` built-ins the Moria UI helpers introduce (`uiImageFile`, `uiFontEffectBind/Update`, `uiSleepMillis`), with signatures and the C ABI each should call. |
-| [`images/<character>/`](images/) | **Per-character sprites.** `adventurer/` and `warden/` each hold `-start`, `-mid`, `-stop` in **three facings** — the base plus **`-right`** (sheet orientation) and **`-left`** (mirrored) — nine PNGs and a `sprite.manifest`. **`gandalf/`** holds the full **four-direction** matrix — `top` / `down` / `left` / `right`, each with **`-start` / `-mid` / `-end`** (plus `stop` aliases and base poses) — 18 PNGs and a `sprite.manifest`. |
+| [`images/<character>/`](images/) | **Per-character sprites.** `adventurer/` and `warden/` each hold `-start`, `-mid`, `-stop` in **three facings** — the base plus **`-right`** (sheet orientation) and **`-left`** (mirrored) — nine PNGs and a `sprite.manifest`. The **cast** — `gandalf/`, `gimli/`, `frodo/`, `aragorn/`, `moria-goblin/` (all lowercase; the goblin hyphenated) — each hold the full **four-direction** matrix: `top` / `down` / `left` / `right`, each with **`-start` / `-mid` / `-end`** (plus `stop` aliases and base poses), 18 flat PNGs, **and the nested `<direction>/<action>/` folder tree** (12 more PNGs), with per-direction + index manifests. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test` / `animation` / `catalog` / `sprites`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
@@ -225,11 +225,13 @@ mirrors of `-right`. Re-run on any sheet with
 
 ### Gandalf — the full four-direction sprite matrix
 
-**`images/gandalf/`** carries the complete directional set a designer asked for:
-the four facings **`top` / `down` / `left` / `right`**, each in the three frames
-**`start` / `mid` / `end`** (where **`end`** is the designer's name for the
-planted pose the engine also calls **`stop`**). The files follow the engine's
-own naming so they load with no extra wiring:
+The whole cast — **`gandalf`, `gimli`, `frodo`, `aragorn`, `moria-goblin`** (all
+lowercase; the Moria Goblin hyphenated) — each carries the complete directional
+set: the four facings **`top` / `down` / `left` / `right`**, each in the three
+frames **`start` / `mid` / `end`** (where **`end`** is the designer's name for
+the planted pose the engine also calls **`stop`**). The files follow the
+engine's own naming so they load with no extra wiring (shown here for
+`gandalf`; every character folder is identical in shape):
 
 ```
 images/gandalf/

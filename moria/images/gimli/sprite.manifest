@@ -1,0 +1,23 @@
+# sprite manifest for gimli
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	gimli-start.png	320x480
+frame	start	top	gimli-start-top.png	320x480
+frame	start	down	gimli-start-down.png	320x480
+frame	start	left	gimli-start-left.png	320x480
+frame	start	right	gimli-start-right.png	320x480
+frame	mid	gimli-mid.png	320x480
+frame	mid	top	gimli-mid-top.png	320x480
+frame	mid	down	gimli-mid-down.png	320x480
+frame	mid	left	gimli-mid-left.png	320x480
+frame	mid	right	gimli-mid-right.png	320x480
+frame	end	gimli-end.png	320x480
+frame	stop	gimli-stop.png	320x480	(alias of end)
+frame	end	top	gimli-end-top.png	320x480
+frame	end	down	gimli-end-down.png	320x480
+frame	end	left	gimli-end-left.png	320x480
+frame	stop	left	gimli-stop-left.png	320x480	(alias of end)
+frame	end	right	gimli-end-right.png	320x480
+frame	stop	right	gimli-stop-right.png	320x480	(alias of end)
