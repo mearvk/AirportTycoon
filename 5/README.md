@@ -1,6 +1,6 @@
-# Airport Tycoon — Business Edition (Edition 5)
+# Airport Tycoon — Business Edition (Edition 5) — *Imperial Horizons*
 
-> **Edition 5 — Imperial Horizons, the Grand Strategy Era.** Built on the complete, self-contained
+> **Edition 5 — Imperial Horizons, the Grand Strategy Era.
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
