@@ -1,4 +1,4 @@
-# Moria — a Dungeon Crawler in simple new video game theatrics
+# The Dungeons of Moria — a SLeeLa Driven Dungeon Crawler in simple new video game theatrics and plays
 
 > For the very willing, the very picky, the most excellent — the Adventurers in
 > the Careful Years of Time.
