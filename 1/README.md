@@ -1,4 +1,4 @@
-# Airport Tycoon — Business Edition
+# Airport Tycoon — Business Edition (Edition 1) — *Keystone Meridian*
 
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
