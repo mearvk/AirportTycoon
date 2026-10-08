@@ -1,13 +1,13 @@
-# Airport Tycoon — Imperial Horizons (Edition 5)
+# Airport Tycoon — Business Edition (Edition 2)
 
-> **Edition 5 — The Grand Strategy Era.** Built on the complete, self-contained
+> **Edition 2 — the improvement line.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
 > win condition, and the Author Path that wins in exactly 1001 moves — all
 > carried forward intact.
 >
-> ### Inherited Common Base — the Golden Assimilation economic line
+> ### What's new in Edition 2 — the economic feedback loop
 >
 > Edition 1's fares were flat and reputation was mostly cosmetic. Edition 2
 > makes a well-run tower *pay*, with three faithful changes applied identically
@@ -35,7 +35,7 @@
 > the *Edition 2* keys, and are locked in by new assertions in the game-logic
 > test suite (`make check`).
 >
-> ### Inherited Common Base — the Business Desk
+> ### What's new in Edition 2 — the Business Desk
 >
 > Edition 2 adds a **Business Desk** — the place the player steps up to to make
 > a **move** or **transaction** while the tower game runs
@@ -77,10 +77,6 @@ airport closes.
                 │                                                              ▲
                 └────────────── patience runs out ───▶ plane leaves angry ──▶ reputation ▼
 ```
-
-## Edition 5 — Imperial Horizons
-
-This edition is presently a **common-base release**: the Edition 2 — *Golden Assimilation* foundation is carried forward intact so Edition 5 can be developed deliberately without breaking the shared game architecture. The edition name establishes its identity now; edition-specific mechanics will be added on top of this common base.
 
 ## How it's built — SLeeLa source + a Sleela UI
 

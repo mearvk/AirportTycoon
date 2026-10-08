@@ -16,7 +16,7 @@ This repository holds two SLeeLa games side by side:
 ## Versioning
 
 This repository is organized into **numbered version folders** at the root —
-`1/`, `2/`, `3/`, … Each folder is a **complete, self-contained snapshot** of
+`1/`, `2/`, `3/`, `4/`, `5/`, `6/`, `7/`, `8/`, … Each folder is a **complete, self-contained snapshot** of
 the game's source for that version: its SLeeLa Wrappers, imported `/sources`,
 the Sleela UI, config, and build dispatcher all live inside the version folder.
 Nothing outside the version folders is required to build or run a version.
@@ -31,9 +31,15 @@ recorded in a `VERSION.NAME.md` inside its folder.
 |---|---|---|---|
 | **1** | *Keystone Meridian* | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md) · [`1/VERSION.NAME.md`](1/VERSION.NAME.md). |
 | **2** | *Golden Assimilation* | [`2/`](2/) | **Latest.** The improvement line: the reputation-driven service premium, the on-time combo, and the Business Desk whose Level-5 **Great Assimilation** rakes in Major-Eastern money. See [`2/README.md`](2/README.md) · [`2/VERSION.NAME.md`](2/VERSION.NAME.md). |
+| **3** | *Platinum Ascension* | [`3/`](3/) | *The Prosperity Era.* Edition 3 common base, carrying the Golden Assimilation foundation forward for its own evolution. See [`3/README.md`](3/README.md) · [`3/VERSION.NAME.md`](3/VERSION.NAME.md). |
+| **4** | *Sovereign Skies* | [`4/`](4/) | *The Dominion Era.* Edition 4 common base, carrying the shared foundation forward for its own evolution. See [`4/README.md`](4/README.md) · [`4/VERSION.NAME.md`](4/VERSION.NAME.md). |
+| **5** | *Imperial Horizons* | [`5/`](5/) | *The Grand Strategy Era.* Edition 5 common base, carrying the shared foundation forward for its own evolution. See [`5/README.md`](5/README.md) · [`5/VERSION.NAME.md`](5/VERSION.NAME.md). |
+| **6** | *Grand Meridian* | [`6/`](6/) | *The Continental Era.* Edition 6 common base, carrying the shared foundation forward for its own evolution. See [`6/README.md`](6/README.md) · [`6/VERSION.NAME.md`](6/VERSION.NAME.md). |
+| **7** | *Celestial Concourse* | [`7/`](7/) | *The Zenith Era.* Edition 7 common base, carrying the shared foundation forward for its own evolution. See [`7/README.md`](7/README.md) · [`7/VERSION.NAME.md`](7/VERSION.NAME.md). |
+| **8** | *Apex Dominion* | [`8/`](8/) | *The Ultimate Era.* Edition 8 common base, carrying the shared foundation forward for its own evolution. See [`8/README.md`](8/README.md) · [`8/VERSION.NAME.md`](8/VERSION.NAME.md). |
 
 > The latest version is the highest-numbered folder. Start at
-> [`2/README.md`](2/README.md) for the current edition, or
+> [`8/README.md`](8/README.md) for the current edition, or
 > [`1/README.md`](1/README.md) for the original base game overview,
 > architecture, and build/run instructions.
 
@@ -76,7 +82,19 @@ AirportTycoon/
 │   ├── sources/     ← imported SLeeLa library sources (character, citizen,
 │   │                   user-interface — the SleelaUI widgets Moria also reuses)
 │   └── ui/          ← the JavaFX Sleela UI
-├── 2/               ← Airport Tycoon version 2 (latest) — evolves from v1
+├── 2/               ← Airport Tycoon version 2 — Golden Assimilation
+│   ├── README.md    ← version 2 overview + how to build/run
+│   ├── Makefile     ← version 2 build dispatcher
+│   ├── config/
+│   ├── game/        ← the .sleela Wrappers
+│   ├── sources/     ← imported SLeeLa library sources (character, citizen)
+│   └── ui/          ← the JavaFX Sleela UI
+├── 3/               ← Platinum Ascension — The Prosperity Era
+├── 4/               ← Sovereign Skies — The Dominion Era
+├── 5/               ← Imperial Horizons — The Grand Strategy Era
+├── 6/               ← Grand Meridian — The Continental Era
+├── 7/               ← Celestial Concourse — The Zenith Era
+├── 8/               ← Apex Dominion — The Ultimate Era
 │   ├── README.md    ← version 2 overview + how to build/run
 │   ├── Makefile     ← version 2 build dispatcher
 │   ├── config/

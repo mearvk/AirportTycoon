@@ -1,22 +1,39 @@
-# Edition 7 — *Celestial Concourse*
+# Edition 2 — *Golden Assimilation*
 
-> **Version:** 7
-> **Name:** Celestial Concourse
-> **Epithet:** *The Zenith Era*
-> **Status:** Common Base — established as the next named edition in the Airport Tycoon progression.
+> **Version:** 2
+> **Name:** Golden Assimilation
+> **Epithet:** *The Money-Raking Line*
+> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
 
 ## Why the name
 
-**Celestial Concourse** is the identity of Edition 7: a deliberately elevated name for the next stage of the Airport Tycoon line. It signals a larger, more ambitious airport experience while preserving the project's established tower, business, life-simulation, media, terminal, SLeeLa, and JavaFX foundations.
+**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
+fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
+**service premium** tips a well-run airport up to +40% on every departure, while
+an **on-time combo** pays a bonus for every clean streak. Prosperity now
+compounds — the airport that runs beautifully is paid beautifully.
 
-**The Zenith Era** is the edition's formal thematic designation. It gives the version a distinct character without prematurely locking the edition to mechanics that have not yet been designed.
+**Assimilation** — the heart of the new **Business Desk**, where the player makes
+a move or transaction while the tower runs. Side ventures (Casino Management and
+Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
+5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
+Orient by assimilation of US capitalist interests"* — a **3× multiplier on
+Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
+the money**. The name is the mechanic: wealth, assimilated and multiplied.
 
-> *Celestial Concourse* — Edition 7, built from the shared Airport Tycoon foundation and ready for its own mechanics.
+> *Golden Assimilation* — the Edition where genius compounds into gold.
 
-## Common Base
+## What's new since *Keystone Meridian* (Edition 1)
 
-Edition 7 currently inherits the complete **Edition 2 — Golden Assimilation** common base. This includes the economic feedback loop, service premium, on-time combo, smarter auto-assist, Business Desk, Chemistry-based side ventures, IQ progression, Great Assimilation, SLeeLa game logic, Java mirror, SleelaUI front-end, Author Terminal, media/events center, Character/Citizen economy, configuration, and existing test/build structure.
+- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
+  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
+- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
+  angry departure resets the streak.
+- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
+  protects high-value heavies on a near-tie.
+- **The Business Desk** — parallel side ventures (casino + investment) as
+  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
+  rakes in Major-Eastern money. Self-demo: `make desk`.
 
-The common base is intentional: it keeps Editions 3–8 structurally compatible while allowing each named edition to evolve independently from the same proven foundation.
-
-See [README.md](README.md) for the full inherited implementation overview.
+See [`README.md`](README.md) for the full overview and the complete *What's new
+in Edition 2* notes.
