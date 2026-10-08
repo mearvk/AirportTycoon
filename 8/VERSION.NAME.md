@@ -37,3 +37,5 @@ the money**. The name is the mechanic: wealth, assimilated and multiplied.
 
 See [`README.md`](README.md) for the full overview and the complete *What's new
 in Edition 2* notes.
+
+- **CCP/1 communications foundation** — a versioned client-to-client protocol is included for the network-capable line.
