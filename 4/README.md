@@ -88,6 +88,21 @@ readouts in the snapshot: `contractTarget`, `contractProgress`,
 premium, on-time combo, smarter auto-assist, Business Desk, deterministic seed,
 and Author Path remain intact.
 
+### What's new in Edition 4 — Prosperity Ladder
+
+Edition 4 carries Edition 3's Prosperity Contracts forward and turns repeated
+success into a **Prosperity Ladder**. A completed contract advances a
+consecutive-completion chain. The next contract earns an additional **$100 per
+completed contract in the chain**, capped at **+$400** on top of the $500 base.
+The Edition 3 early-quality bonus remains available. Letting a contract expire
+breaks the ladder back to zero, while ordinary fares and the airport's core
+reputation rules remain unchanged.
+
+The snapshot exposes `contractChain`, `contractLadderStep`, and
+`contractLadderCap`, so the UI can make the escalating reward visible. Edition
+4 rewards not only solving the current traffic problem, but building a sustained
+operating record without turning the ladder into a second mandatory win condition.
+
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
 ever-shrinking timer, and you have a bounded number of **gates** and **runways**
