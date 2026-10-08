@@ -18,6 +18,7 @@
 #   make clean  Remove UI build output
 
 SLEELA ?= sleela
+BUILD_DIR := ../build/4
 GAME_SRC := game/AirportTycoon.sleela
 LIFE_SRC := game/AirportTycoonLife.sleela
 AUTHOR_SRC := game/AuthorPath.sleela
@@ -42,9 +43,13 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run check clean help route-economy
+.PHONY: build-dir all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run check clean help route-economy
 
 all: game check ui
+
+# Standardized repository build location.
+build-dir:
+	@mkdir -p $(BUILD_DIR)
 
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
