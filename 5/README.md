@@ -455,3 +455,21 @@ SLEELA_HOME=/path/to/SLeeLa make ui-run   # UI drives the real .sleela logic
 Edit [`config/airport.conf`](config/airport.conf) to retune the economy,
 capacity, pace, and RNG seed. The matching `static` fields at the top of
 `AirportTycoon.sleela` are the authoritative defaults.
+
+
+## Client Communication Protocol — CCP/1
+
+Edition 5 now defines a small **Client Communication Protocol (CCP/1)** alongside the authoritative game protocol. It is designed for 1–4 clients and keeps clients from opening arbitrary inbound peer sockets: the Airport Tycoon server remains the relay and authority.
+
+CCP/1 supports:
+
+- **Presence** — JOIN/LEAVE notifications and stable session identifiers such as P1.
+- **Peer list** — the connected clients and their shared/individual mode.
+- **Broadcast** — a message delivered to every connected client.
+- **Direct** — a message routed to one peer by session ID or player name.
+- **ACK** — delivery acknowledgement using a client-generated message ID.
+- **PING/PONG** — a lightweight heartbeat for connection health.
+
+Human text is UTF-8 Base64 encoded, while protocol records remain pipe-delimited and dependency-free. CCP/1 is deliberately separate from CMD and STATE, so client communication cannot silently become game state. The server validates the destination and relays the message; it does not allow a client to become an arbitrary TCP listener.
+
+The implementation is ui/.../ClientCommunicationProtocol.java, with relay support in MultiplayerServer.java and client helpers in NetworkRuntime.java. The existing global CHAT channel remains available for ordinary airport chat.
