@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition (Edition 8) — *Apex Dominion*
 
 > **Edition 8 — the improvement line.** Built on the complete, self-contained
