@@ -291,7 +291,7 @@ public final class GameSnapshot {
           .append("|reserveGoal=").append(reserveGoal)
           .append("|reserveBonus=").append(reserveBonus)
           .append("|reserveAwards=").append(reserveAwards)
-          .append("\\n");
+          .append("\n");
         for (PlaneView p : planes) {
             sb.append("{\"__type\":\"Plane\",\"id\":").append(p.id)
               .append(",\"flight\":\"").append(jsonEscape(p.flight)).append("\"")
@@ -301,7 +301,7 @@ public final class GameSnapshot {
               .append(",\"maxPatience\":").append(p.maxPatience)
               .append(",\"serviceLeft\":").append(p.serviceLeft)
               .append(",\"posX\":").append(p.posX)
-              .append(",\"posY\":").append(p.posY).append("}\\n");
+              .append(",\"posY\":").append(p.posY).append("}\n");
         }
         return sb.toString();
     }
