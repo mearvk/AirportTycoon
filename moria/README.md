@@ -159,6 +159,51 @@ caster's Intelligence power). At level 5 with a die of 19 and +2 INT that is
   greater**, and the deeper levels of Moria mint the legendary (up to +9) —
   *Mithril Greatsword of the Balrog-slayer +7*.
 
+### The Mace of the Deep — and the mutual plus
+
+The signature mace does, on average, **1d48 + 26 hit points** (a d48 averages
+24.5, so the Mace averages ~50 before Strength and the enchantment). Its **"+1
+to hit or damage is mutual"**: the `+N` enchantment adds to **both** the attack
+roll and the damage. That is a setting (assumed on) —
+[`config/moria.conf`](config/moria.conf) `weapons.mutual_plus=1`, backed by
+`MoriaWeapons.MUTUAL_PLUS`.
+
+### The enchantment incurrence-radius / depth model
+
+A `+N` weapon carries an **incurrence radius** of extra-damage potential that
+scales with the enchantment and the dungeon depth:
+
+```
+radiusBase(bonus)      = 2^(bonus + 3)              +5 => 256
+depthMultiplier(depth) = 16 / depth  (clamped >= 1) depth 16 => x1
+radiusLevels           = radiusBase * depthMultiplier
+extraPotential         = radiusLevels * 4
+```
+
+**Anchor (by decree):** a **+5** weapon at **Dungeon Depth 16** has about **256
+radius levels** — roughly **1024 extra potential damage**. The falloff is
+geometric, and **lower depths are more generous** (bigger rolls):
+
+| Enchant | Radius @ depth 16 | Extra potential |
+|---|---|---|
+| **+5** | **256** | **1024** |
+| +4 | 128 | 512 |
+| +3 | 64 | 256 |
+| +2 | 32 | 128 |
+| +1 | 16 | 64 |
+
+| A +5 weapon at depth… | Radius | Extra potential |
+|---|---|---|
+| 16 | 256 | 1024 |
+| 8 | 512 | 2048 |
+| 4 | 1024 | 4096 |
+| 1 | 4096 | 16384 |
+
+On each strike the weapon incurs a seeded extra-damage roll in
+`[0, extraPotential]` on top of the base hit — so a `+5` Mace deep in the Mines
+is genuinely devastating, and shallower levels roll even bigger. Tunable under
+the `weapons.radius_*` keys in [`config/moria.conf`](config/moria.conf).
+
 Every name is **stable for its index**, so a given find always reads the same
 (determinism — the Careful Years of Time).
 

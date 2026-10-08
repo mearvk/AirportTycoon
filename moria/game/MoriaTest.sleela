@@ -201,6 +201,43 @@ class MoriaTest {
         check("the hero's sidearm bonus is within +3..+28",
             r.sidearmBonus() >= 3 && r.sidearmBonus() <= 28);
 
+        // The Mace of the Deep: average 1d48 + 26.
+        check("mace die is d48", wp.MACE_DIE == 48);
+        check("mace flat bonus is +26", wp.MACE_FLAT == 26);
+        check("mace averages ~50 (1d48+26)", wp.maceAverage() == 50);
+        Weapon mc = wp.mace(5, 16);
+        // Max die (48) + 26 + bonus 5 + STR 3 = 82.
+        check("mace max base strike (die 48, +5, STR+3) == 82",
+            wp.maceDamage(mc, 48, 3) == 82);
+
+        // The mutual plus: +N adds to BOTH to-hit and damage when the setting
+        // is on.
+        check("mutual plus is assumed on", wp.mutualPlus());
+        check("mutual plus gives a to-hit bonus equal to the enchantment",
+            wp.toHitBonus(mc) == 5);
+        check("the plus always adds to damage too", wp.damageBonus(mc) == 5);
+
+        // The incurrence-radius anchor: +5 at depth 16 => 256 radius, 1024 extra.
+        check("+5 @ depth 16 => 256 radius levels",
+            wp.radiusLevels(5, 16) == 256);
+        check("+5 @ depth 16 => 1024 extra potential damage",
+            wp.extraPotential(5, 16) == 1024);
+        // Geometric falloff for lower enchantments at the reference depth.
+        check("+4 falls off to 128 radius", wp.radiusLevels(4, 16) == 128);
+        check("+3 falls off to 64 radius",  wp.radiusLevels(3, 16) == 64);
+        check("+2 falls off to 32 radius",  wp.radiusLevels(2, 16) == 32);
+        // Lower depths are more generous (bigger rolls).
+        check("depth 8 is twice as generous as depth 16 (+5)",
+            wp.radiusLevels(5, 8) == 512);
+        check("depth 4 is four times as generous as depth 16 (+5)",
+            wp.radiusLevels(5, 4) == 1024);
+        check("depth 1 is the most generous (+5)",
+            wp.radiusLevels(5, 1) == 4096);
+        // The actual incurred extra never exceeds the potential, never negative.
+        int ex = wp.extraDamageRoll(mc, 16, 123457);
+        check("incurred extra is within [0, potential]",
+            ex >= 0 && ex <= wp.extraPotential(5, 16));
+
         // Saved previous leveling work grows as the hero descends.
         int before = r.savedLevels();
         r.autoDescend(600);

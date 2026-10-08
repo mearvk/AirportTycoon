@@ -37,6 +37,31 @@ class MoriaWeapons {
     static int LEGENDS   = 24;
     // Catalog size = 20 * 28 * 24 = 13,440 distinct base weapons.
 
+    // --- Settings (assumed on in settings somewhere) -----------------------
+    // "+1 to hit or damage is MUTUAL": the +N enchantment adds to BOTH the
+    // attack roll and the damage. This flag is the setting that makes it so.
+    static int MUTUAL_PLUS = 1;        // 1 = mutual (default), 0 = damage only
+
+    // --- The Mace: a signature weapon. Average 1d48 + 26 hit points. -------
+    // 1d48 averages 24.5, so the Mace averages ~50.5 hp before STR/enchant.
+    static int MACE_DIE   = 48;        // 1d48
+    static int MACE_FLAT  = 26;        // + 26
+
+    // --- The enchantment radius / depth model ------------------------------
+    // A +N weapon carries an "incurrence radius" of extra-damage potential.
+    // ANCHOR (by decree): a +5 weapon at Dungeon Depth 16 has ~256 radius
+    // levels, i.e. ~1024 extra potential damage (= 256 x 4).
+    //
+    //   radiusBase(bonus) = 2^(bonus+3)         -> +5 => 2^8 = 256
+    //       (so +4 => 128, +3 => 64, +2 => 32, ... a clean geometric falloff)
+    //   depthMultiplier(depth) = REF_DEPTH / depth, clamped >= 1
+    //       (LOWER depths are MORE GENEROUS; depth 16 is the reference x1)
+    //   radiusLevels = radiusBase(bonus) * depthMultiplier(depth)
+    //   extraPotential = radiusLevels * EXTRA_PER_RADIUS   (= x4 -> 1024)
+    static int RADIUS_REF_DEPTH   = 16;  // the reference depth (x1 generosity)
+    static int RADIUS_BASE_SHIFT  = 3;   // radiusBase = 2^(bonus + 3)
+    static int EXTRA_PER_RADIUS   = 4;   // extra potential damage per radius level
+
     int catalogSize() { return MATERIALS * FORMS * LEGENDS; }
 
     String material(int i) {
@@ -188,6 +213,8 @@ class MoriaWeapons {
     }
 
     // Total melee damage of a weapon for a given die roll and Strength modifier.
+    // The +N enchantment adds to damage; when MUTUAL_PLUS is on it also added to
+    // the to-hit (see toHitBonus), so the plus is "mutual".
     int damage(Weapon w, int dieRoll, int strMod) {
         int d = dieRoll;
         if (d < 1) { d = 1; }
@@ -236,6 +263,104 @@ class MoriaWeapons {
         if (k == 13) { return "Siege Crossbow"; }
         if (k == 14) { return "Dwarf Crossbow"; }
         return "Windlass Crossbow";
+    }
+
+    // =======================================================================
+    // The MUTUAL plus: +N applies to BOTH to-hit and damage when the setting
+    // is on. These expose the two sides of the same bonus.
+    // =======================================================================
+    boolean mutualPlus() { return MUTUAL_PLUS == 1; }
+
+    int toHitBonus(Weapon w) {
+        if (MUTUAL_PLUS == 1) { return w.bonus; }  // mutual: the plus hits too
+        return 0;                                   // otherwise: damage only
+    }
+
+    int damageBonus(Weapon w) { return w.bonus; }  // the plus always damages
+
+    // =======================================================================
+    // The incurrence-radius / depth model for extra damage.
+    // =======================================================================
+
+    // radiusBase(bonus) = 2^(bonus + RADIUS_BASE_SHIFT). +5 => 256; +4 => 128;
+    // +3 => 64; +2 => 32; +1 => 16; +0 => 8. A clean geometric falloff.
+    int radiusBase(int bonus) {
+        int b = bonus;
+        if (b < 0) { b = 0; }
+        if (b > 9) { b = 9; }
+        int shift = b + RADIUS_BASE_SHIFT;
+        int v = 1;
+        int i = 0;
+        while (i < shift) { v = v * 2; i = i + 1; }   // 2^shift (no bit-ops)
+        return v;
+    }
+
+    // Depth generosity: the reference depth is x1; LOWER depths are MORE
+    // generous (bigger rolls). depthMultiplier = REF_DEPTH / depth, clamped so
+    // it is never less than 1 (deeper than the reference is not stingier than
+    // the reference — it simply stops gaining generosity).
+    int depthMultiplier(int depth) {
+        int dp = depth;
+        if (dp < 1) { dp = 1; }
+        int m = RADIUS_REF_DEPTH / dp;
+        if (m < 1) { m = 1; }
+        return m;
+    }
+
+    // The incurrence radius LEVELS for a +N weapon at a given depth.
+    // ANCHOR: radiusLevels(5, 16) = 256.
+    int radiusLevels(int bonus, int depth) {
+        return radiusBase(bonus) * depthMultiplier(depth);
+    }
+
+    // The extra POTENTIAL damage carried by that radius.
+    // ANCHOR: extraPotential(5, 16) = 256 * 4 = 1024.
+    int extraPotential(int bonus, int depth) {
+        return radiusLevels(bonus, depth) * EXTRA_PER_RADIUS;
+    }
+
+    // The ACTUAL extra damage incurred on a strike: a seeded roll in
+    // [0 .. extraPotential], drawn by the caller's deterministic stream. The
+    // mean incurrence is about half the potential, so a +5 at depth 16 averages
+    // ~512 extra and may spike to the full ~1024.
+    int extraDamageRoll(Weapon w, int depth, int rollValue) {
+        int cap = extraPotential(w.bonus, depth);
+        if (cap <= 0) { return 0; }
+        int r = rollValue;
+        if (r < 0) { r = 0 - r; }
+        return r % (cap + 1);          // 0 .. extraPotential inclusive
+    }
+
+    // =======================================================================
+    // The Mace — the signature weapon. Average 1d48 + 26 hit points.
+    // =======================================================================
+    Weapon mace(int bonus, int depth) {
+        Weapon w = new Weapon();
+        w.id = 4;                        // the Mace form index in the forge
+        w.dieSides = MACE_DIE;           // 1d48
+        w.bonus = bonus;
+        w.weight = 3;
+        w.name = "Mace of the Deep" + plusTag(bonus);
+        return w;
+    }
+
+    // The Mace's base strike (before the enchantment radius): 1d48 + 26 + STR,
+    // plus the mutual damage bonus.
+    int maceDamage(Weapon w, int dieRoll, int strMod) {
+        int d = dieRoll;
+        if (d < 1) { d = 1; }
+        if (d > MACE_DIE) { d = MACE_DIE; }
+        int total = d + MACE_FLAT + damageBonus(w) + strMod;
+        if (total < 1) { total = 1; }
+        return total;
+    }
+
+    // The Mace's average base damage, for the sheet (1d48 avg 24.5 + 26 ~ 50).
+    int maceAverage() { return (1 + MACE_DIE) / 2 + MACE_FLAT; }
+
+    String maceFormula() {
+        return "1d" + MACE_DIE + " + " + MACE_FLAT
+             + " (avg ~" + maceAverage() + ")";
     }
 
     // Is this ranged form a crossbow (vs. a bow)? Forms 8..15 are crossbows.
@@ -398,7 +523,39 @@ class MoriaWeapons {
         print("  average set: " + rangedAverage(shot) + " ("
             + RANGED_DICE + "d" + RANGED_SIDES + "+" + RANGED_BASE
             + " +" + shot.bonus + ").");
+
+        // --- The Mace + the incurrence-radius / depth model ---------------
+        print("");
+        print("The Mace of the Deep: " + maceFormula()
+            + "   (mutual plus: " + yn(mutualPlus()) + ")");
+        Weapon m5 = mace(5, 16);
+        print("  a +5 Mace strike (die 30, STR+3): base "
+            + maceDamage(m5, 30, 3)
+            + "  + enchant radius extra up to " + extraPotential(5, 16));
+
+        print("");
+        print("Incurrence radius by enchantment (at Dungeon Depth 16):");
+        int bb = 0;
+        while (bb <= 5) {
+            print("  +" + bb + "  radius=" + radiusLevels(bb, 16)
+                + " levels  -> up to " + extraPotential(bb, 16)
+                + " extra potential damage");
+            bb = bb + 1;
+        }
+
+        print("");
+        print("Depth generosity for a +5 weapon (lower depths roll bigger):");
+        print("  depth 16  radius=" + radiusLevels(5, 16)
+            + "  extra up to " + extraPotential(5, 16));
+        print("  depth  8  radius=" + radiusLevels(5, 8)
+            + "  extra up to " + extraPotential(5, 8));
+        print("  depth  4  radius=" + radiusLevels(5, 4)
+            + "  extra up to " + extraPotential(5, 4));
+        print("  depth  1  radius=" + radiusLevels(5, 1)
+            + "  extra up to " + extraPotential(5, 1));
     }
 
     String reachWord(boolean ok) { if (ok) { return "in range"; } return "out of range"; }
+
+    String yn(boolean b) { if (b) { return "yes"; } return "no"; }
 }

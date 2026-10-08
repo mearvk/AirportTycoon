@@ -122,6 +122,7 @@ class MoriaDungeon {
     int          level;      // the Adventurer's experience level (grows on descent)
     Weapon       weapon;     // the hero's current melee weapon (forged on descent)
     Weapon       sidearm;    // the hero's ranged arm — a crossbow or bow (>= 8 sq)
+    Weapon       mace;       // the signature Mace of the Deep (1d48 + 26)
 
     // ---- Per-level derived geometry (computed in carveLevel) --------------
     int stairX;
@@ -182,6 +183,11 @@ class MoriaDungeon {
         // A starting ranged arm — a crossbow or bow (reaches >= 8 squares,
         // +3..+28, strikes for 2d12 + 8), forged for depth 1.
         sidearm = armoury.forgeRanged(nextRng() % armoury.rangedCatalogSize(), 1);
+        // The signature Mace of the Deep: 1d48 + 26, enchanted +5. The hero
+        // takes it up as his main melee arm (its mutual plus and incurrence
+        // radius make it far mightier than a scavenged blade).
+        mace = armoury.mace(5, 1);
+        weapon = mace;
         // Record the first level in the saved leveling ledger.
         book.recordLevel(1, maxHealth, 0, "Entered the Mines of Moria.");
 
@@ -191,8 +197,10 @@ class MoriaDungeon {
         say("Depth 1. Your torch throws a small, brave circle of light.");
         say(heroName + ": " + statLib.describe(stats));
         say(statLib.lifeRead(stats));
-        say("You carry the " + weapon.name + " (d" + weapon.dieSides
-            + " +" + weapon.bonus + ").");
+        say("You carry the " + weapon.name + " — " + armoury.maceFormula()
+            + ", enchanted +" + weapon.bonus + " (mutual to hit and damage).");
+        say("At depth " + depth + " its radius can incur up to "
+            + armoury.extraPotential(weapon.bonus, depth) + " extra damage.");
         say("You sling the " + sidearm.name + " (range " + sidearm.range
             + " sq, 2d12+8 +" + sidearm.bonus + ").");
         say("You know the Fireball: " + spellLib.fireballFormula() + ".");
@@ -508,13 +516,20 @@ class MoriaDungeon {
     // =======================================================================
 
     boolean fight(int x, int y, String kind, int threat) {
-        // To-hit uses Dexterity; damage uses the forged weapon + Strength.
-        int hit = roll(1, 20) + statLib.dexMod(stats);
+        // To-hit uses Dexterity PLUS the weapon's mutual enchantment bonus
+        // (the "+N to hit or damage is mutual" setting).
+        int hit = roll(1, 20) + statLib.dexMod(stats)
+                + armoury.toHitBonus(weapon);
         if (hit >= 8) {
             int wdmg = armoury.damage(weapon, roll(1, weapon.dieSides),
                                       statLib.strMod(stats));
+            // The enchantment's incurrence radius adds extra potential damage,
+            // scaled by the +N and the depth (lower depths roll bigger).
+            int extra = armoury.extraDamageRoll(weapon, depth, nextRng());
+            int wtotal = wdmg + extra;
             say("You strike the " + kind + " with the " + weapon.name
-                + " for " + wdmg + " — it falls into the dust.");
+                + " for " + wdmg + " + " + extra + " radius = " + wtotal
+                + " — it falls into the dust.");
             setChange(x, y, G_FLOOR);
             stepHeroTo(x, y);
             monstersSlain = monstersSlain + 1;
@@ -789,6 +804,16 @@ class MoriaDungeon {
     int sidearmBonus() { return sidearm.bonus; }
     int sidearmAverage() { return armoury.rangedAverage(sidearm); }
     boolean sidearmIsCrossbow() { return armoury.isCrossbow(sidearm); }
+    // The signature Mace + the incurrence-radius model.
+    String maceFormula() { return armoury.maceFormula(); }
+    int maceAverage() { return armoury.maceAverage(); }
+    boolean mutualPlus() { return armoury.mutualPlus(); }
+    int weaponToHitBonus() { return armoury.toHitBonus(weapon); }
+    int radiusLevelsHere() { return armoury.radiusLevels(weapon.bonus, depth); }
+    int extraPotentialHere() { return armoury.extraPotential(weapon.bonus, depth); }
+    int extraPotentialAt(int bonus, int atDepth) {
+        return armoury.extraPotential(bonus, atDepth);
+    }
     String fireballFormula() { return spellLib.fireballFormula(); }
     // The Fireball damage for a given die roll at the hero's current level.
     int fireballDamageFor(int dieRoll) {
@@ -936,9 +961,14 @@ class MoriaDungeon {
         print("");
         print("Character sheet — level " + level_());
         print("  " + statLine());
-        print("  weapon: " + weaponName() + "   fireball: " + fireballFormula());
+        print("  weapon: " + weaponName() + "  (" + maceFormula()
+            + ", +" + weaponBonus() + " mutual)");
+        print("  enchant radius here (depth " + currentDepth() + "): "
+            + radiusLevelsHere() + " levels, up to " + extraPotentialHere()
+            + " extra damage");
         print("  sidearm: " + sidearmName() + " (range " + sidearmRange()
             + " sq, 2d12+8 +" + sidearmBonus() + ", avg " + sidearmAverage() + ")");
+        print("  fireball: " + fireballFormula());
         print("");
         print(savedLedger());
         print("");
