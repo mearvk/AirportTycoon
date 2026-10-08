@@ -8,7 +8,7 @@ substrate.
 This repository holds two SLeeLa games side by side:
 
 - **Airport Tycoon** — the versioned business/air-traffic game, in the numbered
-  folders [`1/`](1/) and [`2/`](2/) (see the version index below).
+  folders [`1/`](1/) through [`8/`](8/) (see the version index below).
 - **Moria** — a deterministic dungeon crawler rendered through a native
   **SleelaUI** text pane, in [`moria/`](moria/). It is self-contained and
   developed on its own line; start at [`moria/README.md`](moria/README.md).
@@ -27,16 +27,16 @@ evolve it there; older versions remain frozen for reference and comparison.
 Every Edition also carries a **superb name** drawn from a wealth of vocabulary,
 recorded in a `VERSION.NAME.md` inside its folder.
 
-| Version | Name | Path | Contents |
-|---|---|---|---|
-| **1** | *Keystone Meridian* | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md) · [`1/VERSION.NAME.md`](1/VERSION.NAME.md). |
-| **2** | *Golden Assimilation* | [`2/`](2/) | **Latest.** The improvement line: the reputation-driven service premium, the on-time combo, and the Business Desk whose Level-5 **Great Assimilation** rakes in Major-Eastern money. See [`2/README.md`](2/README.md) · [`2/VERSION.NAME.md`](2/VERSION.NAME.md). |
-| **3** | *Platinum Ascension* | [`3/`](3/) | *The Prosperity Era.* Edition 3 common base, carrying the Golden Assimilation foundation forward for its own evolution. See [`3/README.md`](3/README.md) · [`3/VERSION.NAME.md`](3/VERSION.NAME.md). |
-| **4** | *Sovereign Skies* | [`4/`](4/) | *The Dominion Era.* Edition 4 common base, carrying the shared foundation forward for its own evolution. See [`4/README.md`](4/README.md) · [`4/VERSION.NAME.md`](4/VERSION.NAME.md). |
-| **5** | *Imperial Horizons* | [`5/`](5/) | *The Grand Strategy Era.* Edition 5 common base, carrying the shared foundation forward for its own evolution. See [`5/README.md`](5/README.md) · [`5/VERSION.NAME.md`](5/VERSION.NAME.md). |
-| **6** | *Grand Meridian* | [`6/`](6/) | *The Continental Era.* Edition 6 common base, carrying the shared foundation forward for its own evolution. See [`6/README.md`](6/README.md) · [`6/VERSION.NAME.md`](6/VERSION.NAME.md). |
-| **7** | *Celestial Concourse* | [`7/`](7/) | *The Zenith Era.* Edition 7 common base, carrying the shared foundation forward for its own evolution. See [`7/README.md`](7/README.md) · [`7/VERSION.NAME.md`](7/VERSION.NAME.md). |
-| **8** | *Apex Dominion* | [`8/`](8/) | *The Ultimate Era.* Edition 8 common base, carrying the shared foundation forward for its own evolution. See [`8/README.md`](8/README.md) · [`8/VERSION.NAME.md`](8/VERSION.NAME.md). |
+| Version | Name | Epithet | Path | Contents |
+|---|---|---|---|---|
+| **1** | *Keystone Meridian* | *The Foundational Shift* | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md) · [`1/VERSION.NAME.md`](1/VERSION.NAME.md). |
+| **2** | *Golden Assimilation* | *The Assimilation Era* | [`2/`](2/) | The improvement line: the reputation-driven service premium, the on-time combo, and the Business Desk whose Level-5 **Great Assimilation** rakes in Major-Eastern money. See [`2/README.md`](2/README.md) · [`2/VERSION.NAME.md`](2/VERSION.NAME.md). |
+| **3** | *Platinum Ascension* | *The Prosperity Era* | [`3/`](3/) | Edition 3 common base, carrying the Golden Assimilation foundation forward for its own evolution. See [`3/README.md`](3/README.md) · [`3/VERSION.NAME.md`](3/VERSION.NAME.md). |
+| **4** | *Sovereign Skies* | *The Dominion Era* | [`4/`](4/) | Edition 4 common base, carrying the shared foundation forward for its own evolution. See [`4/README.md`](4/README.md) · [`4/VERSION.NAME.md`](4/VERSION.NAME.md). |
+| **5** | *Imperial Horizons* | *The Grand Strategy Era* | [`5/`](5/) | Edition 5 common base, carrying the shared foundation forward for its own evolution. See [`5/README.md`](5/README.md) · [`5/VERSION.NAME.md`](5/VERSION.NAME.md). |
+| **6** | *Grand Meridian* | *The Continental Era* | [`6/`](6/) | Edition 6 common base, carrying the shared foundation forward for its own evolution. See [`6/README.md`](6/README.md) · [`6/VERSION.NAME.md`](6/VERSION.NAME.md). |
+| **7** | *Celestial Concourse* | *The Zenith Era* | [`7/`](7/) | Edition 7 common base, carrying the shared foundation forward for its own evolution. See [`7/README.md`](7/README.md) · [`7/VERSION.NAME.md`](7/VERSION.NAME.md). |
+| **8** | *Apex Dominion* | *The Ultimate Era* | [`8/`](8/) | Edition 8 common base, carrying the shared foundation forward for its own evolution. See [`8/README.md`](8/README.md) · [`8/VERSION.NAME.md`](8/VERSION.NAME.md). |
 
 > The latest version is the highest-numbered folder. Start at
 > [`8/README.md`](8/README.md) for the current edition, or
@@ -113,16 +113,15 @@ AirportTycoon/
 
 ## Build & run a version
 
-Each version is built from inside its own folder, e.g. for the latest (version 2):
+Each version is built from inside its own folder, e.g. for the latest (version 8):
 
 ```sh
-cd 2
-make check     # game-logic + economy + author-path tests (no JavaFX needed)
-make ui-run    # launch the animated Sleela UI (Maven + JavaFX 21)
-make author    # prove the Author Path wins in 1001 moves (needs SLeeLa toolchain)
+cd 8
+make check
+make ui-run
 ```
 
-See the per-version README (e.g. [`2/README.md`](2/README.md)) for the full
+See the per-version README (e.g. [`8/README.md`](8/README.md)) for the full
 target list and toolchain notes.
 
 Moria is built the same way, from inside its own folder:
