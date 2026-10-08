@@ -48,6 +48,15 @@ public final class LocalGameModelTest {
         testGreatAssimilationRakesInMoney();
         testDeskIsDeterministic();
         testDeskSnapshotRoundTrips();
+        // --- Edition 3: Platinum Ascension / Prosperity Contracts ---
+        testProsperityContractStarts();
+        testProsperityContractCompletes();
+        testProsperityContractExpiryRotates();
+        // --- Edition 5: Imperial Horizons / Imperial Reserve ---
+        testImperialReserveAppearsInSnapshot();
+        testImperialReserveCanAward();
+        testNetworkSnapshotRoundTrip();
+        testNetworkProtocolEncoding();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -420,6 +429,42 @@ public final class LocalGameModelTest {
                 "more-urgent small plane still beats a comfortable heavy");
     }
 
+    // --- Edition 3: Platinum Ascension / Prosperity Contracts --------------
+
+    private static void testProsperityContractStarts() {
+        LocalGameModel m = new LocalGameModel();
+        check(m.contractTargetSize() == 0, "Edition 3 starts with Small target");
+        check(m.contractProgress() == 0, "prosperity contract starts at zero");
+        check(m.contractDeadline() == LocalGameModel.CONTRACT_DEADLINE,
+                "prosperity contract starts with full deadline");
+        check(m.snapshot().contractGoal == LocalGameModel.CONTRACT_GOAL,
+                "snapshot exposes contract goal");
+    }
+
+    private static void testProsperityContractCompletes() {
+        LocalGameModel m = new LocalGameModel();
+        int beforeCash = m.cash();
+        for (int i = 0; i < 1600 && m.contractsCompleted() == 0 && !m.snapshot().gameOver; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.contractsCompleted() > 0, "seeded auto-play completes a prosperity contract");
+        check(m.cash() >= beforeCash + LocalGameModel.CONTRACT_BONUS,
+                "contract completion pays the prosperity bonus");
+    }
+
+    private static void testProsperityContractExpiryRotates() {
+        LocalGameModel m = new LocalGameModel();
+        int beforeRep = m.reputation();
+        for (int i = 0; i < LocalGameModel.CONTRACT_DEADLINE; i++) {
+            m.step();
+        }
+        check(m.contractTargetSize() == 1, "expired contract rotates to Medium");
+        check(m.contractProgress() == 0, "expired contract resets progress");
+        check(m.reputation() == beforeRep || m.reputation() < beforeRep,
+                "contract expiry adds no separate reputation penalty");
+    }
+
     // --- Edition 2: the Business Desk (side ventures + Level-5 moves) --------
 
     private static void testDeskStartsEmpty() {
@@ -504,6 +549,51 @@ public final class LocalGameModelTest {
                 "same seed yields the same desk profit");
         check(a.majorMoves() == b.majorMoves(),
                 "same seed fires the same number of major moves");
+    }
+
+    private static void testNetworkSnapshotRoundTrip() {
+        LocalGameModel m = new LocalGameModel();
+        m.step();
+        GameSnapshot original = m.snapshot();
+        GameSnapshot copy = GameSnapshot.parse(original.toWire());
+        check(copy.tick == original.tick, "network snapshot preserves tick");
+        check(copy.cash == original.cash && copy.reputation == original.reputation,
+                "network snapshot preserves economy");
+        check(copy.reserveFloor == original.reserveFloor,
+                "network snapshot preserves reserve configuration");
+    }
+
+    private static void testNetworkProtocolEncoding() {
+        String name = "Player | One";
+        String message = "Hello, airport! 你好";
+        String line = MultiplayerProtocol.chat(name, message);
+        String[] parts = line.split("\\|", 3);
+        check(parts.length == 3, "chat protocol preserves framing");
+        check(MultiplayerProtocol.dec(parts[1]).equals(name),
+                "chat protocol preserves player name");
+        check(MultiplayerProtocol.dec(parts[2]).equals(message),
+                "chat protocol preserves UTF-8 chat");
+    }
+
+    private static void testImperialReserveAppearsInSnapshot() {
+        LocalGameModel m = new LocalGameModel();
+        GameSnapshot s = m.snapshot();
+        check(s.reserveFloor == 3000, "Imperial Reserve floor is 3000");
+        check(s.reserveGoal == 180, "Imperial Reserve goal is 180 ticks");
+        check(s.reserveBonus == 750, "Imperial Reserve bonus is 750");
+        check(s.reserveTicks == 0, "Imperial Reserve starts at zero progress");
+    }
+
+    private static void testImperialReserveCanAward() {
+        LocalGameModel m = new LocalGameModel();
+        // Deterministic auto-assist should eventually build enough capital to
+        // qualify for the reserve without special test-only state mutation.
+        for (int i = 0; i < 2200 && m.reserveAwards() == 0 && !m.snapshot().gameOver; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.reserveAwards() >= 1, "Imperial Reserve awards after sustained capital stability");
+        check(m.cash() >= 3000, "reserve award leaves working capital intact");
     }
 
     private static void testDeskSnapshotRoundTrips() {
