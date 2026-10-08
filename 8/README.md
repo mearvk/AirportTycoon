@@ -373,3 +373,11 @@ The management model is **timeless**. It observes its own decision horizon while
 The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
 
 Run the standalone loaded model with `make route-economy`.
+
+## Pacing, Executive Desk, and Live Fleet
+
+This edition uses `game/PacingEngine.sleela` at **8 Hz** for authoritative action iteration and full Game Engine/Logic appraisals. The reference airline has **223 planes** and receives a fleet-level Event Action about every **22 seconds**; supported active fleets range from **180 to 350 planes**. A game day is configurable from **2 to 20 minutes**, with longer days allowed and an **8-minute reference pace**.
+
+The player can stay at the **Executive Desk** and receive live income/expense events and an end-of-day review, or switch to **Live Fleet** to observe aircraft operating in their route/resort theatre. `ui-sleela/AirportTycoonPacingUI.sleela` defines a GUI-friendly input/output Text Area contract for commands, live event streams, appraisals, money postings, and reviews. These are presentation views over the same simulation state.
+
+Run the pacing model with `make pacing`.
