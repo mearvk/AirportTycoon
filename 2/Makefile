@@ -29,6 +29,7 @@ ROUTE_ECONOMY_SRC := game/RouteProfitabilityModel.sleela
 PACING_SRC := game/PacingEngine.sleela
 DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
 PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
+FLEET_MAINTENANCE_SRC := game/MaintenanceFleetRegistry.sleela
 DESK_SRC := game/BusinessDesk.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
@@ -60,6 +61,9 @@ pacing:
 
 route-economy:
 	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
+
+fleet-maintenance:
+	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
 
 run:
 	$(SLEELA) run $(GAME_SRC)
@@ -141,7 +145,8 @@ clean:
 help:
 	@echo "Airport Tycoon — Business Edition (SLeeLa)"
 	@echo "  make game     Type/parse-check the .sleela Wrappers (Sleelvac)"
-	@echo "  make route-economy Run the timeless route-profitability observer"
+	@echo "  make route-economy Run the timeless route-profitability observer
+  make fleet-maintenance Run the 23-fleet aircraft maintenance registry"
 	@echo "  make run      Headless self-play (SLeeLa toolchain)"
 	@echo "  make run-life  Headless business/life layer (Character + Citizen)"
 	@echo "  make author    Prove the author path wins in 1001 moves, every time"
