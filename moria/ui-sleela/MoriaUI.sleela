@@ -74,9 +74,15 @@ class MoriaUI {
         col.vertical(root, 12);
         col.setMarginAll(20);
 
-        // Title + backend badge.
-        SLHeading title = new SLHeading();
-        title.createIn(col, "The Mines of Moria", 24);
+        // Title: the D&D mark as a cool title logo (trimmed, transparent
+        // background), with the text heading as a graceful fallback when the
+        // image cannot be bound (headless, missing asset, or a build without
+        // the image-file bridge).
+        MoriaTitleLogo logo = new MoriaTitleLogo();
+        if (!logo.createIn(col, 64)) {
+            SLHeading title = new SLHeading();
+            title.createIn(col, "The Mines of Moria", 24);
+        }
 
         SLLabel sub = new SLLabel();
         sub.createIn(col, "SleelaUI text pane · backend: " + ui.backend()

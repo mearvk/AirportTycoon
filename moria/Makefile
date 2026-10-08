@@ -24,6 +24,8 @@ GAME_SRC := game/MoriaDungeon.sleela
 LIGHTS_SRC := game/CityLights.sleela
 TEST_SRC := game/MoriaTest.sleela
 UI_SRC   := ui-sleela/MoriaUI.sleela
+# The title-bar logo widget (the D&D mark as a cool title logo), beside MoriaUI.
+UI_LOGO_SRC := ui-sleela/MoriaTitleLogo.sleela
 # The RPG layer: stats (incl. Constitution + Character#), the spellbook (the
 # Fireball = 1d28 + 6/level), the armoury (+4 or greater), and Save/Load/Alter.
 STATS_SRC   := game/MoriaStats.sleela
@@ -49,7 +51,7 @@ all: game test
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_LOGO_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -95,7 +97,7 @@ creator:
 
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
-	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
+	$(SLEELA) run $(UI_SRC) $(UI_LOGO_SRC) --library $(UI_SOURCES)
 
 # Deterministic self-check (no display required).
 test:

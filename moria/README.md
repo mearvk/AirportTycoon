@@ -28,6 +28,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaCreator.sleela`](game/MoriaCreator.sleela) | **The character-creation generator** — base-stat allowances (**Rolled**, **Point-set**, **Old Wisdoms**) and **lifetime feats** (the *snuff*): **Law Degree, Trusts of Universities, Great Wealth, Exception Institute**, Knighthood, Endowed Chair. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
+| [`ui-sleela/MoriaTitleLogo.sleela`](ui-sleela/MoriaTitleLogo.sleela) | The **title-bar logo** widget: paints the D&D mark ([`images/D&D-logo-title.png`](images/D&D-logo-title.png) — trimmed to the mark, transparent background) as the window's cool title logo, with the text heading as a graceful fallback. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
