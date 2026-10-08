@@ -360,6 +360,8 @@ Edition 7 now includes a first-class **Reservation Booking** business module. Re
 - **Confirmation:** reservations have a controlled booking → confirmation → active → completion lifecycle.
 - **Friends:** a party of four, for example, contributes three accompanying friends to the live reservation count.
 - **Reservation IQ:** a game metric derived from confirmed reservations, accompanying friends, and completed reservations. It is a gameplay score, not a real-world IQ measurement.
+- **Monthly benchmark:** **2,000 reservations in one game month** is the **Exemplary** level for Edition 7. The reservation module tracks the current month's bookings, exposes the target in its snapshot, and marks the month exemplary when the target is reached.
+- **Monthly reset:** the game integration exposes `resetReservationMonth()` so a new business month can begin without losing the reservation engine or its lifetime completion history.
 - **Cancellation:** reservations can be cancelled before completion without corrupting the tower simulation.
 - **Module integration:** `game/Reservations.sleela` is a standalone SLeeLa module, while `AirportTycoon.sleela` exposes booking/confirmation operations and publishes `reservationIQ` in its simulation snapshot.
 
