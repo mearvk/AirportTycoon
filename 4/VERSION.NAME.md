@@ -1,40 +1,33 @@
-# Edition 3 — *Platinum Ascension*
+# Edition 4 — *Sovereign Skies*
 
-> **Version:** 3
-> **Name:** Platinum Ascension
-> **Epithet:** *The Prosperity Era*
-> **Status:** Latest — the prosperity line, evolving from the Edition 2 improvement line.
+> **Version:** 4
+> **Name:** Sovereign Skies
+> **Epithet:** *The Dominion Era*
+> **Status:** Latest — the dominion line, evolving from the Edition 3 prosperity line.
 
 ## Why the name
 
-**Platinum** — Edition 3 moves beyond simply making money. The airport now
-builds a repeatable operating record: the player must recognize aircraft mix,
-prioritize the right flights, and convert good operations into sustained
-prosperity.
+**Sovereign Skies** — Edition 4 is about control at scale. The player is no
+longer merely reacting to individual aircraft or completing isolated contracts;
+a disciplined airport can build a consecutive prosperity record and make each
+successful contract more valuable.
 
-**Ascension** — the airport is climbing from reactive tower management into
-deliberate strategic management. The new **Prosperity Contract** gives the
-tower a visible target — five matching aircraft before a deterministic 240-tick
-deadline — with a $500 completion bonus and up to +2 reputation. Missing the
-deadline rotates the target and resets progress without adding another
-reputation penalty.
+The **Prosperity Ladder** adds measured compounding to Edition 3: +$100 for
+each consecutive completed contract, capped at +$400, while an expired contract
+resets the ladder. The early-completion quality bonus remains intact.
 
-> *Platinum Ascension* — the Edition where disciplined operations become
-> sustained prosperity.
+> *Sovereign Skies* — the Edition where operational discipline becomes
+> sustained dominion.
 
-## What's new since *Golden Assimilation* (Edition 2)
+## What's new since *Platinum Ascension* (Edition 3)
 
-- **Prosperity Contract** — one active aircraft-size target at a time; five
-  matching departures complete the contract.
-- **Deterministic contract clock** — 240 ticks per contract; expiry rotates
-  Small → Medium → Heavy and resets progress.
-- **Prosperity reward** — $500 completion bonus plus up to +2 reputation.
-- **No hidden failure penalty** — missing a contract does not directly reduce
-  reputation or close the airport.
-- **Backward-compatible snapshots** — contract target, progress, goal, time
-  remaining, and completion count are exposed to the UI.
+- **Prosperity Ladder** — consecutive completed contracts increase the next contract's base reward.
+- **+$100 ladder step** — each successful contract adds another $100 to the next base contract reward.
+- **+$400 cap** — the ladder can raise the $500 base reward to $900.
+- **Expiry reset** — missing a contract breaks the ladder without an additional reputation penalty.
+- **Early-quality bonus retained** — Edition 3's $250/+1 early-completion reward remains.
+- **UI-visible progression** — ladder chain, step, and cap are in snapshots.
 
-Edition 2's service premium, on-time combo, smarter auto-assist, Business Desk,
-deterministic simulation, and Author Path remain part of Edition 3.
+Edition 1's tower rules, Edition 2's economic feedback and Business Desk, and Edition 3's Prosperity Contracts remain intact.
 
-See README.md for the full overview and the complete Edition 3 notes.
+See README.md for the full overview and Edition 4 notes.
