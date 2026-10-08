@@ -76,13 +76,15 @@ all other departures remain fully profitable.
 
 Completing a contract pays a **$500 prosperity bonus**, restores up to **2
 reputation**, records the completion, and rotates the target **Small → Medium →
-Heavy → Small**. Missing the clock simply resets progress and rotates the target;
-there is **no additional reputation penalty**. The rule therefore rewards
-planning and prioritization without creating a second hidden game-over condition.
+Heavy → Small**. Finish it with at least **120 ticks still remaining** and the
+airport earns an additional **$250 quality bonus** and **+1 reputation**.
+Missing the clock simply resets progress and rotates the target; there is **no
+additional reputation penalty**. The rule therefore rewards planning and
+prioritization without creating a second hidden game-over condition.
 
 The SLeeLa Wrapper and Java mirror expose the same deterministic contract
 readouts in the snapshot: `contractTarget`, `contractProgress`,
-`contractGoal`, `contractLeft`, and `contracts`. Edition 2's service
+`contractGoal`, `contractLeft`, `contracts`, `contractEarlyWindow`, and `contractEarlyBonus`. Edition 2's service
 premium, on-time combo, smarter auto-assist, Business Desk, deterministic seed,
 and Author Path remain intact.
 
