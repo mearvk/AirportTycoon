@@ -1,5 +1,9 @@
 package com.mearvk.sleela.airport;
 
+import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.geometry.Insets;
@@ -10,10 +14,13 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.LinearGradient;
@@ -40,7 +47,7 @@ public final class AirportTycoonApp extends Application {
     private static final double FIELD_H = 440;
     private static final double WINDOW_W = 1280; // room for the economy panel
 
-    private final SleelaRuntime runtime = new SleelaProcessRuntime();
+    private SleelaRuntime runtime;
 
     // The business/life layer (Character owner + Citizen travelers), mirroring
     // game/AirportTycoonLife.sleela and the vendored /sources classes.
@@ -55,6 +62,10 @@ public final class AirportTycoonApp extends Application {
     private Label messageLabel;
     private Label economyLabel;
     private ToggleButton pauseBtn;
+    private TextArea chatArea;
+    private TextField chatInput;
+    private Label nationalTimeLabel;
+    private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss z");
 
     private long lastTickNanos = 0;
     private static final long TICK_NANOS = 100_000_000L; // 10 Hz
@@ -62,12 +73,21 @@ public final class AirportTycoonApp extends Application {
     private static final int TICKS_PER_MONTH = 60;
     private int cashAtMonthStart = 0;
     private boolean paused = false;
+    // Edition 6: slow, steady visual resonance for the floor emitters.
+    private long lightingNanos = 0L;
+    private static final double LIGHT_RESONANCE_SECONDS = 8.0;
 
     @Override
     public void start(Stage stage) {
+        runtime = createRuntime();
         runtime.reset();
 
         canvas = new Canvas(W, FIELD_H);
+        StackPane field = new StackPane(canvas);
+        field.setMinSize(480, 320);
+        field.setStyle("-fx-background-color: #202936;");
+        canvas.widthProperty().bind(field.widthProperty());
+        canvas.heightProperty().bind(field.heightProperty());
 
         hud = new Label();
         hud.setFont(Font.font("Consolas", FontWeight.BOLD, 15));
@@ -88,13 +108,15 @@ public final class AirportTycoonApp extends Application {
         BorderPane root = new BorderPane();
         root.setStyle("-fx-background-color: #0b1220;");
         root.setTop(buildHeader());
-        root.setCenter(canvas);
+        root.setCenter(field);
         root.setRight(buildEconomyPanel());
         root.setBottom(buildControls());
 
         cashAtMonthStart = runtime.snapshot().cash;
 
-        Scene scene = new Scene(root, W, H);
+        Scene scene = new Scene(root, WINDOW_W, H);
+        stage.setMinWidth(900);
+        stage.setMinHeight(600);
         scene.setOnKeyPressed(e -> {
             switch (e.getCode()) {
                 case SPACE -> togglePause();
@@ -106,7 +128,7 @@ public final class AirportTycoonApp extends Application {
             }
         });
 
-        stage.setTitle("Airport Tycoon — Business Edition (SLeeLa)");
+        stage.setTitle("Airport Tycoon — Grand Meridian (SLeeLa)");
         stage.setScene(scene);
         stage.show();
 
@@ -121,14 +143,39 @@ public final class AirportTycoonApp extends Application {
                     lastTickNanos = now;
                     maybeAdvanceMonth();
                 }
+                lightingNanos = now;
                 GameSnapshot snap = runtime.snapshot();
                 updateSprites(snap);
                 render(snap);
                 updateHud(snap);
                 updateEconomy();
+                updateNationalClocks();
+                updateNetworkUi();
             }
         };
         loop.start();
+    }
+
+    private SleelaRuntime createRuntime() {
+        String host = setting("AIRPORT_NETWORK_HOST", "airport.network.host", "");
+        if (!host.isBlank()) {
+            int port = parseInt(setting("AIRPORT_NETWORK_PORT", "airport.network.port", "47500"), 47500);
+            String mode = setting("AIRPORT_NETWORK_MODE", "airport.network.mode", "shared");
+            String name = setting("AIRPORT_PLAYER", "airport.player", System.getProperty("user.name", "Player"));
+            return new NetworkRuntime(host, port, name, mode);
+        }
+        return new SleelaProcessRuntime();
+    }
+
+    private static String setting(String env, String property, String fallback) {
+        String p = System.getProperty(property);
+        if (p != null && !p.isBlank()) return p;
+        String e = System.getenv(env);
+        return e == null ? fallback : e;
+    }
+
+    private static int parseInt(String value, int fallback) {
+        try { return Integer.parseInt(value); } catch (NumberFormatException e) { return fallback; }
     }
 
     private Region buildHeader() {
@@ -203,7 +250,56 @@ public final class AirportTycoonApp extends Application {
         HBox priceRow = new HBox(6, priceUp, priceDown);
         HBox taxRow = new HBox(6, taxUp, taxDown);
 
-        VBox box = new VBox(8, title, sub, economyLabel, priceRow, taxRow);
+        chatArea = new TextArea();
+        chatArea.setEditable(false);
+        chatArea.setWrapText(true);
+        chatArea.setPrefRowCount(8);
+        chatArea.setPromptText("Network chat");
+
+        chatInput = new TextField();
+        chatInput.setPromptText("Message everyone…");
+        Button chatSend = new Button("Send");
+        chatSend.setOnAction(e -> sendChat());
+        chatInput.setOnAction(e -> sendChat());
+        HBox chatRow = new HBox(6, chatInput, chatSend);
+        HBox.setHgrow(chatInput, Priority.ALWAYS);
+
+        Label network = new Label();
+        network.setFont(Font.font("Consolas", 10));
+        network.setTextFill(Color.web("#7fa8d0"));
+        network.setId("networkStatus");
+
+        Label national = new Label("UNITED STATES · NATIONAL TIME");
+        national.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        national.setTextFill(Color.web("#d8e6ff"));
+        nationalTimeLabel = new Label();
+        nationalTimeLabel.setFont(Font.font("Consolas", 10));
+        nationalTimeLabel.setTextFill(Color.web("#f1f4f8"));
+        nationalTimeLabel.setWrapText(true);
+
+        Label country = new Label("COUNTRY SPECIFICATION");
+        country.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        country.setTextFill(Color.web("#d8e6ff"));
+        Label countryFacts = new Label("USA · Washington, DC\n" +
+                "Constitutional federal republic\n" +
+                "Area: 9,833,517 km²\n" +
+                "CIA World Factbook reference");
+        countryFacts.setFont(Font.font("Consolas", 10));
+        countryFacts.setTextFill(Color.web("#9fb5d0"));
+        countryFacts.setWrapText(true);
+
+        Label cia = new Label("CIA · OPEN REFERENCE");
+        cia.setFont(Font.font("Consolas", FontWeight.BOLD, 11));
+        cia.setTextFill(Color.web("#d8e6ff"));
+        Label ciaFacts = new Label("Foreign intelligence · analysis · national-security support\n" +
+                "Public reference layer — no classified data");
+        ciaFacts.setFont(Font.font("Consolas", 9));
+        ciaFacts.setTextFill(Color.web("#7fa8d0"));
+        ciaFacts.setWrapText(true);
+
+        VBox box = new VBox(8, title, sub, economyLabel, priceRow, taxRow,
+                national, nationalTimeLabel, country, countryFacts, cia, ciaFacts,
+                new Label("PLAYER CHAT"), network, chatArea, chatRow);
         box.setPadding(new Insets(12));
         box.setPrefWidth(300);
         box.setStyle("-fx-background-color: #0e1830; -fx-border-color: #1c2a44; -fx-border-width: 0 0 0 1;");
@@ -213,6 +309,48 @@ public final class AirportTycoonApp extends Application {
     // Advance the business/life layer one in-game month every TICKS_PER_MONTH
     // ticks, folding the tower game's fare income earned this month into the
     // owner's Character book.
+    private void updateNationalClocks() {
+        if (nationalTimeLabel == null) return;
+        ZonedDateTime utc = ZonedDateTime.now(ZoneId.of("UTC"));
+        ZonedDateTime eastern = ZonedDateTime.now(ZoneId.of("America/New_York"));
+        ZonedDateTime central = ZonedDateTime.now(ZoneId.of("America/Chicago"));
+        ZonedDateTime mountain = ZonedDateTime.now(ZoneId.of("America/Denver"));
+        ZonedDateTime pacific = ZonedDateTime.now(ZoneId.of("America/Los_Angeles"));
+        ZonedDateTime alaska = ZonedDateTime.now(ZoneId.of("America/Anchorage"));
+        ZonedDateTime hawaii = ZonedDateTime.now(ZoneId.of("Pacific/Honolulu"));
+        nationalTimeLabel.setText("UTC       " + CLOCK_FORMAT.format(utc) + "\n" +
+                "Eastern   " + CLOCK_FORMAT.format(eastern) + "\n" +
+                "Central   " + CLOCK_FORMAT.format(central) + "\n" +
+                "Mountain  " + CLOCK_FORMAT.format(mountain) + "\n" +
+                "Pacific   " + CLOCK_FORMAT.format(pacific) + "\n" +
+                "Alaska    " + CLOCK_FORMAT.format(alaska) + "\n" +
+                "Hawaii    " + CLOCK_FORMAT.format(hawaii));
+    }
+    private void updateNetworkUi() {
+        if (chatArea == null) return;
+        if (runtime instanceof NetworkRuntime network) {
+            chatArea.setText(network.chatText());
+            chatArea.positionCaret(chatArea.getLength());
+            if (network.networkStatus().startsWith("connected")) {
+                chatArea.setPromptText("Connected — chat with the other players");
+            } else {
+                chatArea.setPromptText("Network: " + network.networkStatus());
+            }
+        } else {
+            chatArea.setPromptText("Local game — set AIRPORT_NETWORK_HOST to play online");
+        }
+    }
+
+    private void sendChat() {
+        if (runtime instanceof NetworkRuntime network && chatInput != null) {
+            String text = chatInput.getText().trim();
+            if (!text.isEmpty()) {
+                network.sendChat(text);
+                chatInput.clear();
+            }
+        }
+    }
+
     private void maybeAdvanceMonth() {
         GameSnapshot snap = runtime.snapshot();
         if (snap.tick > 0 && snap.tick % TICKS_PER_MONTH == 0) {
@@ -295,49 +433,86 @@ public final class AirportTycoonApp extends Application {
     // --- rendering ---
     private void render(GameSnapshot snap) {
         GraphicsContext g = canvas.getGraphicsContext2D();
+        double fieldW = Math.max(1, canvas.getWidth());
+        double fieldH = Math.max(1, canvas.getHeight());
 
-        // Sky gradient.
         LinearGradient sky = new LinearGradient(0, 0, 0, 1, true, null,
                 new Stop(0, Color.web("#16233f")),
                 new Stop(1, Color.web("#223a5e")));
         g.setFill(sky);
-        g.fillRect(0, 0, W, FIELD_H);
+        g.fillRect(0, 0, fieldW, fieldH);
 
-        // Apron / tarmac.
-        g.setFill(Color.web("#2b2f3a"));
-        g.fillRect(0, FIELD_H * 0.62, W, FIELD_H * 0.38);
-
-        drawRunways(g, snap);
-        drawGates(g, snap);
-        drawPlanes(g, snap);
+        drawGridFloor(g, fieldW, fieldH);
+        drawRunways(g, snap, fieldW, fieldH);
+        drawGates(g, snap, fieldW, fieldH);
+        drawPlanes(g, snap, fieldW, fieldH);
 
         if (snap.gameOver) {
             g.setFill(Color.color(0, 0, 0, 0.6));
-            g.fillRect(0, 0, W, FIELD_H);
+            g.fillRect(0, 0, fieldW, fieldH);
             g.setFill(Color.web("#ff6b6b"));
             g.setFont(Font.font("Consolas", FontWeight.BOLD, 40));
-            g.fillText("AIRPORT CLOSED", W / 2 - 170, FIELD_H / 2);
+            g.fillText("AIRPORT CLOSED", fieldW / 2 - 170, fieldH / 2);
             g.setFont(Font.font("Consolas", 18));
             g.setFill(Color.web("#e8f0ff"));
-            g.fillText("Served " + snap.served + "  ·  Lost " + snap.lost
-                    + "  ·  Click Restart", W / 2 - 170, FIELD_H / 2 + 36);
+            g.fillText("Served " + snap.served + "  ·  Lost " + snap.lost + "  ·  Click Restart",
+                    fieldW / 2 - 170, fieldH / 2 + 36);
         }
     }
 
-    private void drawRunways(GraphicsContext g, GameSnapshot snap) {
-        double y = FIELD_H * 0.80;
+    private void drawGridFloor(GraphicsContext g, double fieldW, double fieldH) {
+        final int columns = 16, rows = 10;
+        final double tileW = fieldW / columns, tileH = fieldH / rows;
+        final double radius = Math.max(1.5, Math.min(tileW, tileH) * 0.035);
+        g.setFill(Color.web("#2b3038"));
+        g.fillRect(0, 0, fieldW, fieldH);
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < columns; col++) {
+                double x = col * tileW, y = row * tileH;
+                g.setFill((row + col) % 2 == 0 ? Color.web("#343a43") : Color.web("#30363f"));
+                g.fillRect(x + 1, y + 1, tileW - 2, tileH - 2);
+            }
+        }
+        g.setStroke(Color.web("#515861"));
+        g.setLineWidth(1);
+        for (int col = 0; col <= columns; col++) {
+            double x = col * tileW; g.strokeLine(x, 0, x, fieldH);
+        }
+        for (int row = 0; row <= rows; row++) {
+            double y = row * tileH; g.strokeLine(0, y, fieldW, y);
+        }
+        // Resonant Concourse: a slow travelling glow across the intersections.
+        double seconds = lightingNanos / 1_000_000_000.0;
+        double cycle = seconds / LIGHT_RESONANCE_SECONDS * Math.PI * 2.0;
+        for (int row = 0; row <= rows; row++) {
+            for (int col = 0; col <= columns; col++) {
+                double x = col * tileW, y = row * tileH;
+                double phase = cycle + (col * 0.27) + (row * 0.19);
+                double pulse = 0.5 + 0.5 * Math.sin(phase);
+                double haloRadius = radius * (2.5 + pulse * 1.8);
+                double haloAlpha = 0.055 + pulse * 0.075;
+                g.setFill(Color.color(1.0, 0.98, 0.82, haloAlpha));
+                g.fillOval(x - haloRadius, y - haloRadius, haloRadius * 2, haloRadius * 2);
+                double core = radius * (0.88 + pulse * 0.22);
+                g.setFill(Color.web("#e8e8e4"));
+                g.fillOval(x - core, y - core, core * 2, core * 2);
+                double highlight = core * (0.48 + pulse * 0.12);
+                g.setFill(Color.web("#fffdf0"));
+                g.fillOval(x - highlight, y - highlight, highlight * 2, highlight * 2);
+            }
+        }
+    }
+    private void drawRunways(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
+        double y = fieldH * 0.80, runwayW = Math.min(260, Math.max(120, fieldW * 0.25));
+        double gap = (fieldW - runwayW * 3) / 4.0;
         for (int i = 0; i < LocalGameModel.MAX_RUNWAYS; i++) {
-            double x = 60 + i * 300;
+            double x = gap + i * (runwayW + gap);
             boolean open = i < snap.openRunways;
             g.setFill(open ? Color.web("#3b3f4a") : Color.web("#1a1d24"));
-            g.fillRoundRect(x, y, 260, 26, 8, 8);
-            // centreline dashes
+            g.fillRoundRect(x, y, runwayW, 26, 8, 8);
             if (open) {
-                g.setStroke(Color.web("#d9c04a"));
-                g.setLineWidth(2);
-                for (double dx = x + 12; dx < x + 248; dx += 26) {
-                    g.strokeLine(dx, y + 13, dx + 12, y + 13);
-                }
+                g.setStroke(Color.web("#d9c04a")); g.setLineWidth(2);
+                for (double dx = x + 12; dx < x + runwayW - 12; dx += 26) g.strokeLine(dx, y + 13, Math.min(dx + 12, x + runwayW - 4), y + 13);
             }
             g.setFill(open ? Color.web("#8fb0d8") : Color.web("#4a4f5a"));
             g.setFont(Font.font("Consolas", 11));
@@ -345,11 +520,11 @@ public final class AirportTycoonApp extends Application {
         }
     }
 
-    private void drawGates(GraphicsContext g, GameSnapshot snap) {
+    private void drawGates(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
         for (int i = 0; i < LocalGameModel.MAX_GATES; i++) {
             int idx = i + 1;
-            double gx = (0.6 + (idx % 4) * 0.09) * W;
-            double gy = (0.3 + (idx / 4) * 0.18) * FIELD_H;
+            double gx = (0.6 + (idx % 4) * 0.09) * fieldW;
+            double gy = (0.3 + (idx / 4) * 0.18) * fieldH;
             boolean open = idx <= snap.openGates;
             g.setFill(open ? Color.web("#2f6f4f") : Color.web("#20242e"));
             g.fillRoundRect(gx - 14, gy - 10, 28, 20, 5, 5);
@@ -358,8 +533,7 @@ public final class AirportTycoonApp extends Application {
             g.fillText("G" + idx, gx - 8, gy + 4);
         }
     }
-
-    private void drawPlanes(GraphicsContext g, GameSnapshot snap) {
+    private void drawPlanes(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
         for (GameSnapshot.PlaneView p : snap.planes) {
             double[] s = sprites.get(p.id);
             if (s == null) {
@@ -412,5 +586,11 @@ public final class AirportTycoonApp extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+    @Override
+    public void stop() {
+        if (runtime instanceof AutoCloseable closeable) {
+            try { closeable.close(); } catch (Exception ignored) { }
+        }
     }
 }
