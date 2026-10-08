@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition (Edition 4) — *Sovereign Skies*
 
 > **Edition 4 — Sovereign Skies, the Dominion Era.** Built on the complete, self-contained
