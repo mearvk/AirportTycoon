@@ -116,6 +116,19 @@ class AirportTycoon {
     boolean running    = true;
     boolean gameOver   = false;
 
+    // Edition 3: Platinum Ascension / Prosperity Contracts.
+    static int CONTRACT_GOAL = 5;
+    static int CONTRACT_DEADLINE = 240;
+    static int CONTRACT_BONUS = 500;
+    static int CONTRACT_REP_BONUS = 2;
+    static int CONTRACT_EARLY_TICKS = 120;
+    static int CONTRACT_EARLY_BONUS = 250;
+    static int CONTRACT_EARLY_REP_BONUS = 1;
+    int contractTargetSize = 0; // 0 small, 1 medium, 2 heavy
+    int contractProgress = 0;
+    int contractDeadline = CONTRACT_DEADLINE;
+    int contractsCompleted = 0;
+
     // ---------------------------------------------------------------------
     // Deterministic PRNG. Keeps the simulation reproducible from a seed so the
     // UI replay and tests agree.
@@ -396,6 +409,15 @@ class AirportTycoon {
 
         tick = tick + 1;
 
+        // Edition 3: strategic contract pressure; expiry rotates the target
+        // and resets progress without adding another game-over penalty.
+        if (contractDeadline > 0) { contractDeadline = contractDeadline - 1; }
+        if (contractDeadline <= 0) {
+            contractProgress = 0;
+            contractTargetSize = (contractTargetSize + 1) % 3;
+            contractDeadline = CONTRACT_DEADLINE;
+        }
+
         // Cool runways down.
         Runway r = runways;
         while (r != null) {
@@ -497,6 +519,32 @@ class AirportTycoon {
             }
             cash = cash + fareFor(p.sizeClass);
             served = served + 1;
+
+            // Edition 3: matching departures advance the Prosperity Contract.
+            if (p.sizeClass == contractTargetSize) {
+                contractProgress = contractProgress + 1;
+                if (contractProgress >= CONTRACT_GOAL) {
+                    cash = cash + CONTRACT_BONUS;
+                    // A fast completion is worth an additional prosperity
+                    // quality bonus. This rewards planning, not mere volume.
+                    if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
+                        cash = cash + CONTRACT_EARLY_BONUS;
+                        if (reputation < 100) {
+                            reputation = reputation + CONTRACT_EARLY_REP_BONUS;
+                            if (reputation > 100) { reputation = 100; }
+                        }
+                    }
+                    if (reputation < 100) {
+                        reputation = reputation + CONTRACT_REP_BONUS;
+                        if (reputation > 100) { reputation = 100; }
+                    }
+                    contractsCompleted = contractsCompleted + 1;
+                    contractProgress = 0;
+                    contractTargetSize = (contractTargetSize + 1) % 3;
+                    contractDeadline = CONTRACT_DEADLINE;
+                }
+            }
+
             if (reputation < 100) { reputation = reputation + 1; }
             // Edition 2: a clean, on-time departure extends the combo. Every
             // COMBO_STEP in a row pays a flat tip on top of the fare.
@@ -564,7 +612,14 @@ class AirportTycoon {
             + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
             + "|gates=" + openGates + "|runways=" + openRunways
             + "|planes=" + planeCount + "|over=" + gameOver
-            + "|streak=" + streak + "|premium=" + servicePremiumPct();
+            + "|streak=" + streak + "|premium=" + servicePremiumPct()
+            + "|contractTarget=" + contractTargetSize
+            + "|contractProgress=" + contractProgress
+            + "|contractGoal=" + CONTRACT_GOAL
+            + "|contractLeft=" + contractDeadline
+            + "|contracts=" + contractsCompleted
+            + "|contractEarlyWindow=" + CONTRACT_EARLY_TICKS
+            + "|contractEarlyBonus=" + CONTRACT_EARLY_BONUS;
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
