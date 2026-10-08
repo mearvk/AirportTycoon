@@ -1,39 +1,28 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 5 — *Imperial Horizons*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Version:** 5
+> **Name:** Imperial Horizons
+> **Epithet:** *The Grand Strategy Era*
+> **Status:** Latest — the grand strategy line, evolving from the Edition 4 dominion line.
 
 ## Why the name
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+**Imperial Horizons** — Edition 5 expands the airport's strategy beyond the immediate traffic horizon. The player must balance aircraft flow, contract prosperity, and the capital needed to keep the airport resilient.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+The **Imperial Reserve** rewards maintaining at least $3,000 for 180 consecutive ticks with a $750 treasury award and up to +2 reputation. Falling below the floor resets only qualification progress; it never closes the airport.
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+> *Imperial Horizons* — the Edition where prosperity becomes long-range strategy.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## What's new since *Sovereign Skies* (Edition 4)
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+- **Imperial Reserve** — cash-stability objective alongside the Prosperity Ladder.
+- **$3,000 reserve floor** — capital must remain at or above the floor.
+- **180-tick qualification** — stability must be maintained continuously.
+- **$750 treasury award** — successful qualification adds working capital.
+- **Up to +2 reputation** — financial discipline reinforces airport quality.
+- **Reset without punishment** — spending below the floor resets progress without a new failure condition.
+- **UI-visible finance state** — reserve floor, progress, goal, reward, and award count are in snapshots.
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+Editions 1–4 remain intact: tower operations, economic feedback, Prosperity Contracts, the early-quality bonus, and the Prosperity Ladder all continue forward.
+
+See README.md for the full overview and Edition 5 notes.
