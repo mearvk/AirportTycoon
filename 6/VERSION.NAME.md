@@ -30,3 +30,5 @@ This resonance is **presentation-only**. It does not alter game ticks, aircraft 
 Editions 1–5 remain intact: tower operations, economic feedback, Prosperity Contracts, the Prosperity Ladder, Imperial Reserve, and the multiplayer foundation all continue forward.
 
 See README.md for the full overview and Edition 6 presentation notes.
+
+- **CCP/1 client communications** — presence, peer discovery, broadcast/direct messages, ACKs, and heartbeats continue with the multiplayer layer.
