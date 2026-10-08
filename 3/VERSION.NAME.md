@@ -1,39 +1,40 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 3 — *Platinum Ascension*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Version:** 3
+> **Name:** Platinum Ascension
+> **Epithet:** *The Prosperity Era*
+> **Status:** Latest — the prosperity line, evolving from the Edition 2 improvement line.
 
 ## Why the name
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+**Platinum** — Edition 3 moves beyond simply making money. The airport now
+builds a repeatable operating record: the player must recognize aircraft mix,
+prioritize the right flights, and convert good operations into sustained
+prosperity.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+**Ascension** — the airport is climbing from reactive tower management into
+deliberate strategic management. The new **Prosperity Contract** gives the
+tower a visible target — five matching aircraft before a deterministic 240-tick
+deadline — with a $500 completion bonus and up to +2 reputation. Missing the
+deadline rotates the target and resets progress without adding another
+reputation penalty.
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+> *Platinum Ascension* — the Edition where disciplined operations become
+> sustained prosperity.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## What's new since *Golden Assimilation* (Edition 2)
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+- **Prosperity Contract** — one active aircraft-size target at a time; five
+  matching departures complete the contract.
+- **Deterministic contract clock** — 240 ticks per contract; expiry rotates
+  Small → Medium → Heavy and resets progress.
+- **Prosperity reward** — $500 completion bonus plus up to +2 reputation.
+- **No hidden failure penalty** — missing a contract does not directly reduce
+  reputation or close the airport.
+- **Backward-compatible snapshots** — contract target, progress, goal, time
+  remaining, and completion count are exposed to the UI.
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+Edition 2's service premium, on-time combo, smarter auto-assist, Business Desk,
+deterministic simulation, and Author Path remain part of Edition 3.
+
+See README.md for the full overview and the complete Edition 3 notes.
