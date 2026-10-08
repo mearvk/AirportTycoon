@@ -464,3 +464,12 @@ SLEELA_HOME=/path/to/SLeeLa make ui-run   # UI drives the real .sleela logic
 Edit [`config/airport.conf`](config/airport.conf) to retune the economy,
 capacity, pace, and RNG seed. The matching `static` fields at the top of
 `AirportTycoon.sleela` are the authoritative defaults.
+
+
+## Client Communication Protocol — CCP/1
+
+Edition 6 carries forward the Edition 5 multiplayer foundation and now gives client-to-client communication a named **CCP/1** contract. Clients communicate through the authoritative Airport Tycoon server rather than accepting arbitrary inbound peer sockets.
+
+CCP/1 provides **presence**, a **peer list**, **broadcast messages**, **direct peer messages**, **delivery acknowledgements**, and **PING/PONG heartbeats**. Each peer receives a stable session ID such as P1; direct messages can target that ID or the player's displayed name. UTF-8 text is Base64 encoded so it cannot break the existing line framing.
+
+The protocol is intentionally separate from simulation CMD and STATE records. Communication is therefore an application channel, not a second way to mutate the airport. The implementation lives in ui/.../ClientCommunicationProtocol.java; Edition 6's NetworkRuntime and MultiplayerServer relay the protocol while retaining the responsive Resonant Concourse UI.
