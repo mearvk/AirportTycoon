@@ -179,6 +179,9 @@ Written to the normative SLeeLa 1.6 grammar
 
 ### The Sleela UI / animation
 
+The JavaFX presentation now expands as a resizable game window rather than treating the original canvas dimensions as a fixed frame. The playable field is a uniform tiled grid, with light emitters at every grid intersection—including all four corners. Each emitter has a restrained light-gray core, white highlight, and warm yellow-white halo, giving the floor a consistent architectural lighting language. This is intentionally a foundation for the next symbol pass: Stores, Stones, Columns, and other airport/dungeon objects can be placed into the same grid without changing the underlying game rules.
+
+
 - `AirportTycoonApp` (JavaFX `Application`) drives a 10 Hz `AnimationTimer`:
   it calls the runtime's `step()`, reads `snapshot()`, **interpolates** each
   plane sprite toward its reported position for smooth motion, and redraws the
