@@ -1,0 +1,39 @@
+#sleela 1.6
+package airport.management
+
+class FleetManagementDesk {
+    string inputArea = "";
+    string outputArea = "";
+    int activeVersion = 1;
+
+    string name() { return "Fleet Management — Top Brass Desk"; }
+
+    void discuss(string topic) {
+        inputArea = topic;
+        outputArea = "TOP BRASS DISCUSSION: " + topic;
+    }
+
+    void adjustFleet(int planes) {
+        inputArea = "Adjust fleet planes: " + planes;
+        outputArea = "FLEET ADJUSTMENT QUEUED: " + planes + " planes";
+    }
+
+    void adjustUseRating(int rating) {
+        inputArea = "Adjust use rating: " + rating;
+        outputArea = "USE RATING ADJUSTMENT QUEUED: " + rating;
+    }
+
+    void adjustEmployees(int quality) {
+        inputArea = "Adjust employee quality: " + quality;
+        outputArea = "EMPLOYEE QUALITY ADJUSTMENT QUEUED: " + quality;
+    }
+
+    void endOfDayReview(int day, string fleetStatus) {
+        outputArea = "END OF DAY " + day + " | " + fleetStatus;
+    }
+
+    string controls() {
+        return "Fleet size; use rating; maintenance engineer; employee quality; "
+            + "results; operating cost; End-of-Day Review; Top Brass discussion.";
+    }
+}

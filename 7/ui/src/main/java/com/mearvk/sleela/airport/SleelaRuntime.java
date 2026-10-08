@@ -53,6 +53,11 @@ public interface SleelaRuntime {
 
 package com.mearvk.sleela.airport;
 
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Client-side SleelaRuntime for the Airport Tycoon multiplayer server.
@@ -171,17 +176,8 @@ final class NetworkRuntime implements SleelaRuntime, AutoCloseable {
 ", chat);
     }
 
-    private static String enc(String s) {
-        return Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8));
-    }
-
-    private static String dec(String s) {
-        try {
-            return new String(Base64.getDecoder().decode(s), StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException e) {
-            return s;
-        }
-    }
+    private static String enc(String s) { return Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8)); }
+    private static String dec(String s) { try { return new String(Base64.getDecoder().decode(s), StandardCharsets.UTF_8); } catch (IllegalArgumentException e) { return s; } }
 
     @Override public void reset() { cmd("RESET", 0, 0); }
     @Override public void step() { /* server is authoritative */ }

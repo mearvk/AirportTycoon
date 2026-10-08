@@ -1,6 +1,6 @@
 # Airport Tycoon — Business Edition (Edition 2) — *Golden Assimilation*
 
-> **Edition 2 — the assimilation line.
+> **Edition 2 — the improvement line.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -336,3 +336,43 @@ SLEELA_HOME=/path/to/SLeeLa make ui-run   # UI drives the real .sleela logic
 Edit [`config/airport.conf`](config/airport.conf) to retune the economy,
 capacity, pace, and RNG seed. The matching `static` fields at the top of
 `AirportTycoon.sleela` are the authoritative defaults.
+
+
+## Timeless Route Profitability Model
+
+Edition 2 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**:
+
+1. **Pickup** — passenger demand and ticket value post revenue.
+2. **Flight** — the aircraft's movement and route operation post the flight's economic value.
+3. **Dropoff** — passenger completion and destination service post the final flight revenue.
+
+The model keeps a running airline balance and route observations. Its management clock is **timeless**: the management intelligence observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This lets the player invest in routes that look as strong as established routes without requiring every decision to be made on the tower's immediate clock.
+
+The **MoreStandard intelligence** layer is intentionally exploratory. It can look beyond ordinary route profitability for additional conditions — demand, reliability, security, capacity, timing, economic climate, and other factors that make a system work. The model is therefore not just a fare calculator; it is an executive-level route-investment observer.
+
+Run the standalone model with `make route-economy`.
+
+The existing game remains authoritative; this model is an additional loaded observation/economic layer and does not make irreversible decisions for the player.
+
+
+## Timeless Route Profitability Model
+
+Edition 2 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
+
+## Pacing, Executive Desk, and Live Fleet
+
+This edition uses `game/PacingEngine.sleela` at **8 Hz** for authoritative action iteration and full Game Engine/Logic appraisals. The reference airline has **223 planes** and receives a fleet-level Event Action about every **22 seconds**; supported active fleets range from **180 to 350 planes**. A game day is configurable from **2 to 20 minutes**, with longer days allowed and an **8-minute reference pace**.
+
+The player can stay at the **Executive Desk** and receive live income/expense events and an end-of-day review, or switch to **Live Fleet** to observe aircraft operating in their route/resort theatre. `ui-sleela/AirportTycoonPacingUI.sleela` defines a GUI-friendly input/output Text Area contract for commands, live event streams, appraisals, money postings, and reviews. These are presentation views over the same simulation state.
+
+Run the pacing model with `make pacing`.

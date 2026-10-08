@@ -1,6 +1,6 @@
 # Airport Tycoon — Business Edition (Edition 8) — *Apex Dominion*
 
-> **Edition 8 — Apex Dominion, the Ultimate Era.
+> **Edition 8 — the improvement line.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -342,9 +342,7 @@ capacity, pace, and RNG seed. The matching `static` fields at the top of
 
 Edition 8 includes the **CCP/1** protocol definition as the forward-compatible communications contract for network-capable clients. It defines presence, peer lists, broadcast messages, direct peer messages, acknowledgements, and PING/PONG heartbeats while keeping human text UTF-8 safe through Base64 framing.
 
-CCP/1 is deliberately separated from game CMD and STATE records. The intended topology is server-relayed client communication: clients do not open arbitrary inbound peer sockets, and the authoritative game server remains responsible for simulation state. This keeps the protocol suitable for the existing 1–4 player model while leaving the network runtime/server integration free to evolve independently.
-
-The protocol definition is ui/.../ClientCommunicationProtocol.java.
+CCP/1 is deliberately separated from game CMD and STATE records. The intended topology is server-relayed client communication: clients do not open arbitrary inbound peer sockets, and the authoritative game server remains responsible for simulation state. The protocol definition is ui/.../ClientCommunicationProtocol.java.
 
 
 ## Edition 8 Live Business World
@@ -362,3 +360,24 @@ Edition 8 extends Apex Dominion into a connected live business layer while prese
 The implementation lives in 8/game/LiveBusiness.sleela, with deterministic checks in 8/game/LiveBusinessTest.sleela. The core AirportTycoon.sleela simulation now publishes a derived liveScore in its frame snapshot.
 
 > **Economic boundary:** “real deals” in Apex Dominion are real, authoritative **in-game** transactions. They do not represent real-world cash payments or financial instruments.
+
+
+## Timeless Route Profitability Model
+
+Edition 8 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
+
+## Pacing, Executive Desk, and Live Fleet
+
+This edition uses `game/PacingEngine.sleela` at **8 Hz** for authoritative action iteration and full Game Engine/Logic appraisals. The reference airline has **223 planes** and receives a fleet-level Event Action about every **22 seconds**; supported active fleets range from **180 to 350 planes**. A game day is configurable from **2 to 20 minutes**, with longer days allowed and an **8-minute reference pace**.
+
+The player can stay at the **Executive Desk** and receive live income/expense events and an end-of-day review, or switch to **Live Fleet** to observe aircraft operating in their route/resort theatre. `ui-sleela/AirportTycoonPacingUI.sleela` defines a GUI-friendly input/output Text Area contract for commands, live event streams, appraisals, money postings, and reviews. These are presentation views over the same simulation state.
+
+Run the pacing model with `make pacing`.

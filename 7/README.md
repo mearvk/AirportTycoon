@@ -1,6 +1,6 @@
 # Airport Tycoon — Business Edition (Edition 7) — *Celestial Concourse*
 
-> **Edition 7 — Celestial Concourse, the Zenith Era.
+> **Edition 7 — the improvement line.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
 > tower game, the business/life layer (`Character` + `Citizen`), the
 > media/events center, the Author Terminal, the native SleelaUI front-end, the
@@ -65,60 +65,6 @@
 > mechanics are covered by new `make check` assertions. Everything else is
 > inherited from Edition 1 verbatim.
 
-
-### What's new in Edition 3 — Prosperity Contracts
-
-Edition 3 adds a strategic operating layer on top of Edition 2's economic
-feedback loop. The airport carries one deterministic **Prosperity Contract**
-at a time: serve **5 aircraft of the displayed size class** before the
-**240-tick** contract clock expires. Matching departures advance the contract;
-all other departures remain fully profitable.
-
-Completing a contract pays a **$500 prosperity bonus**, restores up to **2
-reputation**, records the completion, and rotates the target **Small → Medium →
-Heavy → Small**. Finish it with at least **120 ticks still remaining** and the
-airport earns an additional **$250 quality bonus** and **+1 reputation**.
-Missing the clock simply resets progress and rotates the target; there is **no
-additional reputation penalty**. The rule therefore rewards planning and
-prioritization without creating a second hidden game-over condition.
-
-The SLeeLa Wrapper and Java mirror expose the same deterministic contract
-readouts in the snapshot: `contractTarget`, `contractProgress`,
-`contractGoal`, `contractLeft`, `contracts`, `contractEarlyWindow`, and `contractEarlyBonus`. Edition 2's service
-premium, on-time combo, smarter auto-assist, Business Desk, deterministic seed,
-and Author Path remain intact.
-
-### What's new in Edition 4 — Prosperity Ladder
-
-Edition 4 carries Edition 3's Prosperity Contracts forward and turns repeated
-success into a **Prosperity Ladder**. A completed contract advances a
-consecutive-completion chain. The next contract earns an additional **$100 per
-completed contract in the chain**, capped at **+$400** on top of the $500 base.
-The Edition 3 early-quality bonus remains available. Letting a contract expire
-breaks the ladder back to zero, while ordinary fares and the airport's core
-reputation rules remain unchanged.
-
-The snapshot exposes `contractChain`, `contractLadderStep`, and
-`contractLadderCap`, so the UI can make the escalating reward visible. Edition
-4 rewards not only solving the current traffic problem, but building a sustained
-operating record without turning the ladder into a second mandatory win condition.
-
-
-### What's new in Edition 5 — Imperial Reserve
-
-Edition 5's Imperial Reserve remains part of the Edition 6 foundation. Keep at least **$3,000** on hand for **180 consecutive ticks** and the treasury awards **$750** and up to **+2 reputation**. Dropping below the reserve floor resets only the qualification clock.
-
-### What's new in Edition 6 — Grand Meridian / Resonant Concourse
-
-Edition 6 keeps the responsive JavaFX window and the uniform square grid introduced in Edition 5, then gives the floor a more finished architectural presentation.
-
-Every grid intersection remains a lighting emitter, including all four corners. The emitters retain the light-gray, white, and yellow-white palette, but now **glow and alter their visual resonance continuously and steadily**. The resonance follows an 8-second cycle and is phase-shifted across the grid so a soft wave travels through the concourse instead of every lamp pulsing at once.
-
-The lighting is deliberately presentation-only: it never changes the SLeeLa simulation tick, aircraft behavior, economy, multiplayer state, or deterministic game rules.
-
-This establishes the visual foundation for the next symbol upgrade: **Stores, Stones, Columns, and other world objects** can be introduced as grid-aware elements without redesigning the floor.
-
-
 A fun, fast-paced air-traffic game built to run on **[SLeeLa](https://github.com/mearvk/SLeeLa)**
 and her JavaFX UI/animation layer. You are the tower: planes arrive on an
 ever-shrinking timer, and you have a bounded number of **gates** and **runways**
@@ -156,7 +102,7 @@ source**, and the JavaFX layer is purely a presentation/animation substrate.
 | [`game/AirportTycoon.sleela`](game/AirportTycoon.sleela) | **The tower game.** Pure SLeeLa 1.6 Wrapper™ — owns every piece of state and the simulation `step()`. Also runs headless via its `main()` self-play demo. |
 | [`game/AirportTycoonLife.sleela`](game/AirportTycoonLife.sleela) | **The business/life layer.** Connects the game to the SLeeLa economy: the airport owner is a `Character` with a `BusinessModel`; passengers are `Citizen`s who earn, are taxed, and buy tickets. Owns the **win condition**. |
 | [`game/AuthorPath.sleela`](game/AuthorPath.sleela) | **The Author Path** — a guaranteed-winning strategy of exactly **1001 moves** that wins in every case. |
-| [`game/BusinessDesk.sleela`](game/BusinessDesk.sleela) | **The Business Desk (Edition 2 foundation carried into Edition 3).** Where the player makes a move/transaction while flying planes. Starts empty; opens parallel **Casino** and **Investment** side games (modelled as Chemistry), accrues **IQ**, and fires the **Level-5 Great Assimilation** that rakes in Major-Eastern money. Java mirror: `BusinessDesk.java`; self-demo: `make desk`. |
+| [`game/BusinessDesk.sleela`](game/BusinessDesk.sleela) | **The Business Desk (Edition 2).** Where the player makes a move/transaction while flying planes. Starts empty; opens parallel **Casino** and **Investment** side games (modelled as Chemistry), accrues **IQ**, and fires the **Level-5 Great Assimilation** that rakes in Major-Eastern money. Java mirror: `BusinessDesk.java`; self-demo: `make desk`. |
 | [`game/AirportTycoonTest.sleela`](game/AirportTycoonTest.sleela) | A SLeeLa self-check Wrapper (happy path + abandonment). |
 | [`ui-sleela/AirportTycoonUI.sleela`](ui-sleela/AirportTycoonUI.sleela) | **The native SleelaUI front-end.** Opens a real Slick Black window (X11/Cocoa/Win32) with SleelaUI widgets and presents the whole program at a glance — owner books, win status, travelers, and the Author Path proof. |
 | [`terminal/AuthorTerminal.sleela`](terminal/AuthorTerminal.sleela) | **The Author Terminal.** A text-input terminal with basic OS functionality (via `lib/os`): it asks whether you're the Author, otherwise asks your Number, responds appropriately, then runs a small OS shell. Interactive host: `AuthorTerminal.java`. |
@@ -187,9 +133,6 @@ Written to the normative SLeeLa 1.6 grammar
   frame; the header line is pipe-delimited (`ATC|cash=…|rep=…`).
 
 ### The Sleela UI / animation
-
-The JavaFX presentation now expands as a resizable game window rather than treating the original canvas dimensions as a fixed frame. The playable field is a uniform tiled grid, with light emitters at every grid intersection—including all four corners. Each emitter has a restrained light-gray core, white highlight, and warm yellow-white halo, giving the floor a consistent architectural lighting language. This is intentionally a foundation for the next symbol pass: Stores, Stones, Columns, and other airport/dungeon objects can be placed into the same grid without changing the underlying game rules.
-
 
 - `AirportTycoonApp` (JavaFX `Application`) drives a 10 Hz `AnimationTimer`:
   it calls the runtime's `step()`, reads `snapshot()`, **interpolates** each
@@ -357,77 +300,6 @@ future is knowable in advance. [`game/AuthorPath.sleela`](game/AuthorPath.sleela
 `make author` runs the SLeeLa proof; the Java test suite verifies the path wins
 in exactly 1001 moves across every starting state it sweeps.
 
-## Multiplayer — play together
-
-Edition 5 now includes a small, dependency-free TCP multiplayer layer for
-**1–4 players**. The server is authoritative and the deterministic Airport
-Tycoon rules remain on the server side.
-
-### Two ways to play
-
-- **Same World / Shared Airport** — everyone operates the **same airport**.
-  One player can clear an aircraft while another buys a gate, assigns a gate,
-  or sends a different aircraft home. The whole group sees the same world.
-- **Individual Airports + Chat** — each player gets a **private airport** with
-  its own deterministic game state, while everyone connected to the server can
-  use the shared **Player Chat** panel.
-
-The server supports both modes at the same time, so one group can share an
-airport while another player runs an individual airport and still participates
-in the common conversation.
-
-### Start a game together
-
-On the host:
-
-```sh
-cd 5
-make network-server PORT=47500
-```
-
-On each player's machine:
-
-```sh
-cd 5
-make network-client HOST=192.168.1.20 MODE=shared NAME=Player1
-```
-
-For private airports with chat:
-
-```sh
-make network-client HOST=192.168.1.20 MODE=individual NAME=Player1
-```
-
-Replace the host address with the LAN address of the machine running the
-server. The server accepts at most **four simultaneous players**.
-
-The network client keeps the JavaFX UI responsive: the server advances the
-world at 10 Hz, clients receive snapshots asynchronously, and player actions
-are sent as small named intents. Chat is UTF-8 encoded and framed independently
-of game state.
-
-### Network architecture
-
-```
-                 Airport Tycoon Multiplayer Server
-                       authoritative, 10 Hz
-                       /       |       \
-                    P1         P2       P3/P4
-                     \         |         /
-                       TCP + Chat
-                         /       \
-              Shared World    Individual Worlds
-```
-
-The implementation lives in:
-
-- `ui/.../MultiplayerServer.java` — authoritative 1–4 player server.
-- `ui/.../NetworkRuntime.java` — non-blocking JavaFX client runtime.
-- `ui/.../MultiplayerProtocol.java` — small line-based TCP protocol.
-- `GameSnapshot.toWire()` — SLeeLa-compatible snapshot serialization.
-
-No third-party networking library or account service is required.
-
 ## Controls
 
 | Key / Button | Action |
@@ -468,22 +340,16 @@ capacity, pace, and RNG seed. The matching `static` fields at the top of
 
 ## Edition 7 — Celestial Concourse / United States Operations Desk
 
-Edition 7 keeps the Edition 6 responsive JavaFX window, Resonant Concourse lighting, and multiplayer connection foundation, then adds a real-time **United States Operations Desk** to the right-hand interface.
+Edition 7 adds a live United States Operations Desk while retaining the responsive UI, Resonant Concourse lighting, and multiplayer connection foundation. The desk displays real system-clock values for UTC, Eastern, Central, Mountain, Pacific, Alaska, and Hawaii using Java's IANA time-zone database, including daylight-saving changes. It is a display of the local system clock, not a claim of direct NIST synchronization.
 
-The desk displays live system-clock values for **UTC, Eastern, Central, Mountain, Pacific, Alaska, and Hawaii** using Java's IANA time-zone database. Daylight-saving changes are therefore handled by the platform time-zone rules rather than by hard-coded offsets. NIST identifies UTC(NIST) as the U.S. national standard for time and notes the U.S. time-zone offsets and daylight-saving behavior. The game display is explicitly a local system-clock display; it does not claim to be a direct NIST synchronization service.
-
-The country panel uses public CIA World Factbook reference values for the United States: Washington, DC as capital, a constitutional federal republic as the government type, and total area of **9,833,517 km²**. These are reference facts, not gameplay intelligence. The CIA describes the Agency as providing objective foreign intelligence and analysis to U.S. policymakers; the game's CIA panel is therefore deliberately an **open-reference information layer**, with no classified or operational intelligence.
-
-The network connection remains available through the Edition 7 Java runtime. The UI can connect to the existing authoritative multiplayer TCP service while the server remains authoritative for shared/individual game state.
+The country panel presents public CIA World Factbook reference values: Washington, DC as capital, constitutional federal republic as government type, and 9,833,517 km² total area. The CIA panel is an open-reference information layer only; it does not represent classified or operational intelligence.
 
 
 ## Client Communication Protocol — CCP/1
 
-Edition 7 retains the multiplayer connection and adds the same explicit **CCP/1** client communication contract. The runtime can maintain a peer list, receive presence events, broadcast a message to the connected group, send a direct peer message, acknowledge delivery, and answer PING/PONG heartbeats.
+Edition 7 retains the multiplayer connection and adds the explicit **CCP/1** client communication contract. The runtime can maintain a peer list, receive presence events, broadcast to the connected group, send a direct peer message, acknowledge delivery, and answer PING/PONG heartbeats.
 
-The authoritative server remains the relay and simulation authority. Clients do not accept arbitrary inbound peer sockets. CCP/1 is intentionally separate from the game CMD and STATE records, so client communication does not become an alternate game-state channel.
-
-The protocol definition is ui/.../ClientCommunicationProtocol.java; Edition 7's SleelaRuntime.java contains the network client implementation and exposes peer-message helpers while preserving the existing JavaFX/UI contract.
+The authoritative server remains the relay and simulation authority. Clients do not accept arbitrary inbound peer sockets, and CCP/1 is separate from game CMD and STATE records. The protocol definition is ui/.../ClientCommunicationProtocol.java; Edition 7's SleelaRuntime.java contains the network client implementation and peer-message helpers.
 
 
 ## Edition 7 — Reservation Booking & Reservation IQ
@@ -500,3 +366,24 @@ Edition 7 now includes a first-class **Reservation Booking** business module. Re
 - **Module integration:** `game/Reservations.sleela` is a standalone SLeeLa module, while `AirportTycoon.sleela` exposes booking/confirmation operations and publishes `reservationIQ` in its simulation snapshot.
 
 The deterministic module self-check is in `game/ReservationTest.sleela`.
+
+
+## Timeless Route Profitability Model
+
+Edition 7 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
+
+## Pacing, Executive Desk, and Live Fleet
+
+This edition uses `game/PacingEngine.sleela` at **8 Hz** for authoritative action iteration and full Game Engine/Logic appraisals. The reference airline has **223 planes** and receives a fleet-level Event Action about every **22 seconds**; supported active fleets range from **180 to 350 planes**. A game day is configurable from **2 to 20 minutes**, with longer days allowed and an **8-minute reference pace**.
+
+The player can stay at the **Executive Desk** and receive live income/expense events and an end-of-day review, or switch to **Live Fleet** to observe aircraft operating in their route/resort theatre. `ui-sleela/AirportTycoonPacingUI.sleela` defines a GUI-friendly input/output Text Area contract for commands, live event streams, appraisals, money postings, and reviews. These are presentation views over the same simulation state.
+
+Run the pacing model with `make pacing`.

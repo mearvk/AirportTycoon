@@ -1,0 +1,13 @@
+#sleela 1.6
+package airport.ui
+class AirportTycoonPacingUI {
+ string inputArea = ""; string outputArea = "";
+ string name() { return "Airport Tycoon Pacing & Executive UI"; }
+ void input(String command) { inputArea = command; outputArea = "INPUT: " + command; }
+ void appendEvent(String eventText) { outputArea = outputArea + "\n" + eventText; }
+ void endOfDay(int day, int income, int expenses, int net) { outputArea = outputArea + "\nEND OF DAY " + day + " | income=" + income + " | expenses=" + expenses + " | net=" + net; }
+ void liveFleet(int planes, int events) { outputArea = outputArea + "\nLIVE FLEET | planes=" + planes + " | events=" + events + " | theatre=route/resort operations"; }
+ string textAreaInputLabel() { return "INPUT TEXT AREA — commands and executive questions"; }
+ string textAreaOutputLabel() { return "OUTPUT TEXT AREA — live events, appraisals, money, and reviews"; }
+ string modes() { return "DESK | LIVE FLEET | END OF DAY"; }
+}

@@ -1,0 +1,89 @@
+#sleela 1.6
+package airport.economy
+
+# Route Profitability Model
+# A timeless management observer for Airport Tycoon Editions 1-8.
+# Money is posted at three economic moments for every completed flight:
+#   pickup -> flight -> dropoff.
+# The route is assumed generally profitable; intelligence improves the
+# player's ability to discover what conditions make that profitability hold.
+#
+# The observer has its own decision horizon. It may compare current route
+# evidence with historical frames and the global economy without pretending
+# that the player's game clock is the only clock.
+
+class RouteProfitabilityModel {
+    int balance = 0;
+    int pickupRevenue = 0;
+    int flightRevenue = 0;
+    int dropoffRevenue = 0;
+    int flights = 0;
+    int observationFrame = 0;
+    int worldFrame = 0;
+    int routeQuality = 100;
+    int securityScore = 100;
+    int conditionScore = 100;
+
+    string name() {
+        return "Route Profitability Model";
+    }
+
+    int pickupMoment(int passengers, int fare) {
+        int value = passengers * fare;
+        pickupRevenue = pickupRevenue + value;
+        balance = balance + value;
+        return value;
+    }
+
+    int flightMoment(int distance, int flightFactor) {
+        int value = distance * flightFactor;
+        flightRevenue = flightRevenue + value;
+        balance = balance + value;
+        return value;
+    }
+
+    int dropoffMoment(int passengers, int serviceValue) {
+        int value = passengers * serviceValue;
+        dropoffRevenue = dropoffRevenue + value;
+        balance = balance + value;
+        return value;
+    }
+
+    int completeFlight(int passengers, int fare, int distance, int flightFactor, int serviceValue) {
+        pickupMoment(passengers, fare);
+        flightMoment(distance, flightFactor);
+        dropoffMoment(passengers, serviceValue);
+        flights = flights + 1;
+        observationFrame = observationFrame + 1;
+        return balance;
+    }
+
+    int compareRoute(int observedQuality, int observedSecurity, int observedConditions) {
+        routeQuality = observedQuality;
+        securityScore = observedSecurity;
+        conditionScore = observedConditions;
+        return routeQuality + securityScore + conditionScore;
+    }
+
+    int observe(int localFrame, int globalEconomyFrame) {
+        observationFrame = localFrame;
+        worldFrame = globalEconomyFrame;
+        return observationFrame + worldFrame;
+    }
+
+    string managementModel() {
+        return "Timeless observer; decisions are made in the model's own sphere of observation.";
+    }
+
+    string investmentRule() {
+        return "Invest in routes that can prove normal service quality, security, and sustainable profitability.";
+    }
+
+    string intelligenceRule() {
+        return "MoreStandard intelligence searches for additional conditions that make the system tick.";
+    }
+
+    string moments() {
+        return "pickup, flight, dropoff";
+    }
+}

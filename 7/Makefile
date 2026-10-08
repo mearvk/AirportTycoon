@@ -13,8 +13,6 @@
 #   make test         Run the SLeeLa self-check Wrapper (needs SLeeLa toolchain)
 #   make ui     Build the JavaFX Sleela UI (needs Maven + JavaFX)
 #   make ui-run Launch the JavaFX game window
-#   make network-client HOST=127.0.0.1 PORT=47500 MODE=shared NAME=Player1
-
 #   make check  Build + unit-test the UI's game-logic mirror (no JavaFX needed)
 #   make all    game + ui + check
 #   make clean  Remove UI build output
@@ -27,6 +25,13 @@ TEST_SRC := game/AirportTycoonTest.sleela
 UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
 TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
+ROUTE_ECONOMY_SRC := game/RouteProfitabilityModel.sleela
+PACING_SRC := game/PacingEngine.sleela
+DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
+PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
+FLEET_MAINTENANCE_SRC := game/MaintenanceFleetRegistry.sleela
+FLEET_MANAGEMENT_SRC := game/FleetManagementStandards.sleela
+FLEET_DESK_SRC := game/FleetManagementDesk.sleela
 DESK_SRC := game/BusinessDesk.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
@@ -37,7 +42,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk network-server network-client test ui ui-run check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk test ui ui-run network-client check clean help route-economy
 
 all: game check ui
 
@@ -45,12 +50,24 @@ game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
-			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) \
+			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) $(ROUTE_ECONOMY_SRC) $(PACING_SRC) $(DESK_OPS_SRC) $(PACING_UI_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
 	fi
+
+pacing:
+	$(SLEELA) run $(PACING_SRC)
+
+route-economy:
+	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
+
+fleet-maintenance:
+	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
+
+fleet-management:
+	$(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
 
 run:
 	$(SLEELA) run $(GAME_SRC)
@@ -98,27 +115,6 @@ terminal-run:
 	    ui/src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java && \
 	  java -cp ui/target/term com.mearvk.sleela.airport.AuthorTerminal )
 
-# Start the dependency-free multiplayer server (1-4 players).
-# Example: make network-server PORT=47500
-network-server:
-	cd ui && mkdir -p target/network && javac -d target/network \
-		src/main/java/com/mearvk/sleela/airport/SleelaRuntime.java \
-		src/main/java/com/mearvk/sleela/airport/GameSnapshot.java \
-		src/main/java/com/mearvk/sleela/airport/LocalGameModel.java \
-		src/main/java/com/mearvk/sleela/airport/MultiplayerProtocol.java \
-		src/main/java/com/mearvk/sleela/airport/MultiplayerServer.java && \
-	java -cp target/network com.mearvk.sleela.airport.MultiplayerServer $(or $(PORT),47500)
-
-# Join a server with the JavaFX UI. MODE=shared makes everyone operate one
-# airport; MODE=individual gives each player a private airport plus global chat.
-# Example: make network-client HOST=192.168.1.20 MODE=shared NAME=Max
-network-client:
-	AIRPORT_NETWORK_HOST=$(or $(HOST),127.0.0.1) \
-	AIRPORT_NETWORK_PORT=$(or $(PORT),47500) \
-	AIRPORT_NETWORK_MODE=$(or $(MODE),shared) \
-	AIRPORT_PLAYER=$(or $(NAME),Player) \
-	cd ui && mvn -q javafx:run
-
 test:
 	$(SLEELA) run $(TEST_SRC)
 
@@ -146,9 +142,6 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/main/java/com/mearvk/sleela/airport/MediaCenter.java \
 	    src/main/java/com/mearvk/sleela/airport/BusinessDesk.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerProtocol.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerServer.java \
-    src/main/java/com/mearvk/sleela/airport/NetworkRuntime.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 
@@ -167,8 +160,6 @@ help:
 	@echo "  make terminal-run Interactive text terminal (reads real stdin)"
 	@echo "  make media        Events center (300) + Reporter (220) self-demos"
 	@echo "  make desk         Business Desk self-demo (casino + investment)"
-	@echo "  make network-server  Start the 1-4 player multiplayer server"
-	@echo "  make network-client  Join shared or individual mode with chat"
 	@echo "  make test      Run the SLeeLa self-check Wrapper"
 	@echo "  make ui      Build the JavaFX Sleela UI"
 	@echo "  make ui-run  Launch the JavaFX game window"

@@ -1,0 +1,83 @@
+#sleela 1.6
+package airport.fleet
+
+class FleetManagementStandards {
+    static int MIN_PLANES = 80;
+    static int MAX_PLANES = 320;
+    static int MIN_USE_RATING = 0;
+    static int MAX_USE_RATING = 100;
+    static int MAINTENANCE_THRESHOLD = 85;
+    static int PLANES_PER_VERSION = 50;
+
+    int versionLevel = 8;
+    // One-time Edition 8 source/config roll. Re-roll only through a deliberate management action.
+    static int ROLLED_PLANES = 320;
+    static int ROLLED_USE_RATING = 86;
+    int fleetPlanes = ROLLED_PLANES;
+    int useRating = ROLLED_USE_RATING;
+    int employeeQuality = 50;
+    int resultQuality = 50;
+    int operatingCostIndex = 50;
+    boolean engineerRequired = false;
+    string managementAdjustment = "";
+
+    string name() { return "Fleet Management Standards — Edition 8"; }
+
+    int rolledPlanes() { return ROLLED_PLANES; }
+    int rolledUseRating() { return ROLLED_USE_RATING; }
+
+    int setVersionLevel(int level) {
+        if (level < 1) { level = 1; }
+        if (level > 8) { level = 8; }
+        versionLevel = level;
+        fleetPlanes = 80 + (level * PLANES_PER_VERSION);
+        if (fleetPlanes > MAX_PLANES) { fleetPlanes = MAX_PLANES; }
+        return fleetPlanes;
+    }
+
+    int rollPlanes(int roll) {
+        int range = MAX_PLANES - MIN_PLANES + 1;
+        fleetPlanes = MIN_PLANES + (roll % range);
+        return fleetPlanes;
+    }
+
+    int rollUseRating(int roll) {
+        useRating = MIN_USE_RATING + (roll % (MAX_USE_RATING + 1));
+        engineerRequired = useRating < MAINTENANCE_THRESHOLD;
+        return useRating;
+    }
+
+    int setEmployeeQuality(int quality) {
+        if (quality < 0) { quality = 0; }
+        if (quality > 100) { quality = 100; }
+        employeeQuality = quality;
+        resultQuality = quality;
+        operatingCostIndex = 25 + (quality * 3 / 4);
+        return employeeQuality;
+    }
+
+    boolean needsMaintenanceEngineer() {
+        engineerRequired = useRating < MAINTENANCE_THRESHOLD;
+        return engineerRequired;
+    }
+
+    string employeeStandard() {
+        return "Hire the best employees available: stronger expertise raises results; "
+            + "better results cost more, and the objective is greater long-term value.";
+    }
+
+    string managementAdjustmentNote() {
+        return "Management Software may adjust fleet, use rating, employee quality, "
+            + "and operating-cost assumptions during End-of-Day Review or Top Brass discussion.";
+    }
+
+    string status() {
+        return "Version " + versionLevel
+            + " | planes=" + fleetPlanes
+            + " | use rating=" + useRating
+            + " | employee quality=" + employeeQuality
+            + " | results=" + resultQuality
+            + " | cost index=" + operatingCostIndex
+            + " | engineer required=" + engineerRequired;
+    }
+}

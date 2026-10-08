@@ -1,0 +1,87 @@
+#sleela 1.6
+package airport.fleet
+
+class MaintenanceFleetRegistry {
+    static int FLEET_COUNT = 23;
+    static int PLANET_COUNT = 724;
+    static int PLANES_PER_FLEET = 10;
+    static int MAINTENANCE_BASE_CENTS = 120000;
+
+    string name() { return "Airport Tycoon Global Fleet and Maintenance Registry"; }
+    int fleetCount() { return FLEET_COUNT; }
+    int planetCount() { return PLANET_COUNT; }
+    int planesPerFleet() { return PLANES_PER_FLEET; }
+
+    string fleetName(int fleet) {
+        if (fleet == 1) { return "Atlantic Crown Fleet"; }
+        if (fleet == 2) { return "Pacific Horizon Fleet"; }
+        if (fleet == 3) { return "Northern Lights Fleet"; }
+        if (fleet == 4) { return "Southern Cross Fleet"; }
+        if (fleet == 5) { return "Golden Meridian Fleet"; }
+        if (fleet == 6) { return "Emerald Isles Fleet"; }
+        if (fleet == 7) { return "Sapphire Coast Fleet"; }
+        if (fleet == 8) { return "Continental Star Fleet"; }
+        if (fleet == 9) { return "Desert Wind Fleet"; }
+        if (fleet == 10) { return "Alpine Crown Fleet"; }
+        if (fleet == 11) { return "Andean Condor Fleet"; }
+        if (fleet == 12) { return "Caribbean Sun Fleet"; }
+        if (fleet == 13) { return "Baltic Eagle Fleet"; }
+        if (fleet == 14) { return "Mediterranean Blue Fleet"; }
+        if (fleet == 15) { return "Indian Ocean Fleet"; }
+        if (fleet == 16) { return "Silk Road Fleet"; }
+        if (fleet == 17) { return "African Star Fleet"; }
+        if (fleet == 18) { return "Arctic Circle Fleet"; }
+        if (fleet == 19) { return "Equatorial Crown Fleet"; }
+        if (fleet == 20) { return "Royal Pacific Fleet"; }
+        if (fleet == 21) { return "Western Frontier Fleet"; }
+        if (fleet == 22) { return "Eastern Gate Fleet"; }
+        if (fleet == 23) { return "World Meridian Fleet"; }
+        return "Unassigned Fleet";
+    }
+
+    string planetName(int planet) {
+        if (planet < 1) { planet = 1; }
+        if (planet > PLANET_COUNT) { planet = PLANET_COUNT; }
+        return "PL-" + planet;
+    }
+
+    string aircraftName(int fleet, int aircraft) {
+        return "F" + fleet + "-A" + aircraft;
+    }
+
+    int maintenanceIntervalDays(int fleet, int aircraft) {
+        int interval = 30 + (((fleet + aircraft) % 6) * 30);
+        return interval;
+    }
+
+    int maintenanceCostCents(int fleet, int aircraft) {
+        return MAINTENANCE_BASE_CENTS + (fleet * 3500) + (aircraft * 2500);
+    }
+
+    int nextMaintenanceDay(int currentDay, int fleet, int aircraft) {
+        return currentDay + maintenanceIntervalDays(fleet, aircraft);
+    }
+
+    string maintenanceSchedule(int fleet, int aircraft, int currentDay) {
+        return aircraftName(fleet, aircraft) + " | " + fleetName(fleet)
+            + " | maintenance every " + maintenanceIntervalDays(fleet, aircraft)
+            + " game days | next day " + nextMaintenanceDay(currentDay, fleet, aircraft)
+            + " | cost cents " + maintenanceCostCents(fleet, aircraft);
+    }
+
+    string fleetMaintenanceSummary(int fleet, int currentDay) {
+        return fleetName(fleet) + " | 10 aircraft tracked individually | "
+            + "next-service schedules and costs calculated per aircraft | "
+            + "home/route planets use PL-1 through PL-724 | "
+            + "review day " + currentDay;
+    }
+
+    string planetRange() {
+        return "724 named game planets: PL-1 through PL-724.";
+    }
+
+    string registrySummary() {
+        return "23 named global fleets; 10 individually scheduled aircraft per fleet; "
+            + "724 named planets; maintenance interval and cost tracked per aircraft.";
+    }
+}

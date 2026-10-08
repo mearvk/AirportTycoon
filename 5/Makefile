@@ -25,6 +25,13 @@ TEST_SRC := game/AirportTycoonTest.sleela
 UI_SLEELA_SRC := ui-sleela/AirportTycoonUI.sleela
 TERMINAL_SRC := terminal/AuthorTerminal.sleela
 MEDIA_SRC := media/EventsCenter.sleela media/Reporter.sleela
+ROUTE_ECONOMY_SRC := game/RouteProfitabilityModel.sleela
+PACING_SRC := game/PacingEngine.sleela
+DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
+PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
+FLEET_MAINTENANCE_SRC := game/MaintenanceFleetRegistry.sleela
+FLEET_MANAGEMENT_SRC := game/FleetManagementStandards.sleela
+FLEET_DESK_SRC := game/FleetManagementDesk.sleela
 DESK_SRC := game/BusinessDesk.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
@@ -35,7 +42,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk network-server network-client test ui ui-run check clean help
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media desk network-server network-client test ui ui-run check clean help route-economy
 
 all: game check ui
 
@@ -43,12 +50,24 @@ game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
-			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) \
+			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) $(ROUTE_ECONOMY_SRC) $(PACING_SRC) $(DESK_OPS_SRC) $(PACING_UI_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
 	fi
+
+pacing:
+	$(SLEELA) run $(PACING_SRC)
+
+route-economy:
+	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
+
+fleet-maintenance:
+	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
+
+fleet-management:
+	$(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
 
 run:
 	$(SLEELA) run $(GAME_SRC)

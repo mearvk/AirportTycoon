@@ -1,0 +1,39 @@
+#sleela 1.6
+package airport.operations
+
+class ExecutiveOperationsDesk {
+    string inputText = "";
+    string outputText = "";
+    int viewMode = 1;
+
+    string name() { return "Executive Operations Desk"; }
+
+    void submit(String command) {
+        inputText = command;
+        outputText = "Command received: " + command;
+    }
+
+    void showEndOfDay(int day, int income, int expenses, int net) {
+        outputText = "END OF DAY " + day + " | Income: " + income
+            + " | Expenses: " + expenses + " | Net: " + net;
+    }
+
+    void showFleetLive(int activePlanes, int fleetEvents) {
+        outputText = "LIVE FLEET | Active planes: " + activePlanes
+            + " | Fleet events: " + fleetEvents
+            + " | Theatre: Resort / route operations";
+        viewMode = 2;
+    }
+
+    string inputAreaContract() {
+        return "GUI Text Area Input: route, fleet, pacing, desk, review, or live.";
+    }
+
+    string outputAreaContract() {
+        return "GUI Text Area Output: event stream, income/expense postings, route appraisals, and end-of-day review.";
+    }
+
+    string views() {
+        return "Desk Review; Live Fleet Theatre; End-of-Day Review";
+    }
+}
