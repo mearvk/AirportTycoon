@@ -25,6 +25,7 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaSave.sleela`](game/MoriaSave.sleela) | **Save / Load / Alter** for creatures and character stats, plus the **saved previous leveling work** (a persisted level-up ledger). |
 | [`game/MoriaBestiary.sleela`](game/MoriaBestiary.sleela) | **The Legends Bestiary** — **24 named legends** (Tiamat, Vecna, Strahd, Drizzt, Elminster, …) keyed to **dungeon depth**: deeper is more experienced. Each is depth/tier-scaled into a full stat block. |
 | [`game/MoriaGrimoire.sleela`](game/MoriaGrimoire.sleela) | **The Grimoire of Castings** — every spell usable in Moria, by class (Mage/Cleric/Wizard; **Fighters get swords**), plus the **Lich obedience pact** (You must Agree / Obey — it **pauses** your character) resolved by the **Spelling Duo**. |
+| [`game/MoriaCreator.sleela`](game/MoriaCreator.sleela) | **The character-creation generator** — base-stat allowances (**Rolled**, **Point-set**, **Old Wisdoms**) and **lifetime feats** (the *snuff*): **Law Degree, Trusts of Universities, Great Wealth, Exception Institute**, Knighthood, Endowed Chair. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
@@ -280,6 +281,34 @@ correct order**. Answer the order rightly and the pause lifts and you are freed;
 answer wrongly and the Lich keeps its hold (you stay Obey-bound until a later,
 right answer). In the dungeon, `characterPaused()` actually blocks movement
 while the pact is unresolved.
+
+## Character creation — allowances and the snuff
+
+Make an Adventurer with [`game/MoriaCreator.sleela`](game/MoriaCreator.sleela).
+It offers three **allowances** for the base ability scores:
+
+- **Rolled** — fresh scores (4d6-drop-low feel) from the seeded stream.
+- **Point-set** — you supply the six base scores directly (a chosen build).
+- **Old Wisdoms** — carry forward a seasoned baseline: the accumulated life
+  favours **Wisdom** and the **Character Number**, so a veteran soul starts
+  wiser and reads **truer** than a fresh recruit (and more years deepen both).
+
+On top of the base, the **snuff** — the great feats of a lifetime, several of
+them **won by law too** — grant creation bonuses. Each is applied once:
+
+| Lifetime feat | What it grants |
+|---|---|
+| **Law Degree** (won by law) | +INT, +WIS, +standing, a purse |
+| **Trusts of Universities** | +INT, +WIS, a scholarly **endowment** (much gold) |
+| **Great Wealth** | a **fortune** in gold, +Character (standing) |
+| **Exception Institute** | +Character# and +WIS — the exception that makes the whole sheet **truer** |
+| **Knighthood** (by Law) | +STR, +Character, +standing |
+| **Endowed Chair** | +INT, +WIS, a stipend |
+
+A built character carries its final six scores, its **starting gold**, a civic
+**standing**, and the feats it holds; the dungeon can **adopt** it with
+`beginFromCharacter(...)`, so a distinguished, well-endowed soul walks into the
+Mines already mighty. Run the generator demo with **`make creator`**.
 
 ## Theatrics — the glyph alphabet
 

@@ -1,0 +1,297 @@
+#sleela 1.6
+//
+// Moria — The Character-Creation Generator
+// ========================================
+// Make an Adventurer. The generator offers three ALLOWANCES for the base
+// ability scores, and a set of LIFETIME FEATS — the "snuff": the great feats of
+// a lifetime, several of them won BY LAW too — that grant creation bonuses.
+//
+// Base-stat allowances:
+//   1. ROLLED      — fresh scores, 4d6-drop-low feel, from the seeded stream.
+//   2. POINT-SET   — you supply the six base scores directly (a chosen build).
+//   3. OLD WISDOMS — carry forward a seasoned baseline: the accumulated life
+//                    favours Wisdom and the Character Number, so a veteran soul
+//                    starts wiser and reads TRUER than a fresh recruit.
+//
+// Lifetime feats (the snuff — great feats of a lifetime, won by law too):
+//   * Law Degree          — read for the law: +INT, +WIS, +standing.
+//   * Trusts of Universities — scholarly trusts/endowments: +INT, +WIS, +gold.
+//   * Great Wealth        — a fortune: +gold (a lot), +Character (standing).
+//   * Exception Institute — an exceptional institution: +Character#, +WIS —
+//                           the exception that makes the whole sheet TRUER.
+//   * Knighthood (by Law) — honoured in law: +STR, +Character, +standing.
+//   * Endowed Chair       — a professor's chair: +INT, +WIS, +gold.
+//
+// A built character is a Character struct carrying its final stat block, its
+// starting gold, a civic "standing" score, and the feats it was granted.
+// No arrays: feats are a bitmask of FEAT_*, stat blocks come from MoriaStats.
+
+// A freshly created Adventurer (reference struct).
+struct Creature0 {
+    String   name;
+    int      str;
+    int      dex;
+    int      con;
+    int      intel;
+    int      wis;
+    int      chr;        // Character — the Number
+    int      gold;       // starting gold
+    int      standing;   // civic standing earned by lifetime feats
+    int      feats;      // bitmask of FEAT_*
+    int      allowance;  // which base allowance built it (ALLOW_*)
+}
+
+class MoriaCreator {
+
+    MoriaStats statLib;
+    void begin() { statLib = new MoriaStats(); }
+
+    // --- Base-stat allowances ---------------------------------------------
+    static int ALLOW_ROLLED      = 1;  // rolled fresh
+    static int ALLOW_POINT_SET   = 2;  // supplied directly
+    static int ALLOW_OLD_WISDOMS = 3;  // carried-forward seasoned baseline
+
+    // --- Lifetime feats (the "snuff") — a bitmask of distinct powers of two --
+    static int FEAT_LAW_DEGREE   = 1;   // won by law
+    static int FEAT_UNI_TRUSTS   = 2;   // trusts of universities
+    static int FEAT_GREAT_WEALTH = 4;   // great wealth
+    static int FEAT_EXCEPTION    = 8;   // exception institute
+    static int FEAT_KNIGHTHOOD   = 16;  // knighthood (by law)
+    static int FEAT_ENDOWED_CHAIR= 32;  // an endowed chair
+    static int FEAT_COUNT = 6;
+
+    // ------------------------------------------------------------------
+    // Base allowance 1: ROLLED scores from the seeded stream.
+    // ------------------------------------------------------------------
+    Creature0 rollBase(String who, int a, int b, int c, int d, int e, int f) {
+        if (statLib == null) { statLib = new MoriaStats(); }
+        StatBlock s = statLib.fromSeeded(a, b, c, d, e, f);
+        return assemble(who, s.str, s.dex, s.con, s.intel, s.wis, s.chr,
+                        ALLOW_ROLLED);
+    }
+
+    // ------------------------------------------------------------------
+    // Base allowance 2: POINT-SET — the player supplies the six base scores.
+    // Each is clamped to the legal band.
+    // ------------------------------------------------------------------
+    Creature0 pointSet(String who, int str, int dex, int con,
+                       int intel, int wis, int chr) {
+        return assemble(who, str, dex, con, intel, wis, chr, ALLOW_POINT_SET);
+    }
+
+    // ------------------------------------------------------------------
+    // Base allowance 3: OLD WISDOMS — a seasoned baseline. A veteran soul
+    // carries accumulated life: solid, even scores with a lift to Wisdom and a
+    // notably higher Character Number, so the sheet already reads truer than a
+    // fresh recruit's. `years` deepens the wisdom (and the Character Number).
+    // ------------------------------------------------------------------
+    Creature0 oldWisdoms(String who, int years) {
+        int y = years; if (y < 0) { y = 0; }
+        int wisLift = 2 + y / 4;            // wisdom grows with the years
+        int chrLift = 6 + y / 2;            // the Number grows faster
+        return assemble(who,
+            11,                              // STR — steady
+            11,                              // DEX — steady
+            12,                              // CON — endured
+            12,                              // INT — learned
+            12 + wisLift,                    // WIS — the old wisdom
+            14 + chrLift,                    // CHR# — a life well-accounted
+            ALLOW_OLD_WISDOMS);
+    }
+
+    // Build the base Creature0 (no feats yet), clamping every score.
+    Creature0 assemble(String who, int str, int dex, int con,
+                       int intel, int wis, int chr, int allowance) {
+        if (statLib == null) { statLib = new MoriaStats(); }
+        Creature0 g = new Creature0();
+        g.name = who;
+        g.str   = statLib.clampStat(str);
+        g.dex   = statLib.clampStat(dex);
+        g.con   = statLib.clampStat(con);
+        g.intel = statLib.clampStat(intel);
+        g.wis   = statLib.clampStat(wis);
+        g.chr   = statLib.clampStat(chr);
+        g.gold  = 50;                        // a modest purse to start
+        g.standing = 0;
+        g.feats = 0;
+        g.allowance = allowance;
+        return g;
+    }
+
+    // ------------------------------------------------------------------
+    // Lifetime feats — grant a feat and apply its bonuses to the character.
+    // Each feat is applied once (idempotent via the bitmask).
+    // ------------------------------------------------------------------
+    void grantFeat(Creature0 g, int feat) {
+        if (g == null) { return; }
+        if (hasFeat(g, feat)) { return; }    // already granted — no double-dip
+        g.feats = g.feats + feat;            // set the bit (distinct powers of 2)
+
+        if (feat == FEAT_LAW_DEGREE) {
+            // Read for the law: sharpened mind, measured judgement, standing.
+            g.intel = statLib.clampStat(g.intel + 2);
+            g.wis   = statLib.clampStat(g.wis + 2);
+            g.standing = g.standing + 20;
+            g.gold = g.gold + 200;
+        } else if (feat == FEAT_UNI_TRUSTS) {
+            // Trusts of universities: scholarship and an endowment.
+            g.intel = statLib.clampStat(g.intel + 3);
+            g.wis   = statLib.clampStat(g.wis + 1);
+            g.gold = g.gold + 1200;          // the endowment
+            g.standing = g.standing + 15;
+        } else if (feat == FEAT_GREAT_WEALTH) {
+            // Great wealth: a fortune, and the standing that money buys.
+            g.gold = g.gold + 10000;
+            g.chr  = statLib.clampStat(g.chr + 2);
+            g.standing = g.standing + 25;
+        } else if (feat == FEAT_EXCEPTION) {
+            // Exception institute: the exceptional institution that makes the
+            // whole sheet TRUER — a strong lift to the Character Number.
+            g.chr = statLib.clampStat(g.chr + 6);
+            g.wis = statLib.clampStat(g.wis + 2);
+            g.standing = g.standing + 30;
+        } else if (feat == FEAT_KNIGHTHOOD) {
+            // Knighthood, honoured in law: arm, bearing, standing.
+            g.str = statLib.clampStat(g.str + 2);
+            g.chr = statLib.clampStat(g.chr + 2);
+            g.standing = g.standing + 20;
+        } else if (feat == FEAT_ENDOWED_CHAIR) {
+            // An endowed chair: deep learning and a stipend.
+            g.intel = statLib.clampStat(g.intel + 2);
+            g.wis   = statLib.clampStat(g.wis + 2);
+            g.gold  = g.gold + 2500;
+            g.standing = g.standing + 18;
+        }
+    }
+
+    // Grant several feats at once (a bitmask of FEAT_*).
+    void grantFeats(Creature0 g, int featMask) {
+        if (hasBit(featMask, FEAT_LAW_DEGREE))    { grantFeat(g, FEAT_LAW_DEGREE); }
+        if (hasBit(featMask, FEAT_UNI_TRUSTS))    { grantFeat(g, FEAT_UNI_TRUSTS); }
+        if (hasBit(featMask, FEAT_GREAT_WEALTH))  { grantFeat(g, FEAT_GREAT_WEALTH); }
+        if (hasBit(featMask, FEAT_EXCEPTION))     { grantFeat(g, FEAT_EXCEPTION); }
+        if (hasBit(featMask, FEAT_KNIGHTHOOD))    { grantFeat(g, FEAT_KNIGHTHOOD); }
+        if (hasBit(featMask, FEAT_ENDOWED_CHAIR)) { grantFeat(g, FEAT_ENDOWED_CHAIR); }
+    }
+
+    boolean hasFeat(Creature0 g, int feat) {
+        if (g == null) { return false; }
+        return hasBit(g.feats, feat);
+    }
+
+    // Is a single power-of-two bit set within a mask? SLeeLa 1.6: arithmetic
+    // only, no bit-ops — the same test the Grimoire uses.
+    boolean hasBit(int mask, int bit) {
+        if (bit <= 0) { return false; }
+        int lower = rem(mask, bit * 2);
+        return lower >= bit;
+    }
+    int rem(int a, int b) {
+        if (b <= 0) { return 0; }
+        return a - (a / b) * b;
+    }
+
+    // ------------------------------------------------------------------
+    // Names + readouts.
+    // ------------------------------------------------------------------
+    String allowanceName(int a) {
+        if (a == ALLOW_ROLLED)      { return "Rolled"; }
+        if (a == ALLOW_POINT_SET)   { return "Point-set"; }
+        if (a == ALLOW_OLD_WISDOMS) { return "Old Wisdoms"; }
+        return "Unknown";
+    }
+
+    String featName(int feat) {
+        if (feat == FEAT_LAW_DEGREE)    { return "Law Degree"; }
+        if (feat == FEAT_UNI_TRUSTS)    { return "Trusts of Universities"; }
+        if (feat == FEAT_GREAT_WEALTH)  { return "Great Wealth"; }
+        if (feat == FEAT_EXCEPTION)     { return "Exception Institute"; }
+        if (feat == FEAT_KNIGHTHOOD)    { return "Knighthood (by Law)"; }
+        if (feat == FEAT_ENDOWED_CHAIR) { return "Endowed Chair"; }
+        return "(none)";
+    }
+
+    // A comma-list of the feats a character holds.
+    String featList(Creature0 g) {
+        String out = "";
+        if (hasFeat(g, FEAT_LAW_DEGREE))    { out = add(out, featName(FEAT_LAW_DEGREE)); }
+        if (hasFeat(g, FEAT_UNI_TRUSTS))    { out = add(out, featName(FEAT_UNI_TRUSTS)); }
+        if (hasFeat(g, FEAT_GREAT_WEALTH))  { out = add(out, featName(FEAT_GREAT_WEALTH)); }
+        if (hasFeat(g, FEAT_EXCEPTION))     { out = add(out, featName(FEAT_EXCEPTION)); }
+        if (hasFeat(g, FEAT_KNIGHTHOOD))    { out = add(out, featName(FEAT_KNIGHTHOOD)); }
+        if (hasFeat(g, FEAT_ENDOWED_CHAIR)) { out = add(out, featName(FEAT_ENDOWED_CHAIR)); }
+        if (out == "") { out = "none"; }
+        return out;
+    }
+
+    String add(String csv, String one) {
+        if (csv == "") { return one; }
+        return csv + ", " + one;
+    }
+
+    // Build the final StatBlock (for handing to the dungeon/MoriaStats).
+    StatBlock statBlock(Creature0 g) {
+        return statLib.make(g.str, g.dex, g.con, g.intel, g.wis, g.chr);
+    }
+
+    int truthPercent(Creature0 g) {
+        return statLib.truthPercent(statBlock(g));
+    }
+
+    // A serialized line for the save system.
+    String serialize(Creature0 g) {
+        return "CHAR0|name=" + g.name
+             + "|allow=" + g.allowance
+             + "|str=" + g.str + "|dex=" + g.dex + "|con=" + g.con
+             + "|int=" + g.intel + "|wis=" + g.wis + "|chr=" + g.chr
+             + "|gold=" + g.gold + "|standing=" + g.standing
+             + "|feats=" + g.feats;
+    }
+
+    String describe(Creature0 g) {
+        return g.name + "  [" + allowanceName(g.allowance) + "]"
+             + "\n    STR " + g.str + " DEX " + g.dex + " CON " + g.con
+             + " INT " + g.intel + " WIS " + g.wis + " CHR# " + g.chr
+             + "   (truth " + truthPercent(g) + "%)"
+             + "\n    gold " + g.gold + "   standing " + g.standing
+             + "\n    lifetime feats: " + featList(g);
+    }
+
+    // ------------------------------------------------------------------
+    // Headless demo: all three allowances, and the lifetime feats.
+    // ------------------------------------------------------------------
+    void main() {
+        begin();
+        print("Moria — Character-Creation Generator");
+        print("Allowances: Rolled, Point-set, or Old Wisdoms.");
+        print("");
+
+        // Allowance one: Rolled.
+        Creature0 a = rollBase("Rolled Recruit", 1428, 90210, 70300, 31337, 5, 777);
+        print(describe(a));
+        print("");
+
+        // Allowance two: Point-set.
+        Creature0 b = pointSet("Chosen Build", 16, 14, 14, 12, 13, 15);
+        print(describe(b));
+        print("");
+
+        // Allowance three: Old Wisdoms — a seasoned soul of 40 years.
+        Creature0 c = oldWisdoms("Elder of the Deep", 40);
+        print(describe(c));
+        print("  (Old Wisdoms start wiser and read truer than a fresh recruit.)");
+        print("");
+
+        // The snuff: lifetime feats, several won by law. Grant the full set to
+        // a distinguished soul and show the cumulative bonuses.
+        Creature0 d = oldWisdoms("The Distinguished", 24);
+        grantFeat(d, FEAT_LAW_DEGREE);
+        grantFeat(d, FEAT_UNI_TRUSTS);
+        grantFeat(d, FEAT_GREAT_WEALTH);
+        grantFeat(d, FEAT_EXCEPTION);
+        grantFeat(d, FEAT_KNIGHTHOOD);
+        grantFeat(d, FEAT_ENDOWED_CHAIR);
+        print("The snuff — a lifetime of great feats, won by law too:");
+        print(describe(d));
+    }
+}

@@ -361,6 +361,70 @@ class MoriaTest {
         pd.setHeroClass(gr.CLS_FIGHTER);
         check("a Fighter hero knows no castings", pd.knownCastings() == 0);
 
+        // --- The character-creation generator ------------------------------
+        MoriaCreator cr = new MoriaCreator();
+        cr.begin();
+
+        // The three base-stat allowances all produce a legal character.
+        Creature0 rolled = cr.rollBase("Rolled", 1428, 90210, 70300, 31337, 5, 777);
+        Creature0 pts = cr.pointSet("Chosen", 16, 14, 14, 12, 13, 15);
+        Creature0 old = cr.oldWisdoms("Elder", 40);
+        check("rolled allowance is tagged", rolled.allowance == cr.ALLOW_ROLLED);
+        check("point-set allowance is tagged", pts.allowance == cr.ALLOW_POINT_SET);
+        check("old-wisdoms allowance is tagged", old.allowance == cr.ALLOW_OLD_WISDOMS);
+        check("point-set honours the supplied scores",
+            pts.str == 16 && pts.wis == 13 && pts.chr == 15);
+
+        // Old Wisdoms: wiser, and reads truer (higher Character Number).
+        check("old wisdoms carries a high Wisdom", old.wis >= 18);
+        check("old wisdoms carries a high Character Number", old.chr >= 25);
+        check("old wisdoms reads fully true (100%)", cr.truthPercent(old) == 100);
+
+        // The snuff — lifetime feats, several won by law — grant bonuses.
+        Creature0 d = cr.oldWisdoms("Distinguished", 24);
+        int goldBefore = d.gold; int intBefore = d.intel; int wisBefore = d.wis;
+        cr.grantFeat(d, cr.FEAT_LAW_DEGREE);
+        check("Law Degree is held", cr.hasFeat(d, cr.FEAT_LAW_DEGREE));
+        check("Law Degree lifts INT and WIS",
+            d.intel > intBefore && d.wis > wisBefore);
+        check("Law Degree raises standing", d.standing >= 20);
+
+        cr.grantFeat(d, cr.FEAT_UNI_TRUSTS);
+        check("University trusts bring an endowment (more gold)", d.gold > goldBefore + 1000);
+
+        int goldPreWealth = d.gold;
+        cr.grantFeat(d, cr.FEAT_GREAT_WEALTH);
+        check("Great Wealth adds a fortune", d.gold >= goldPreWealth + 10000);
+
+        int chrPreExc = d.chr;
+        cr.grantFeat(d, cr.FEAT_EXCEPTION);
+        check("Exception Institute lifts the Character Number",
+            d.chr >= chrPreExc);   // (may clamp at 40 if already high)
+        check("the distinguished sheet reads fully true", cr.truthPercent(d) == 100);
+
+        // Granting a feat twice does not double-dip.
+        int standBefore = d.standing;
+        cr.grantFeat(d, cr.FEAT_LAW_DEGREE);
+        check("a feat is not granted twice", d.standing == standBefore);
+
+        // A plain Fighter build with no feats still gets a modest start.
+        Creature0 fighter = cr.pointSet("Swordhand", 16, 14, 15, 9, 10, 11);
+        check("a feat-less build has starting gold", fighter.gold >= 1);
+        check("a feat-less build has zero standing", fighter.standing == 0);
+
+        // The dungeon adopts a created character (stats, gold, standing, feats).
+        Creature0 champion = cr.oldWisdoms("Champion", 20);
+        cr.grantFeat(champion, cr.FEAT_GREAT_WEALTH);
+        cr.grantFeat(champion, cr.FEAT_KNIGHTHOOD);
+        MoriaDungeon cd = new MoriaDungeon();
+        cd.beginFromCharacter(champion, 1428);
+        check("the dungeon adopts the created character's purse",
+            cd.goldCount() >= 10000);
+        check("the dungeon adopts the created character's standing",
+            cd.heroStanding_() > 0);
+        check("the dungeon carries the created character's feats",
+            cd.heroHasFeat(cr.FEAT_GREAT_WEALTH) && cd.heroHasFeat(cr.FEAT_KNIGHTHOOD));
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

@@ -121,7 +121,11 @@ class MoriaDungeon {
     MoriaSave    book;       // Save / Load / Alter + the leveling ledger
     MoriaBestiary bestiary;  // the roster of named legends, keyed to depth
     MoriaGrimoire grimoire;  // usable castings by class + lich pacts + the duo
+    MoriaCreator  creator;   // the character-creation generator (base + feats)
     int          heroClass;  // CLS_* — Fighter/Mage/Cleric/Wizard
+    int          heroStanding;// civic standing from lifetime feats (the snuff)
+    int          heroFeats;  // bitmask of lifetime feats the hero holds
+    Creature0    pendingChar;// a created character to adopt on begin (or null)
     int          level;      // the Adventurer's experience level (grows on descent)
     Weapon       weapon;     // the hero's current melee weapon (forged on descent)
     Weapon       sidearm;    // the hero's ranged arm — a crossbow or bow (>= 8 sq)
@@ -149,6 +153,15 @@ class MoriaDungeon {
     // =======================================================================
     // Lifecycle
     // =======================================================================
+
+    // Start a descent with a character made by the creation generator: adopt
+    // its stats, gold, standing, and lifetime feats. Pass the Creature0 and a
+    // world seed.
+    void beginFromCharacter(Creature0 ch, int seed) {
+        pendingChar = ch;
+        begin(ch.name, seed);
+        pendingChar = null;          // consumed
+    }
 
     void begin(String name, int seed) {
         heroName = name;
@@ -178,13 +191,27 @@ class MoriaDungeon {
         bestiary = new MoriaBestiary();
         bestiary.begin();
         grimoire = new MoriaGrimoire();
+        creator = new MoriaCreator();
+        creator.begin();
         heroClass = grimoire.CLS_WIZARD;   // a Wizard by default (full caster)
+        heroStanding = 0;
+        heroFeats = 0;
         pact = null;
         level = 1;
-        // Roll the six ability scores from the seeded stream (STR DEX CON INT
-        // WIS CHR#). Each draw advances the deterministic RNG.
-        stats = statLib.fromSeeded(nextRng(), nextRng(), nextRng(),
-                                   nextRng(), nextRng(), nextRng());
+        // Ability scores: adopt a character made by the creation generator if
+        // one was supplied (beginFromCharacter), else roll fresh from the
+        // seeded stream. A created character also brings its starting gold,
+        // civic standing, and lifetime feats (the "snuff").
+        if (pendingChar != null) {
+            stats = creator.statBlock(pendingChar);
+            heroName = pendingChar.name;
+            gold = pendingChar.gold;
+            heroStanding = pendingChar.standing;
+            heroFeats = pendingChar.feats;
+        } else {
+            stats = statLib.fromSeeded(nextRng(), nextRng(), nextRng(),
+                                       nextRng(), nextRng(), nextRng());
+        }
         // Hit points come from Constitution: a base plus CON per level.
         maxHealth = 24 + statLib.hpPerLevel(stats);
         health = maxHealth;
@@ -216,6 +243,10 @@ class MoriaDungeon {
         say("You know the Fireball: " + spellLib.fireballFormula() + ".");
         say("You are a " + grimoire.className(heroClass) + ", knowing "
             + grimoire.spellsForClass(heroClass) + " castings of the Grimoire.");
+        if (heroFeats != 0) {
+            say("Lifetime feats carried into the Mines: " + heroFeatList()
+                + "  (standing " + heroStanding + ", purse " + gold + ").");
+        }
         say("The Fellowship musters: Gandalf, Frodo, Aragorn, Legolas, Gimli.");
         summonLord();
     }
@@ -877,6 +908,29 @@ class MoriaDungeon {
     // Set the hero's class (Fighter/Mage/Cleric/Wizard).
     void setHeroClass(int cls) { heroClass = cls; }
 
+    // --- the creation generator: lifetime feats (the "snuff") carried in ---
+    int heroStanding_() { return heroStanding; }
+    int heroFeats_() { return heroFeats; }
+    boolean heroHasFeat(int feat) { return creator.hasBit(heroFeats, feat); }
+    // A readable list of the hero's lifetime feats, from the bitmask.
+    String heroFeatList() {
+        String out = "";
+        if (heroHasFeat(creator.FEAT_LAW_DEGREE))    { out = csvAdd(out, "Law Degree"); }
+        if (heroHasFeat(creator.FEAT_UNI_TRUSTS))    { out = csvAdd(out, "Trusts of Universities"); }
+        if (heroHasFeat(creator.FEAT_GREAT_WEALTH))  { out = csvAdd(out, "Great Wealth"); }
+        if (heroHasFeat(creator.FEAT_EXCEPTION))     { out = csvAdd(out, "Exception Institute"); }
+        if (heroHasFeat(creator.FEAT_KNIGHTHOOD))    { out = csvAdd(out, "Knighthood (by Law)"); }
+        if (heroHasFeat(creator.FEAT_ENDOWED_CHAIR)) { out = csvAdd(out, "Endowed Chair"); }
+        if (out == "") { out = "none"; }
+        return out;
+    }
+    String csvAdd(String csv, String one) {
+        if (csv == "") { return one; }
+        return csv + ", " + one;
+    }
+    // Build a character via the generator, for a host to then adopt.
+    MoriaCreator creationGenerator() { return creator; }
+
     // =======================================================================
     // The Lich obedience pact + the Spelling Duo.
     //   A lich (the lord, if it is a lich) may demand a pact. You must Agree,
@@ -1090,6 +1144,7 @@ class MoriaDungeon {
         print("  " + statLine());
         print("  castings known: " + knownCastings() + " of "
             + grimoireCount() + " (Fighters get swords only)");
+        print("  standing " + heroStanding_() + "   lifetime feats: " + heroFeatList());
         print("  weapon: " + weaponName() + "  (" + maceFormula()
             + ", +" + weaponBonus() + " mutual)");
         print("  enchant radius here (depth " + currentDepth() + "): "

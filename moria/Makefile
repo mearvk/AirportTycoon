@@ -13,6 +13,7 @@
 #   make stats / spells / weapons / save   The RPG layer self-demos
 #   make bestiary The Legends Bestiary — 24 named legends keyed to depth
 #   make grimoire The Grimoire — castings by class + lich pacts / Spelling Duo
+#   make creator  Character-creation generator — base allowances + lifetime feats
 #   make ui      Open the native SleelaUI text-pane front-end (real window)
 #   make test    Run the deterministic self-check Wrapper
 #   make all     game + test
@@ -33,13 +34,15 @@ SAVE_SRC    := game/MoriaSave.sleela
 BESTIARY_SRC := game/MoriaBestiary.sleela
 # The Grimoire: usable castings by class, lich obedience pacts, the Spelling Duo.
 GRIMOIRE_SRC := game/MoriaGrimoire.sleela
-RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC) $(GRIMOIRE_SRC)
+# The character-creation generator: base allowances + lifetime feats (the snuff).
+CREATOR_SRC := game/MoriaCreator.sleela
+RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC) $(GRIMOIRE_SRC) $(CREATOR_SRC)
 
 # The SleelaUI widget toolkit, reused from the Edition 1 vendor drop. These are
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: all game run lights figures stats spells weapons save bestiary grimoire ui test help
+.PHONY: all game run lights figures stats spells weapons save bestiary grimoire creator ui test help
 
 all: game test
 
@@ -86,6 +89,10 @@ bestiary:
 grimoire:
 	$(SLEELA) run $(GRIMOIRE_SRC)
 
+# The character-creation generator: base allowances + lifetime feats (snuff).
+creator:
+	$(SLEELA) run $(CREATOR_SRC)
+
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
 	$(SLEELA) run $(UI_SRC) --library $(UI_SOURCES)
@@ -106,6 +113,7 @@ help:
 	@echo "  make save    Save / Load / Alter demo (+ the leveling ledger)"
 	@echo "  make bestiary The Legends Bestiary — 24 named legends keyed to depth"
 	@echo "  make grimoire The Grimoire — castings by class + lich pacts / Spelling Duo"
+	@echo "  make creator  Character-creation generator — base allowances + lifetime feats"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"
