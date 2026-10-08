@@ -30,6 +30,8 @@ PACING_SRC := game/PacingEngine.sleela
 DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
 PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
 FLEET_MAINTENANCE_SRC := game/MaintenanceFleetRegistry.sleela
+FLEET_MANAGEMENT_SRC := game/FleetManagementStandards.sleela
+FLEET_DESK_SRC := game/FleetManagementDesk.sleela
 DESK_SRC := game/BusinessDesk.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
 #   character/citizen -> the business/life layer
@@ -63,6 +65,9 @@ route-economy:
 
 fleet-maintenance:
 	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
+
+fleet-management:
+	$(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
 
 run:
 	$(SLEELA) run $(GAME_SRC)
