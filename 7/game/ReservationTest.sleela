@@ -1,0 +1,45 @@
+#sleela 1.6
+//
+// Edition 7 — Reservation module self-check
+//
+
+class ReservationTest {
+    int failures = 0;
+
+    void check(boolean condition, String label) {
+        if (condition) { print("ok   - " + label); }
+        else { print("FAIL - " + label); failures = failures + 1; }
+    }
+
+    void main() {
+        Reservations reservations = new Reservations();
+        reservations.setup();
+
+        Reservation r = reservations.book("P1", "Friend", "SL204", 4, 5, 10);
+        check(r != null, "booking created");
+        check(r.friends == 3, "booking counts accompanying friends");
+        check(reservations.activeParty() == 4, "party is visible");
+
+        check(reservations.confirm(r.id), "booking confirmed");
+        check(reservations.confirmed == 1, "confirmed count");
+
+        reservations.step();
+        reservations.step();
+        reservations.step();
+        reservations.step();
+        reservations.step();
+        check(r.status == 3, "reservation becomes active at start");
+
+        for (int i = 0; i < 10; i = i + 1) { reservations.step(); }
+        check(r.status == 4, "reservation completes");
+        check(reservations.completed == 1, "completed count");
+        check(reservations.reservationIQ() > 0, "reservation IQ grows");
+
+        Reservation c = reservations.book("P2", "Cancel Me", "SL205", 2, 50, 10);
+        check(reservations.cancel(c.id), "reservation cancellation");
+        check(c.status == 5, "cancelled status");
+
+        if (failures == 0) { print("ALL RESERVATION TESTS PASSED"); }
+        else { print("RESERVATION TESTS FAILED: " + failures); }
+    }
+}
