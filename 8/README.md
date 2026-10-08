@@ -360,3 +360,16 @@ Edition 8 extends Apex Dominion into a connected live business layer while prese
 The implementation lives in 8/game/LiveBusiness.sleela, with deterministic checks in 8/game/LiveBusinessTest.sleela. The core AirportTycoon.sleela simulation now publishes a derived liveScore in its frame snapshot.
 
 > **Economic boundary:** “real deals” in Apex Dominion are real, authoritative **in-game** transactions. They do not represent real-world cash payments or financial instruments.
+
+
+## Timeless Route Profitability Model
+
+Edition 8 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
