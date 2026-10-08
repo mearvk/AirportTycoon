@@ -1,4 +1,4 @@
-# Airport Tycoon — Business Edition (Edition 4)
+# Airport Tycoon — Business Edition (Edition 4) — *Sovereign Skies*
 
 > **Edition 4 — Sovereign Skies, the Dominion Era.** Built on the complete, self-contained
 > **Edition 1 Base Concepts** (see [`../1/README.md`](../1/README.md)): the
