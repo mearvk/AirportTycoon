@@ -2,7 +2,7 @@
 
 > **Version:** 2
 > **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
+> **Epithet:** *The Assimilation Era*
 > **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
 
 ## Why the name
