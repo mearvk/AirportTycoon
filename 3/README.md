@@ -1,3 +1,5 @@
+<img src="../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Airport Tycoon — Business Edition (Edition 3) — *Platinum Ascension*
 
 > **Edition 3 — Platinum Ascension, the Prosperity Era.** Built on the complete, self-contained
