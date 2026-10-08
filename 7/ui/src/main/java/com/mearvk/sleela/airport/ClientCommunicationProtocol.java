@@ -41,7 +41,7 @@ final class ClientCommunicationProtocol {
                 enc(from) + "|" + enc(to) + "|" + enc(message);
     }
 
-    static String ack(String messageId) {
+    static String peers(String entries) {\n        return VERSION + "|" + PEERS + "|" + enc(entries);\n    }\n\n    static String ack(String messageId) {
         return VERSION + "|" + ACK + "|" + enc(messageId);
     }
 
