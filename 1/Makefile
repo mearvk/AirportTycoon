@@ -29,6 +29,8 @@ PACING_SRC := game/PacingEngine.sleela
 DESK_OPS_SRC := game/ExecutiveOperationsDesk.sleela
 PACING_UI_SRC := ui-sleela/AirportTycoonPacingUI.sleela
 FLEET_MAINTENANCE_SRC := game/MaintenanceFleetRegistry.sleela
+FLEET_MANAGEMENT_SRC := game/FleetManagementStandards.sleela
+FLEET_DESK_SRC := game/FleetManagementDesk.sleela
 # The Lighting Effects MODULE and its LOADER (optional light on text/words).
 LIGHTS_SRC := media/LightingEffects.sleela media/LightingLoader.sleela
 # Imported SLeeLa library sources the Wrappers resolve against:
@@ -40,7 +42,7 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
-.PHONY: all game run run-life author ui-sleela terminal terminal-run media lights test ui ui-run check clean help route-economy pacing fleet-maintenance
+.PHONY: all game run run-life author ui-sleela terminal terminal-run media lights test ui ui-run check clean help route-economy pacing fleet-maintenance fleet-management
 
 all: game check ui
 
@@ -49,7 +51,7 @@ game:
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
 			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(LIGHTS_SRC) \
-			$(ROUTE_ECONOMY_SRC) $(FLEET_MAINTENANCE_SRC) \\
+			$(ROUTE_ECONOMY_SRC) $(FLEET_MAINTENANCE_SRC) $(FLEET_MANAGEMENT_SRC) $(FLEET_DESK_SRC) \\
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
@@ -65,6 +67,9 @@ route-economy:
 
 fleet-maintenance:
 	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
+
+fleet-management:
+	$(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
 
 run:
 	$(SLEELA) run $(GAME_SRC)
@@ -147,7 +152,8 @@ help:
 	@echo "Airport Tycoon — Business Edition (SLeeLa)"
 	@echo "  make game     Type/parse-check the .sleela Wrappers (Sleelvac)"
 	@echo "  make route-economy Run the timeless route-profitability observer
-  make fleet-maintenance Run the 23-fleet aircraft maintenance registry"
+  make fleet-maintenance Run the 23-fleet aircraft maintenance registry
+  make fleet-management Run fleet standards and Top Brass management controls"
 	@echo "  make run      Headless self-play (SLeeLa toolchain)"
 	@echo "  make run-life  Headless business/life layer (Character + Citizen)"
 	@echo "  make author    Prove the author path wins in 1001 moves, every time"
