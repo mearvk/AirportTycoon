@@ -336,3 +336,10 @@ SLEELA_HOME=/path/to/SLeeLa make ui-run   # UI drives the real .sleela logic
 Edit [`config/airport.conf`](config/airport.conf) to retune the economy,
 capacity, pace, and RNG seed. The matching `static` fields at the top of
 `AirportTycoon.sleela` are the authoritative defaults.
+
+
+## Edition 7 — Celestial Concourse / United States Operations Desk
+
+Edition 7 adds a live United States Operations Desk while retaining the responsive UI, Resonant Concourse lighting, and multiplayer connection foundation. The desk displays real system-clock values for UTC, Eastern, Central, Mountain, Pacific, Alaska, and Hawaii using Java's IANA time-zone database, including daylight-saving changes. It is a display of the local system clock, not a claim of direct NIST synchronization.
+
+The country panel presents public CIA World Factbook reference values: Washington, DC as capital, constitutional federal republic as government type, and 9,833,517 km² total area. The CIA panel is an open-reference information layer only; it does not represent classified or operational intelligence.
