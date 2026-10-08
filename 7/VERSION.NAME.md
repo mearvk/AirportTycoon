@@ -22,3 +22,5 @@
 The time reference follows the U.S. national timekeeping model: NIST maintains UTC(NIST), while the local time-zone conversion is handled by the operating system/IANA time-zone data.
 
 The CIA reference layer is informational only. It does not collect, infer, or display classified information.
+
+- **CCP/1 client communications** — the retained network client now has an explicit peer-message, presence, acknowledgement, and heartbeat contract.
