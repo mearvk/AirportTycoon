@@ -1,39 +1,22 @@
-# Edition 2 — *Golden Assimilation*
+# Edition 4 — *Sovereign Skies*
 
-> **Version:** 2
-> **Name:** Golden Assimilation
-> **Epithet:** *The Money-Raking Line*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Version:** 4
+> **Name:** Sovereign Skies
+> **Epithet:** *The Dominion Era*
+> **Status:** Common Base — established as the next named edition in the Airport Tycoon progression.
 
 ## Why the name
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+**Sovereign Skies** is the identity of Edition 4: a deliberately elevated name for the next stage of the Airport Tycoon line. It signals a larger, more ambitious airport experience while preserving the project's established tower, business, life-simulation, media, terminal, SLeeLa, and JavaFX foundations.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+**The Dominion Era** is the edition's formal thematic designation. It gives the version a distinct character without prematurely locking the edition to mechanics that have not yet been designed.
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+> *Sovereign Skies* — Edition 4, built from the shared Airport Tycoon foundation and ready for its own mechanics.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## Common Base
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+Edition 4 currently inherits the complete **Edition 2 — Golden Assimilation** common base. This includes the economic feedback loop, service premium, on-time combo, smarter auto-assist, Business Desk, Chemistry-based side ventures, IQ progression, Great Assimilation, SLeeLa game logic, Java mirror, SleelaUI front-end, Author Terminal, media/events center, Character/Citizen economy, configuration, and existing test/build structure.
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+The common base is intentional: it keeps Editions 3–8 structurally compatible while allowing each named edition to evolve independently from the same proven foundation.
+
+See [README.md](README.md) for the full inherited implementation overview.
