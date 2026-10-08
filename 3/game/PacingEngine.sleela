@@ -1,0 +1,82 @@
+#sleela 1.6
+package airport.pacing
+
+class PacingEngine {
+    static int ENGINE_HZ = 8;
+    static int ACTIVE_PLANES_MIN = 180;
+    static int ACTIVE_PLANES_MAX = 350;
+    static int REFERENCE_FLEET = 223;
+    static int FLEET_EVENT_SECONDS = 22;
+    static int DAY_MIN_SECONDS = 120;
+    static int DAY_TARGET_SECONDS = 480;
+    static int DAY_MAX_SECONDS = 1200;
+
+    int tickCount = 0;
+    int elapsedTicks = 0;
+    int eventCount = 0;
+    int day = 1;
+    int daySeconds = DAY_TARGET_SECONDS;
+    int secondsInDay = 0;
+    int incomeCents = 0;
+    int expenseCents = 0;
+    int activePlanes = REFERENCE_FLEET;
+    int fleetEvents = 0;
+
+    string name() { return "Airport Tycoon Pacing Engine"; }
+    int tickRate() { return ENGINE_HZ; }
+
+    int setDayLength(int seconds) {
+        if (seconds < DAY_MIN_SECONDS) { seconds = DAY_MIN_SECONDS; }
+        if (seconds > DAY_MAX_SECONDS) { seconds = DAY_MAX_SECONDS; }
+        daySeconds = seconds;
+        return daySeconds;
+    }
+
+    int setActivePlanes(int planes) {
+        if (planes < ACTIVE_PLANES_MIN) { planes = ACTIVE_PLANES_MIN; }
+        if (planes > ACTIVE_PLANES_MAX) { planes = ACTIVE_PLANES_MAX; }
+        activePlanes = planes;
+        return activePlanes;
+    }
+
+    int secondsPerFleetEvent() { return FLEET_EVENT_SECONDS; }
+
+    boolean tick() {
+        tickCount = tickCount + 1;
+        elapsedTicks = elapsedTicks + 1;
+        if (elapsedTicks >= ENGINE_HZ) {
+            elapsedTicks = elapsedTicks - ENGINE_HZ;
+            secondsInDay = secondsInDay + 1;
+            if (secondsInDay >= daySeconds) {
+                secondsInDay = 0;
+                day = day + 1;
+            }
+        }
+        if ((tickCount % (ENGINE_HZ * FLEET_EVENT_SECONDS)) == 0) {
+            eventCount = eventCount + 1;
+            fleetEvents = fleetEvents + 1;
+            return true;
+        }
+        return false;
+    }
+
+    int postIncome(int cents) {
+        incomeCents = incomeCents + cents;
+        return incomeCents;
+    }
+
+    int postExpense(int cents) {
+        expenseCents = expenseCents + cents;
+        return expenseCents;
+    }
+
+    int netCents() { return incomeCents - expenseCents; }
+
+    string pacing() {
+        return "8 Hz engine; fleet event about every 22 seconds; game day 2-20 minutes, with longer days allowed.";
+    }
+
+    string fleetRange() {
+        return "Active airline fleet: 180-350 planes; reference fleet: 223.";
+    }
+}
