@@ -39,6 +39,13 @@ struct Creature0 {
     int      standing;   // civic standing earned by lifetime feats
     int      feats;      // bitmask of FEAT_*
     int      allowance;  // which base allowance built it (ALLOW_*)
+    // Richer lifetime-feat effects:
+    int      intTempBonus;   // temporary INT (Exception Institute: +1000, 5 hrs)
+    int      intTempMinutes; // minutes the temporary INT lasts
+    int      intPermBonus;   // permanent INT crumble pool (Endowed Chair: +8000)
+    int      kingdoms;       // kingdoms granted (Exception Institute: 2)
+    int      followers;      // level-36 follower NPCs (Exception Institute: 2)
+    int      politicalLevels;// Democrat/Socialist track (Uni Trusts: +5)
 }
 
 class MoriaCreator {
@@ -59,6 +66,30 @@ class MoriaCreator {
     static int FEAT_KNIGHTHOOD   = 16;  // knighthood (by law)
     static int FEAT_ENDOWED_CHAIR= 32;  // an endowed chair
     static int FEAT_COUNT = 6;
+
+    // --- Decreed feat numbers ----------------------------------------------
+    // Great Wealth: summons 1000x your estimable wealth from a known relation
+    // to a Kingdom (or Great Kingdom); at least 20,000 gold coins.
+    static int WEALTH_MULT     = 1000;   // 1000x your estimable wealth
+    static int WEALTH_FLOOR    = 20000;  // ...but never less than 20,000 coins
+    // Trusts of Universities: your Democrat and Socialist track moves +5 levels
+    // ("roll 1d0 + 5 to start" — a flat +5, since 1d0 contributes nothing).
+    static int UNI_POLITICAL_LEVELS = 5;
+    // Exception Institute: Character gains 1000+ INT for 5 hours, with 2
+    // Kingdoms and 2 Kids/followers. Followers are level-36 NPCs; the summon
+    // lasts 28 rounds per summoner level (~28 minutes per caster level).
+    static int EXC_INT_BONUS    = 1000;  // +1000 temporary INT
+    static int EXC_INT_HOURS    = 5;     // for 5 hours
+    static int EXC_KINGDOMS     = 2;     // 2 kingdoms
+    static int EXC_FOLLOWERS    = 2;     // 2 kids / followers
+    static int FOLLOWER_LEVEL   = 36;    // followers are level-36 NPCs
+    static int SUMMON_ROUNDS_PER_LEVEL = 28; // 28 rounds (~minutes) per level
+    // Endowed Chair: +8000 permanent INT (a crumble pool). You fail some number
+    // of times in 1000 moves; once the effective 8000 crumbles the boost fades,
+    // usually in 1-2 minutes.
+    static int CHAIR_INT_BONUS  = 8000;  // +8000 permanent INT (crumbles)
+    static int CHAIR_FADE_MIN   = 1;     // fades in 1..2 minutes once crumbled
+    static int CHAIR_FADE_MAX   = 2;
 
     // ------------------------------------------------------------------
     // Base allowance 1: ROLLED scores from the seeded stream.
@@ -115,6 +146,12 @@ class MoriaCreator {
         g.standing = 0;
         g.feats = 0;
         g.allowance = allowance;
+        g.intTempBonus = 0;
+        g.intTempMinutes = 0;
+        g.intPermBonus = 0;
+        g.kingdoms = 0;
+        g.followers = 0;
+        g.politicalLevels = 0;
         return g;
     }
 
@@ -134,19 +171,28 @@ class MoriaCreator {
             g.standing = g.standing + 20;
             g.gold = g.gold + 200;
         } else if (feat == FEAT_UNI_TRUSTS) {
-            // Trusts of universities: scholarship and an endowment.
+            // Trusts of universities: scholarship and an endowment, and your
+            // forward Democrat and Socialist track moves ahead +5 levels
+            // ("roll 1d0 + 5 to start" — a flat +5).
             g.intel = statLib.clampStat(g.intel + 3);
             g.wis   = statLib.clampStat(g.wis + 1);
             g.gold = g.gold + 1200;          // the endowment
             g.standing = g.standing + 15;
+            g.politicalLevels = g.politicalLevels + UNI_POLITICAL_LEVELS;
         } else if (feat == FEAT_GREAT_WEALTH) {
-            // Great wealth: a fortune, and the standing that money buys.
-            g.gold = g.gold + 10000;
+            // Great Wealth: summons 1000x your estimable wealth from a known
+            // relation to a Kingdom (or Great Kingdom) — at least 20,000 coins.
+            g.gold = g.gold + greatWealthSummon(g.gold);
             g.chr  = statLib.clampStat(g.chr + 2);
             g.standing = g.standing + 25;
         } else if (feat == FEAT_EXCEPTION) {
-            // Exception institute: the exceptional institution that makes the
-            // whole sheet TRUER — a strong lift to the Character Number.
+            // Exception Institute: Character gains 1000+ INT for 5 hours, 2
+            // Kingdoms, and 2 Kids/followers (level-36 NPCs). The institution
+            // also makes the whole sheet TRUER (a lift to the Character Number).
+            g.intTempBonus = g.intTempBonus + EXC_INT_BONUS;   // +1000 temp INT
+            g.intTempMinutes = EXC_INT_HOURS * 60;             // for 5 hours
+            g.kingdoms = g.kingdoms + EXC_KINGDOMS;            // 2 kingdoms
+            g.followers = g.followers + EXC_FOLLOWERS;         // 2 followers (L36)
             g.chr = statLib.clampStat(g.chr + 6);
             g.wis = statLib.clampStat(g.wis + 2);
             g.standing = g.standing + 30;
@@ -156,8 +202,9 @@ class MoriaCreator {
             g.chr = statLib.clampStat(g.chr + 2);
             g.standing = g.standing + 20;
         } else if (feat == FEAT_ENDOWED_CHAIR) {
-            // An endowed chair: deep learning and a stipend.
-            g.intel = statLib.clampStat(g.intel + 2);
+            // Endowed Chair: +8000 PERMANENT INT (a crumble pool that erodes
+            // over play), plus a stipend and standing.
+            g.intPermBonus = g.intPermBonus + CHAIR_INT_BONUS; // +8000 INT pool
             g.wis   = statLib.clampStat(g.wis + 2);
             g.gold  = g.gold + 2500;
             g.standing = g.standing + 18;
@@ -177,6 +224,60 @@ class MoriaCreator {
     boolean hasFeat(Creature0 g, int feat) {
         if (g == null) { return false; }
         return hasBit(g.feats, feat);
+    }
+
+    // ------------------------------------------------------------------
+    // Decreed feat helpers.
+    // ------------------------------------------------------------------
+
+    // Great Wealth: 1000x your estimable wealth, floored at 20,000 coins.
+    // `estimable` is the character's wealth before the summon (its purse).
+    int greatWealthSummon(int estimable) {
+        int base = estimable;
+        if (base < 0) { base = 0; }
+        int summoned = base * WEALTH_MULT;      // 1000x
+        if (summoned < WEALTH_FLOOR) { summoned = WEALTH_FLOOR; }  // >= 20,000
+        return summoned;
+    }
+
+    int followerLevel() { return FOLLOWER_LEVEL; }   // level-36 NPCs
+
+    // The Exception Institute summon duration: 28 rounds per summoner level
+    // (~28 minutes per caster level).
+    int summonRounds(int summonerLevel) {
+        int lv = summonerLevel; if (lv < 1) { lv = 1; }
+        return SUMMON_ROUNDS_PER_LEVEL * lv;
+    }
+    int summonMinutes(int summonerLevel) { return summonRounds(summonerLevel); }
+
+    // Endowed Chair crumble: the +8000 INT pool erodes as moves are made and
+    // some fail. `movesMade` of 1000 and `failures` among them wear the pool
+    // down; each failed move crumbles a slice. Returns the INT still standing.
+    int chairStanding(Creature0 g, int movesMade, int failures) {
+        if (g == null || g.intPermBonus <= 0) { return 0; }
+        int pool = g.intPermBonus;              // 8000
+        // Each of the ~1000 moves wears a little; a failure wears much more.
+        int wear = movesMade + failures * (pool / 1000);
+        int left = pool - wear;
+        if (left < 0) { left = 0; }
+        return left;
+    }
+
+    // Once the effective 8000 has crumbled to nothing, the boost fades in 1..2
+    // minutes. `rollValue` is a seeded 0.. value for the 1-or-2 choice.
+    int chairFadeMinutes(int rollValue) {
+        int r = rollValue; if (r < 0) { r = 0 - r; }
+        return CHAIR_FADE_MIN + rem(r, CHAIR_FADE_MAX - CHAIR_FADE_MIN + 1);
+    }
+
+    // The character's EFFECTIVE Intelligence right now: base INT, plus any
+    // still-standing permanent-chair pool, plus the temporary Exception bonus
+    // while it lasts (minutesElapsed < intTempMinutes).
+    int effectiveInt(Creature0 g, int chairLeft, int minutesElapsed) {
+        if (g == null) { return 0; }
+        int v = g.intel + chairLeft;
+        if (minutesElapsed < g.intTempMinutes) { v = v + g.intTempBonus; }
+        return v;
     }
 
     // Is a single power-of-two bit set within a mask? SLeeLa 1.6: arithmetic
@@ -249,12 +350,27 @@ class MoriaCreator {
     }
 
     String describe(Creature0 g) {
-        return g.name + "  [" + allowanceName(g.allowance) + "]"
+        String out = g.name + "  [" + allowanceName(g.allowance) + "]"
              + "\n    STR " + g.str + " DEX " + g.dex + " CON " + g.con
              + " INT " + g.intel + " WIS " + g.wis + " CHR# " + g.chr
              + "   (truth " + truthPercent(g) + "%)"
              + "\n    gold " + g.gold + "   standing " + g.standing
              + "\n    lifetime feats: " + featList(g);
+        if (g.politicalLevels > 0) {
+            out = out + "\n    Democrat/Socialist track: +" + g.politicalLevels
+                + " levels";
+        }
+        if (g.intTempBonus > 0) {
+            out = out + "\n    Exception Institute: +" + g.intTempBonus
+                + " temp INT for " + (g.intTempMinutes / 60) + " hrs, "
+                + g.kingdoms + " kingdoms, " + g.followers
+                + " followers (level-" + FOLLOWER_LEVEL + " NPCs)";
+        }
+        if (g.intPermBonus > 0) {
+            out = out + "\n    Endowed Chair: +" + g.intPermBonus
+                + " permanent INT (crumbles over 1000 moves, then fades 1-2 min)";
+        }
+        return out;
     }
 
     // ------------------------------------------------------------------
@@ -293,5 +409,22 @@ class MoriaCreator {
         grantFeat(d, FEAT_ENDOWED_CHAIR);
         print("The snuff — a lifetime of great feats, won by law too:");
         print(describe(d));
+
+        // The decreed feat numbers in detail.
+        print("");
+        print("Great Wealth summon: a purse of 50 becomes +"
+            + greatWealthSummon(50) + " (1000x, floored at " + WEALTH_FLOOR + ").");
+        print("  a purse of 100 would summon +" + greatWealthSummon(100)
+            + " (1000x = 100,000).");
+        print("Exception followers are level-" + followerLevel()
+            + " NPCs; a level-5 summoner holds them " + summonRounds(5)
+            + " rounds (~" + summonMinutes(5) + " min).");
+        print("Endowed Chair +" + CHAIR_INT_BONUS + " INT crumbles: after 1000 "
+            + "moves with 40 failures, " + chairStanding(d, 1000, 40)
+            + " INT still stands.");
+        print("  effective INT at hour 1 (temp still up): "
+            + effectiveInt(d, chairStanding(d, 1000, 40), 60));
+        print("  once crumbled, the chair's boost fades in "
+            + chairFadeMinutes(1428) + " minute(s).");
     }
 }

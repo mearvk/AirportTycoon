@@ -266,7 +266,21 @@ that may cast each. The specially-named castings are all here —
 | **Call for Collegiance** | summon allies |
 
 — alongside the **standard spells** for the casters (Ward, Arcane Bolt, Conjure
-Light, Bless, Detect Evil, Identify). Each class knows a different set:
+Light, Bless, Detect Evil, Identify, **Magic Missile**, **Trick**). The decreed
+spell numbers:
+
+- **Heal** — restores **1d40 + 6 per caster level**.
+- **Heal Water** — recalls all spent mana to its correct natural place and time,
+  **heals the Universe**, turns your morals and weathering to **Trust**, and
+  **rejuvenates Base Constitution at 99.6%** (99.6% of the way to its true max).
+- **Magic Missile** — three reliable darts, **3 × (1d4 + 1)**.
+- **Trick** — follows **Magic Missile only** (MM first, then Trick — never the
+  other order): adds a wound of **1d6 + 6, plus 28 HP per caster level**, on top
+  of the missile.
+- **Fireball past caster level 6 assumes Trick** — a steady **+42 HP** added to
+  the blast.
+
+Each class knows a different set:
 **Fighters get their swords for now (no castings)**; **Mages** cast the arcane
 strikers, **Clerics** the divine heals and wards, and **Wizards** — the full
 scholars — command the widest book. Run `make grimoire` for the list and the
@@ -299,11 +313,11 @@ them **won by law too** — grant creation bonuses. Each is applied once:
 | Lifetime feat | What it grants |
 |---|---|
 | **Law Degree** (won by law) | +INT, +WIS, +standing, a purse |
-| **Trusts of Universities** | +INT, +WIS, a scholarly **endowment** (much gold) |
-| **Great Wealth** | a **fortune** in gold, +Character (standing) |
-| **Exception Institute** | +Character# and +WIS — the exception that makes the whole sheet **truer** |
+| **Trusts of Universities** | +INT, +WIS, a scholarly **endowment**, and your forward **Democrat & Socialist** track moves **+5 levels** (1d0 + 5) |
+| **Great Wealth** | summons **1000× your estimable wealth** from a known relation to a Kingdom/Great Kingdom — **≥ 20,000 gold coins** — plus +Character/standing |
+| **Exception Institute** | **+1000 INT for 5 hours**, **2 Kingdoms** and **2 followers** (level-36 NPCs that may or may not engage, attack, or eat; held **28 rounds per summoner level ≈ 28 min/level**), plus +Character# and +WIS — the exception that makes the whole sheet **truer** |
 | **Knighthood** (by Law) | +STR, +Character, +standing |
-| **Endowed Chair** | +INT, +WIS, a stipend |
+| **Endowed Chair** | **+8000 permanent INT** (a crumble pool that erodes over ~1000 moves as some fail; once crumbled the boost fades in **1–2 minutes**), plus +WIS and a stipend |
 
 A built character carries its final six scores, its **starting gold**, a civic
 **standing**, and the feats it holds; the dungeon can **adopt** it with

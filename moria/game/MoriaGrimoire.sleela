@@ -63,8 +63,30 @@ class MoriaGrimoire {
     static int CAST_BLESS       = 11; // standard cleric: bless
     static int CAST_DETECT      = 12; // standard: detect/divine
     static int CAST_IDENTIFY    = 13; // standard wizard: identify
+    static int CAST_MAGICMISSILE= 14; // Magic Missile — the reliable dart
+    static int CAST_TRICK       = 15; // Trick — follows Magic Missile only
 
-    static int GRIMOIRE_COUNT = 13;   // usable castings in the grimoire
+    static int GRIMOIRE_COUNT = 15;   // usable castings in the grimoire
+
+    // --- Spell numbers (decreed) -------------------------------------------
+    // Heal:  1d40 + 6 per caster level.
+    static int HEAL_DIE   = 40;   // 1d40
+    static int HEAL_PERLV = 6;    // + 6 per caster level
+    // Heal Water: rejuvenates Base Constitution at 99.6% (recalls spent mana to
+    // its natural place and time; your morals and weathering become Trust).
+    static int HEALWATER_PCT_X10 = 996;  // 99.6% (per-mille / 10)
+    // Magic Missile: a reliable arcane dart (3 missiles, 1d4+1 each).
+    static int MM_DARTS = 3;      // three missiles
+    static int MM_DIE   = 4;      // 1d4...
+    static int MM_FLAT  = 1;      // ...+1 per dart
+    // Trick: follows Magic Missile (MM then Trick, never reversed). Adds a
+    // wound of 1d6 + 6, plus 28 HP per caster level, in addition to MM.
+    static int TRICK_DIE    = 6;  // 1d6
+    static int TRICK_FLAT   = 6;  // + 6
+    static int TRICK_PERLV  = 28; // + 28 HP per caster level
+    // Fireball past caster level 6 ASSUMES Trick, adding a steady +42 HP.
+    static int FIREBALL_TRICK_LEVEL = 6;  // past this level, Trick is assumed
+    static int FIREBALL_TRICK_BONUS = 42; // + 42 to HP, steadily
 
     // ------------------------------------------------------------------
     // The grimoire roster: one accessor set, index 0..GRIMOIRE_COUNT-1.
@@ -83,7 +105,9 @@ class MoriaGrimoire {
         if (k == 9)  { return "Conjure Light"; }
         if (k == 10) { return "Bless"; }
         if (k == 11) { return "Detect Evil"; }
-        return "Identify";
+        if (k == 12) { return "Identify"; }
+        if (k == 13) { return "Magic Missile"; }
+        return "Trick";
     }
 
     int castKind(int i) {
@@ -100,7 +124,9 @@ class MoriaGrimoire {
         if (k == 9)  { return CAST_LIGHT; }
         if (k == 10) { return CAST_BLESS; }
         if (k == 11) { return CAST_DETECT; }
-        return CAST_IDENTIFY;
+        if (k == 12) { return CAST_IDENTIFY; }
+        if (k == 13) { return CAST_MAGICMISSILE; }
+        return CAST_TRICK;
     }
 
     // Which classes may cast each. The named castings are shared across the
@@ -120,7 +146,9 @@ class MoriaGrimoire {
         if (k == 9)  { return CLS_MAGE + CLS_CLERIC + CLS_WIZARD; }    // Light
         if (k == 10) { return CLS_CLERIC; }                           // Bless
         if (k == 11) { return CLS_CLERIC + CLS_WIZARD; }               // Detect Evil
-        return CLS_WIZARD;                                             // Identify
+        if (k == 12) { return CLS_WIZARD; }                           // Identify
+        if (k == 13) { return CLS_MAGE + CLS_WIZARD; }                // Magic Missile
+        return CLS_MAGE + CLS_WIZARD;                                 // Trick
     }
 
     int castPower(int i) {
@@ -137,7 +165,9 @@ class MoriaGrimoire {
         if (k == 9)  { return 6; }    // Light: +6 torch radius
         if (k == 10) { return 4; }    // Bless: +4 to the next roll
         if (k == 11) { return 1; }    // Detect Evil: reveal the lord
-        return 1;                      // Identify: name one weapon/spell
+        if (k == 12) { return 1; }    // Identify: name one weapon/spell
+        if (k == 13) { return MM_DARTS; } // Magic Missile: three darts
+        return TRICK_PERLV;            // Trick: +28 HP per caster level
     }
 
     boolean castNamed(int i) {
@@ -155,6 +185,97 @@ class MoriaGrimoire {
         c.power = castPower(k);
         c.named = castNamed(k);
         return c;
+    }
+
+    // ------------------------------------------------------------------
+    // Spell effects — the decreed numbers.
+    // ------------------------------------------------------------------
+
+    // HEAL — restore 1d40 + 6 per caster level. `dieRoll` is a 1..40 value the
+    // caller draws from its seeded stream.
+    int healAmount(int dieRoll, int casterLevel) {
+        int d = dieRoll;
+        if (d < 1) { d = 1; }
+        if (d > HEAL_DIE) { d = HEAL_DIE; }
+        int lv = casterLevel; if (lv < 1) { lv = 1; }
+        return d + HEAL_PERLV * lv;        // 1d40 + 6/level
+    }
+
+    String healFormula() {
+        return "1d" + HEAL_DIE + " + " + HEAL_PERLV + " per caster level";
+    }
+
+    // HEAL WATER — recalls all spent mana to its correct natural place and time
+    // and heals the Universe; your morals and weathering become Trust. It
+    // REJUVENATES your Base Constitution at 99.6%: the new CON is 99.6% of the
+    // way from the current value up to its true maximum.
+    int healWaterConstitution(int currentCon, int maxCon) {
+        if (maxCon <= currentCon) { return maxCon; }
+        int gap = maxCon - currentCon;
+        int restored = (gap * HEALWATER_PCT_X10) / 1000;   // 99.6% of the gap
+        int v = currentCon + restored;
+        if (v > maxCon) { v = maxCon; }
+        return v;
+    }
+
+    // Heal Water makes morals and weathering TRUST, and heals the Universe —
+    // a flavour read for the chronicle.
+    String healWaterRead() {
+        return "Heal Water recalls all spent mana to its natural place and "
+             + "time — the Universe is healed, and your morals and weathering "
+             + "are now Trust (Base Constitution rejuvenated 99.6%).";
+    }
+
+    // MAGIC MISSILE — three reliable darts, 1d4+1 each. `r1,r2,r3` are 1..4
+    // values from the seeded stream.
+    int magicMissile(int r1, int r2, int r3) {
+        return clampDie(r1, MM_DIE) + MM_FLAT
+             + clampDie(r2, MM_DIE) + MM_FLAT
+             + clampDie(r3, MM_DIE) + MM_FLAT;      // 3 x (1d4 + 1)
+    }
+
+    // TRICK — follows Magic Missile ONLY. Adds a wound of 1d6 + 6, plus 28 HP
+    // per caster level, IN ADDITION to the Magic Missile. `dieRoll` is 1..6.
+    int trickAmount(int dieRoll, int casterLevel) {
+        int d = clampDie(dieRoll, TRICK_DIE);
+        int lv = casterLevel; if (lv < 1) { lv = 1; }
+        return d + TRICK_FLAT + TRICK_PERLV * lv;   // 1d6 + 6 + 28/level
+    }
+
+    String trickFormula() {
+        return "1d" + TRICK_DIE + " + " + TRICK_FLAT + " + " + TRICK_PERLV
+             + " HP per caster level (added after Magic Missile)";
+    }
+
+    // THE DUO: Magic Missile THEN Trick — never any other order. `mmR1..3` roll
+    // the missile; `trickR` rolls the Trick wound. Returns the total wound
+    // count, with Trick layered on top of the missile.
+    int missileThenTrick(int mmR1, int mmR2, int mmR3, int trickR, int casterLevel) {
+        int mm = magicMissile(mmR1, mmR2, mmR3);    // Magic Missile FIRST
+        int tr = trickAmount(trickR, casterLevel);  // THEN Trick
+        return mm + tr;
+    }
+
+    // FIREBALL past caster level 6 ASSUMES Trick: it carries a steady +42 HP of
+    // the trick's wound on top of the fireball's own damage. `fireballBase` is
+    // the fireball's own rolled damage (from MoriaSpells.fireballDamage). Below
+    // the threshold the fireball is unchanged.
+    boolean fireballAssumesTrick(int casterLevel) {
+        return casterLevel > FIREBALL_TRICK_LEVEL;
+    }
+
+    int fireballWithTrick(int fireballBase, int casterLevel) {
+        if (fireballAssumesTrick(casterLevel)) {
+            return fireballBase + FIREBALL_TRICK_BONUS;   // steady +42
+        }
+        return fireballBase;
+    }
+
+    int clampDie(int roll, int sides) {
+        int d = roll;
+        if (d < 1) { d = 1; }
+        if (d > sides) { d = sides; }
+        return d;
     }
 
     // ------------------------------------------------------------------
@@ -335,6 +456,21 @@ class MoriaGrimoire {
         print("  Mage:    " + spellsForClass(CLS_MAGE));
         print("  Cleric:  " + spellsForClass(CLS_CLERIC));
         print("  Wizard:  " + spellsForClass(CLS_WIZARD));
+
+        print("");
+        print("Spell numbers (decreed):");
+        print("  Heal        = " + healFormula()
+            + "  (e.g. die 33, L5 => " + healAmount(33, 5) + ")");
+        print("  Magic Missile (3x 1d4+1): e.g. 4,2,3 => " + magicMissile(4, 2, 3));
+        print("  Trick       = " + trickFormula());
+        print("  MM then Trick (order fixed) at L5: e.g. MM 4,4,4 + Trick die 6 => "
+            + missileThenTrick(4, 4, 4, 6, 5));
+        print("  Fireball past level 6 ASSUMES Trick (+" + FIREBALL_TRICK_BONUS
+            + " HP). base 50 at L5 => " + fireballWithTrick(50, 5)
+            + "; at L7 => " + fireballWithTrick(50, 7));
+        print("  Heal Water: " + healWaterRead());
+        print("    Base CON 20 -> " + healWaterConstitution(20, 40)
+            + " of a true 40 (99.6% of the gap).");
 
         print("");
         print("A Lich obedience pact:");

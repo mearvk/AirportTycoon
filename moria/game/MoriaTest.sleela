@@ -352,6 +352,32 @@ class MoriaTest {
             gr.resolvePact(pc, true));
         check("the pause lifts once answered rightly", !gr.pausesCharacter(pc));
 
+        // --- Spell numbers: Heal, Magic Missile, Trick, Fireball/Trick -----
+        check("the grimoire now holds 15 castings", gr.GRIMOIRE_COUNT == 15);
+        check("Magic Missile is in the grimoire", gr.castName(13) == "Magic Missile");
+        check("Trick is in the grimoire", gr.castName(14) == "Trick");
+        // Heal = 1d40 + 6 per level. Max die 40 at level 5 => 40 + 30 = 70.
+        check("Heal is 1d40 + 6 per level (max die, L5 => 70)",
+            gr.healAmount(40, 5) == 70);
+        // Magic Missile = 3 x (1d4+1). Max => 15; a fixed set 4,2,3 => 12.
+        check("Magic Missile max (4,4,4) == 15", gr.magicMissile(4, 4, 4) == 15);
+        check("Magic Missile 4,2,3 == 12", gr.magicMissile(4, 2, 3) == 12);
+        // Trick = 1d6 + 6 + 28 per level. Max die 6 at L5 => 6 + 6 + 140 = 152.
+        check("Trick is 1d6+6+28/level (max die, L5 => 152)",
+            gr.trickAmount(6, 5) == 152);
+        // MM then Trick, in that fixed order: 15 + 152 = 167 at L5 maxed.
+        check("MM then Trick totals (15 + 152 == 167) at L5",
+            gr.missileThenTrick(4, 4, 4, 6, 5) == 167);
+        // Fireball past level 6 assumes Trick: a steady +42 HP.
+        check("Fireball below level 7 is unchanged",
+            gr.fireballWithTrick(50, 5) == 50 && !gr.fireballAssumesTrick(5));
+        check("Fireball past level 6 assumes Trick (+42)",
+            gr.fireballWithTrick(50, 7) == 92 && gr.fireballAssumesTrick(7));
+        // Heal Water rejuvenates Base Constitution at 99.6% of the gap.
+        check("Heal Water restores CON to 99.6% of the gap (20->39 of 40)",
+            gr.healWaterConstitution(20, 40) == 39);
+        check("Heal Water full when already at max", gr.healWaterConstitution(40, 40) == 40);
+
         // The dungeon's pact pause actually blocks movement.
         MoriaDungeon pd = new MoriaDungeon();
         pd.begin("Bound", 7);
@@ -395,12 +421,41 @@ class MoriaTest {
         int goldPreWealth = d.gold;
         cr.grantFeat(d, cr.FEAT_GREAT_WEALTH);
         check("Great Wealth adds a fortune", d.gold >= goldPreWealth + 10000);
+        // Great Wealth summons 1000x estimable wealth, floored at 20,000.
+        check("Great Wealth summons 1000x a 50-coin purse (50000)",
+            cr.greatWealthSummon(50) == 50000);
+        check("Great Wealth is floored at 20,000 coins",
+            cr.greatWealthSummon(5) == 20000);
+        // Trusts of Universities moves the Democrat/Socialist track +5 levels.
+        check("University trusts advance the political track +5",
+            d.politicalLevels == 5);
 
         int chrPreExc = d.chr;
         cr.grantFeat(d, cr.FEAT_EXCEPTION);
         check("Exception Institute lifts the Character Number",
             d.chr >= chrPreExc);   // (may clamp at 40 if already high)
         check("the distinguished sheet reads fully true", cr.truthPercent(d) == 100);
+        // Exception Institute: +1000 temp INT for 5 hours, 2 kingdoms, 2 followers.
+        check("Exception grants +1000 temporary INT", d.intTempBonus == 1000);
+        check("Exception temp INT lasts 5 hours (300 min)", d.intTempMinutes == 300);
+        check("Exception grants 2 kingdoms", d.kingdoms == 2);
+        check("Exception grants 2 followers", d.followers == 2);
+        check("followers are level-36 NPCs", cr.followerLevel() == 36);
+        check("a level-5 summoner holds followers 140 rounds (~min)",
+            cr.summonRounds(5) == 140);
+
+        // Endowed Chair: +8000 permanent INT that crumbles over 1000 moves.
+        int chairBefore = d.intel;
+        cr.grantFeat(d, cr.FEAT_ENDOWED_CHAIR);
+        check("Endowed Chair grants an +8000 permanent-INT pool",
+            d.intPermBonus == 8000);
+        check("the chair pool crumbles with moves and failures",
+            cr.chairStanding(d, 1000, 40) < 8000
+            && cr.chairStanding(d, 1000, 40) > 0);
+        check("effective INT counts the chair pool while it stands",
+            cr.effectiveInt(d, cr.chairStanding(d, 1000, 40), 60) > d.intel);
+        check("the crumbled chair fades in 1-2 minutes",
+            cr.chairFadeMinutes(1428) >= 1 && cr.chairFadeMinutes(1428) <= 2);
 
         // Granting a feat twice does not double-dip.
         int standBefore = d.standing;

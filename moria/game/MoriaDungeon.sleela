@@ -634,9 +634,17 @@ class MoriaDungeon {
     int castFireball(int x, int y) {
         if (!alive) { return 0; }
         int die = roll(1, spellLib.FIREBALL_DIE);        // 1d28
-        int dmg = spellLib.fireballDamage(die, level, statLib.spellPower(stats));
-        say("You cast FIREBALL (" + spellLib.fireballFormula()
-            + ") — a roaring bloom of flame for " + dmg + " damage.");
+        int base = spellLib.fireballDamage(die, level, statLib.spellPower(stats));
+        // Past caster level 6, Fireball ASSUMES Trick, adding a steady +42 HP.
+        int dmg = grimoire.fireballWithTrick(base, level);
+        if (grimoire.fireballAssumesTrick(level)) {
+            say("You cast FIREBALL (assuming Trick past level 6, +"
+                + grimoire.FIREBALL_TRICK_BONUS + ") — " + base + " + "
+                + grimoire.FIREBALL_TRICK_BONUS + " = " + dmg + " damage.");
+        } else {
+            say("You cast FIREBALL (" + spellLib.fireballFormula()
+                + ") — a roaring bloom of flame for " + dmg + " damage.");
+        }
         String there = cell(x, y);
         if (there == G_ORC || there == G_TROLL || there == G_BALROG) {
             setChange(x, y, G_FLOOR);
@@ -644,6 +652,58 @@ class MoriaDungeon {
             say("The flame takes the " + there + ". It is unmade.");
         }
         return dmg;
+    }
+
+    // =======================================================================
+    // Magic Missile, then Trick — in that fixed order (MM first, Trick after).
+    // Trick adds 1d6 + 6 + 28 HP per caster level ON TOP of the missile.
+    // Returns the total wound count dealt to a target at (x,y).
+    // =======================================================================
+    int castMissileThenTrick(int x, int y) {
+        if (!alive) { return 0; }
+        int mm = grimoire.magicMissile(roll(1, grimoire.MM_DIE),
+                                       roll(1, grimoire.MM_DIE),
+                                       roll(1, grimoire.MM_DIE));
+        int tr = grimoire.trickAmount(roll(1, grimoire.TRICK_DIE), level);
+        int total = mm + tr;        // Magic Missile FIRST, then Trick
+        say("You loose MAGIC MISSILE for " + mm + ", then the TRICK for " + tr
+            + " = " + total + " wound.");
+        String there = cell(x, y);
+        if (there == G_ORC || there == G_TROLL || there == G_BALROG) {
+            setChange(x, y, G_FLOOR);
+            monstersSlain = monstersSlain + 1;
+            say("The " + there + " is undone by missile and trick.");
+        }
+        return total;
+    }
+
+    // =======================================================================
+    // Heal — restore 1d40 + 6 per caster level to the hero.
+    // =======================================================================
+    int castHeal() {
+        if (!alive) { return 0; }
+        int amt = grimoire.healAmount(roll(1, grimoire.HEAL_DIE), level);
+        health = health + amt;
+        if (health > maxHealth) { health = maxHealth; }
+        say("You cast HEAL (" + grimoire.healFormula() + ") — restored " + amt
+            + " HP. (" + health + "/" + maxHealth + ")");
+        return amt;
+    }
+
+    // =======================================================================
+    // Heal Water — recalls all spent mana to its natural place and time, heals
+    // the Universe, and rejuvenates Base Constitution at 99.6%.
+    // =======================================================================
+    void castHealWater() {
+        if (!alive) { return; }
+        int trueCon = statLib.STAT_MAX;                 // the body's true maximum
+        int newCon = grimoire.healWaterConstitution(stats.con, trueCon);
+        stats.con = newCon;
+        // The body's rejuvenated Constitution lifts the hero's max health too.
+        maxHealth = 24 + statLib.hpPerLevel(stats);
+        say(grimoire.healWaterRead());
+        say("Your Base Constitution is rejuvenated to " + stats.con
+            + " (of a true " + trueCon + ").");
     }
 
     boolean fightBalrog(int x, int y) {
@@ -881,6 +941,10 @@ class MoriaDungeon {
     int fireballDamageFor(int dieRoll) {
         return spellLib.fireballDamage(dieRoll, level, statLib.spellPower(stats));
     }
+    // Does Fireball assume Trick at the hero's level (past level 6)?
+    boolean fireballAssumesTrick() { return grimoire.fireballAssumesTrick(level); }
+    String healFormula() { return grimoire.healFormula(); }
+    String trickFormula() { return grimoire.trickFormula(); }
 
     // --- the named legend holding this depth (the bestiary) ----------------
     boolean hasLord() { return lord != null; }
