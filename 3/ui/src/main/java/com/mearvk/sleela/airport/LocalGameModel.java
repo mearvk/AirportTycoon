@@ -92,6 +92,9 @@ public final class LocalGameModel implements SleelaRuntime {
     static final int CONTRACT_DEADLINE = 240;
     static final int CONTRACT_BONUS = 500;
     static final int CONTRACT_REP_BONUS = 2;
+    static final int CONTRACT_EARLY_TICKS = 120;
+    static final int CONTRACT_EARLY_BONUS = 250;
+    static final int CONTRACT_EARLY_REP_BONUS = 1;
     private int contractTargetSize;
     private int contractProgress;
     private int contractDeadline;
@@ -520,6 +523,11 @@ public final class LocalGameModel implements SleelaRuntime {
                 contractProgress++;
                 if (contractProgress >= CONTRACT_GOAL) {
                     cash += CONTRACT_BONUS;
+                    // Fast completion earns a quality bonus as well.
+                    if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
+                        cash += CONTRACT_EARLY_BONUS;
+                        reputation = Math.min(100, reputation + CONTRACT_EARLY_REP_BONUS);
+                    }
                     reputation = Math.min(100, reputation + CONTRACT_REP_BONUS);
                     contractsCompleted++;
                     contractProgress = 0;
@@ -612,4 +620,5 @@ public final class LocalGameModel implements SleelaRuntime {
     int contractProgress() { return contractProgress; }
     int contractDeadline() { return contractDeadline; }
     int contractsCompleted() { return contractsCompleted; }
+    int contractEarlyTicks() { return CONTRACT_EARLY_TICKS; }
 }
