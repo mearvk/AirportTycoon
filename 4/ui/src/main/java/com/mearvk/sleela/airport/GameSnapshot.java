@@ -46,6 +46,9 @@ public final class GameSnapshot {
     public final int contractsCompleted;
     public final int contractEarlyWindow;
     public final int contractEarlyBonus;
+    public final int contractChain;
+    public final int contractLadderStep;
+    public final int contractLadderCap;
 
     /** Edition 2 constructor carrying the feedback-loop readouts. */
     public GameSnapshot(int tick, int cash, int reputation, int served, int lost,
@@ -55,7 +58,8 @@ public final class GameSnapshot {
                         int contractTargetSize, int contractProgress,
                         int contractGoal, int contractTicksLeft,
                         int contractsCompleted, int contractEarlyWindow,
-                        int contractEarlyBonus) {
+                        int contractEarlyBonus, int contractChain,
+                        int contractLadderStep, int contractLadderCap) {
         this.tick = tick;
         this.cash = cash;
         this.reputation = reputation;
@@ -75,6 +79,9 @@ public final class GameSnapshot {
         this.contractsCompleted = contractsCompleted;
         this.contractEarlyWindow = contractEarlyWindow;
         this.contractEarlyBonus = contractEarlyBonus;
+        this.contractChain = contractChain;
+        this.contractLadderStep = contractLadderStep;
+        this.contractLadderCap = contractLadderCap;
     }
 
     /** Edition 1-compatible constructor; neutral premium (100%), no streak. */
@@ -82,7 +89,7 @@ public final class GameSnapshot {
                         int openGates, int openRunways, int planeCount,
                         boolean gameOver, List<PlaneView> planes) {
         this(tick, cash, reputation, served, lost, openGates, openRunways,
-                planeCount, gameOver, planes, 0, 100, 0, 0, 5, 0, 0, 120, 250);
+                planeCount, gameOver, planes, 0, 100, 0, 0, 5, 0, 0, 120, 250, 0, 100, 4);
     }
 
     /** A single plane as the UI needs it for animation. */
@@ -136,6 +143,7 @@ public final class GameSnapshot {
         int streak = 0, premium = 100;
         int contractTarget = 0, contractProgress = 0, contractGoal = 5;
         int contractLeft = 0, contracts = 0, contractEarlyWindow = 120, contractEarlyBonus = 250;
+        int contractChain = 0, contractLadderStep = 100, contractLadderCap = 4;
         boolean over = false;
         List<PlaneView> planes = new ArrayList<>();
 
@@ -176,6 +184,9 @@ public final class GameSnapshot {
                         case "contracts" -> contracts = parseInt(v);
                         case "contractEarlyWindow" -> contractEarlyWindow = parseInt(v);
                         case "contractEarlyBonus" -> contractEarlyBonus = parseInt(v);
+                        case "contractChain" -> contractChain = parseInt(v);
+                        case "contractLadderStep" -> contractLadderStep = parseInt(v);
+                        case "contractLadderCap" -> contractLadderCap = parseInt(v);
                         default -> { /* ignore unknown keys */ }
                     }
                 }
@@ -189,7 +200,8 @@ public final class GameSnapshot {
         return new GameSnapshot(tick, cash, rep, served, lost, gates, runways,
                 planeCount, over, planes, streak, premium,
                 contractTarget, contractProgress, contractGoal,
-                contractLeft, contracts, contractEarlyWindow, contractEarlyBonus);
+                contractLeft, contracts, contractEarlyWindow, contractEarlyBonus,
+                contractChain, contractLadderStep, contractLadderCap);
     }
 
     /** Minimal, dependency-free parse of a flat structPack JSON object. */
