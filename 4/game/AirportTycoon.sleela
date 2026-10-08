@@ -124,10 +124,13 @@ class AirportTycoon {
     static int CONTRACT_EARLY_TICKS = 120;
     static int CONTRACT_EARLY_BONUS = 250;
     static int CONTRACT_EARLY_REP_BONUS = 1;
+    static int CONTRACT_LADDER_STEP = 100;
+    static int CONTRACT_LADDER_CAP = 4;
     int contractTargetSize = 0; // 0 small, 1 medium, 2 heavy
     int contractProgress = 0;
     int contractDeadline = CONTRACT_DEADLINE;
     int contractsCompleted = 0;
+    int contractChain = 0;
 
     // ---------------------------------------------------------------------
     // Deterministic PRNG. Keeps the simulation reproducible from a seed so the
@@ -416,6 +419,7 @@ class AirportTycoon {
             contractProgress = 0;
             contractTargetSize = (contractTargetSize + 1) % 3;
             contractDeadline = CONTRACT_DEADLINE;
+            contractChain = 0;
         }
 
         // Cool runways down.
@@ -524,7 +528,9 @@ class AirportTycoon {
             if (p.sizeClass == contractTargetSize) {
                 contractProgress = contractProgress + 1;
                 if (contractProgress >= CONTRACT_GOAL) {
-                    cash = cash + CONTRACT_BONUS;
+                    int ladderStep = contractChain;
+                    if (ladderStep > CONTRACT_LADDER_CAP) { ladderStep = CONTRACT_LADDER_CAP; }
+                    cash = cash + CONTRACT_BONUS + (ladderStep * CONTRACT_LADDER_STEP);
                     // A fast completion is worth an additional prosperity
                     // quality bonus. This rewards planning, not mere volume.
                     if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
@@ -539,6 +545,7 @@ class AirportTycoon {
                         if (reputation > 100) { reputation = 100; }
                     }
                     contractsCompleted = contractsCompleted + 1;
+                    contractChain = contractChain + 1;
                     contractProgress = 0;
                     contractTargetSize = (contractTargetSize + 1) % 3;
                     contractDeadline = CONTRACT_DEADLINE;
@@ -619,7 +626,10 @@ class AirportTycoon {
             + "|contractLeft=" + contractDeadline
             + "|contracts=" + contractsCompleted
             + "|contractEarlyWindow=" + CONTRACT_EARLY_TICKS
-            + "|contractEarlyBonus=" + CONTRACT_EARLY_BONUS;
+            + "|contractEarlyBonus=" + CONTRACT_EARLY_BONUS
+            + "|contractChain=" + contractChain
+            + "|contractLadderStep=" + CONTRACT_LADDER_STEP
+            + "|contractLadderCap=" + CONTRACT_LADDER_CAP;
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
