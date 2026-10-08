@@ -121,6 +121,9 @@ class AirportTycoon {
     static int CONTRACT_DEADLINE = 240;
     static int CONTRACT_BONUS = 500;
     static int CONTRACT_REP_BONUS = 2;
+    static int CONTRACT_EARLY_TICKS = 120;
+    static int CONTRACT_EARLY_BONUS = 250;
+    static int CONTRACT_EARLY_REP_BONUS = 1;
     int contractTargetSize = 0; // 0 small, 1 medium, 2 heavy
     int contractProgress = 0;
     int contractDeadline = CONTRACT_DEADLINE;
@@ -522,6 +525,15 @@ class AirportTycoon {
                 contractProgress = contractProgress + 1;
                 if (contractProgress >= CONTRACT_GOAL) {
                     cash = cash + CONTRACT_BONUS;
+                    // A fast completion is worth an additional prosperity
+                    // quality bonus. This rewards planning, not mere volume.
+                    if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
+                        cash = cash + CONTRACT_EARLY_BONUS;
+                        if (reputation < 100) {
+                            reputation = reputation + CONTRACT_EARLY_REP_BONUS;
+                            if (reputation > 100) { reputation = 100; }
+                        }
+                    }
                     if (reputation < 100) {
                         reputation = reputation + CONTRACT_REP_BONUS;
                         if (reputation > 100) { reputation = 100; }
@@ -605,7 +617,9 @@ class AirportTycoon {
             + "|contractProgress=" + contractProgress
             + "|contractGoal=" + CONTRACT_GOAL
             + "|contractLeft=" + contractDeadline
-            + "|contracts=" + contractsCompleted;
+            + "|contracts=" + contractsCompleted
+            + "|contractEarlyWindow=" + CONTRACT_EARLY_TICKS
+            + "|contractEarlyBonus=" + CONTRACT_EARLY_BONUS;
         Plane p = planes;
         while (p != null) {
             if (p.state != PLANE_DONE && p.state != PLANE_LEFT_ANGRY) {
