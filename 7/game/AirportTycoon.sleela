@@ -125,10 +125,16 @@ class AirportTycoon {
     // ---------------------------------------------------------------------
     Reservations reservationBook;
     int reservationIQ = 0;
+    int reservationMonthTarget = 2000;
+    int reservationMonthCount = 0;
+    boolean reservationMonthExemplary = false;
 
     void setupReservations() {
         reservationBook = new Reservations();
         reservationBook.setup();
+        reservationMonthCount = 0;
+        reservationMonthTarget = reservationBook.monthlyTarget;
+        reservationMonthExemplary = false;
     }
 
     boolean bookReservation(String guestId, String guestName, String flight,
@@ -138,6 +144,8 @@ class AirportTycoon {
                                              partySize, startTick, duration);
         if (r == null) { return false; }
         reservationIQ = reservationBook.reservationIQ();
+        reservationMonthCount = reservationBook.monthlyBooked;
+        reservationMonthExemplary = reservationBook.monthlyExemplaryTarget();
         return true;
     }
 
@@ -145,12 +153,23 @@ class AirportTycoon {
         if (reservationBook == null) { return false; }
         boolean ok = reservationBook.confirm(reservationId);
         reservationIQ = reservationBook.reservationIQ();
+        reservationMonthCount = reservationBook.monthlyBooked;
+        reservationMonthExemplary = reservationBook.monthlyExemplaryTarget();
         return ok;
+    }
+
+    void resetReservationMonth() {
+        if (reservationBook == null) { setupReservations(); }
+        else { reservationBook.resetReservationMonth(); }
+        reservationMonthCount = 0;
+        reservationMonthExemplary = false;
     }
 
     String reservationSnapshot() {
         if (reservationBook == null) { return "RESERVATIONS|empty=yes"; }
         reservationIQ = reservationBook.reservationIQ();
+        reservationMonthCount = reservationBook.monthlyBooked;
+        reservationMonthExemplary = reservationBook.monthlyExemplaryTarget();
         return reservationBook.snapshot();
     }
 
@@ -436,6 +455,8 @@ class AirportTycoon {
         if (reservationBook != null) {
             reservationBook.step();
             reservationIQ = reservationBook.reservationIQ();
+            reservationMonthCount = reservationBook.monthlyBooked;
+            reservationMonthExemplary = reservationBook.monthlyExemplaryTarget();
         }
 
         // Cool runways down.
@@ -604,6 +625,9 @@ class AirportTycoon {
     String snapshot() {
         String out = "ATC|tick=" + tick + "|cash=" + cash
             + "|reservationIQ=" + reservationIQ
+            + "|reservationMonth=" + reservationMonthCount
+            + "|reservationTarget=" + reservationMonthTarget
+            + "|reservationExemplary=" + reservationMonthExemplary
             + "|rep=" + reputation + "|served=" + served + "|lost=" + lost
             + "|gates=" + openGates + "|runways=" + openRunways
             + "|planes=" + planeCount + "|over=" + gameOver
