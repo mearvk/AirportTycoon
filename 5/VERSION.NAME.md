@@ -1,33 +1,28 @@
-# Edition 4 — *Sovereign Skies*
+# Edition 5 — *Imperial Horizons*
 
-> **Version:** 4
-> **Name:** Sovereign Skies
-> **Epithet:** *The Dominion Era*
-> **Status:** Latest — the dominion line, evolving from the Edition 3 prosperity line.
+> **Version:** 5
+> **Name:** Imperial Horizons
+> **Epithet:** *The Grand Strategy Era*
+> **Status:** Latest — the grand strategy line, evolving from the Edition 4 dominion line.
 
 ## Why the name
 
-**Sovereign Skies** — Edition 4 is about control at scale. The player is no
-longer merely reacting to individual aircraft or completing isolated contracts;
-a disciplined airport can build a consecutive prosperity record and make each
-successful contract more valuable.
+**Imperial Horizons** — Edition 5 expands the airport's strategy beyond the immediate traffic horizon. The player must balance aircraft flow, contract prosperity, and the capital needed to keep the airport resilient.
 
-The **Prosperity Ladder** adds measured compounding to Edition 3: +$100 for
-each consecutive completed contract, capped at +$400, while an expired contract
-resets the ladder. The early-completion quality bonus remains intact.
+The **Imperial Reserve** rewards maintaining at least $3,000 for 180 consecutive ticks with a $750 treasury award and up to +2 reputation. Falling below the floor resets only qualification progress; it never closes the airport.
 
-> *Sovereign Skies* — the Edition where operational discipline becomes
-> sustained dominion.
+> *Imperial Horizons* — the Edition where prosperity becomes long-range strategy.
 
-## What's new since *Platinum Ascension* (Edition 3)
+## What's new since *Sovereign Skies* (Edition 4)
 
-- **Prosperity Ladder** — consecutive completed contracts increase the next contract's base reward.
-- **+$100 ladder step** — each successful contract adds another $100 to the next base contract reward.
-- **+$400 cap** — the ladder can raise the $500 base reward to $900.
-- **Expiry reset** — missing a contract breaks the ladder without an additional reputation penalty.
-- **Early-quality bonus retained** — Edition 3's $250/+1 early-completion reward remains.
-- **UI-visible progression** — ladder chain, step, and cap are in snapshots.
+- **Imperial Reserve** — cash-stability objective alongside the Prosperity Ladder.
+- **$3,000 reserve floor** — capital must remain at or above the floor.
+- **180-tick qualification** — stability must be maintained continuously.
+- **$750 treasury award** — successful qualification adds working capital.
+- **Up to +2 reputation** — financial discipline reinforces airport quality.
+- **Reset without punishment** — spending below the floor resets progress without a new failure condition.
+- **UI-visible finance state** — reserve floor, progress, goal, reward, and award count are in snapshots.
 
-Edition 1's tower rules, Edition 2's economic feedback and Business Desk, and Edition 3's Prosperity Contracts remain intact.
+Editions 1–4 remain intact: tower operations, economic feedback, Prosperity Contracts, the early-quality bonus, and the Prosperity Ladder all continue forward.
 
-See README.md for the full overview and Edition 4 notes.
+See README.md for the full overview and Edition 5 notes.
