@@ -1,0 +1,25 @@
+# frodo sprite crops
+# source: moria/images/frodo.jpeg (2520x282 sprite sheet, black background)
+# produced by: moria/tools/crop2.go
+#
+# Minimum crop set: one crop per sprite instance (12 total), no filler frames.
+# Uniform output: every crop is 196x211, the SAME uniform size shared across the
+# gandalf, gimli and frodo sprite sets so all three are interchangeable at one
+# frame size. (196 = widest gimli box; 211 = tallest frodo box.)
+#
+# Each sprite is centered horizontally and bottom-anchored on the canvas so frames
+# align on a common ground line; the black background is keyed to transparent.
+# Frodo's glowing sword (Sting) is bright, so it is preserved as content.
+size	196x211
+sprite	01	frodo-01.png	src=x[206..372],y[53..253]	tight=167x201
+sprite	02	frodo-02.png	src=x[413..549],y[53..259]	tight=137x207
+sprite	03	frodo-03.png	src=x[579..728],y[53..253]	tight=150x201
+sprite	04	frodo-04.png	src=x[815..951],y[53..247]	tight=137x195
+sprite	05	frodo-05.png	src=x[998..1135],y[53..252]	tight=138x200
+sprite	06	frodo-06.png	src=x[1137..1277],y[53..247]	tight=141x195
+sprite	07	frodo-07.png	src=x[1354..1497],y[53..247]	tight=144x195
+sprite	08	frodo-08.png	src=x[1526..1669],y[53..252]	tight=144x200
+sprite	09	frodo-09.png	src=x[1681..1821],y[53..247]	tight=141x195
+sprite	10	frodo-10.png	src=x[1932..2092],y[42..247]	tight=161x206
+sprite	11	frodo-11.png	src=x[2116..2275],y[42..252]	tight=160x211
+sprite	12	frodo-12.png	src=x[2294..2453],y[53..252]	tight=160x200

@@ -3,9 +3,9 @@
 # produced by: moria/tools/crop2.go
 #
 # Minimum crop set: one crop per sprite instance (12 total), no filler frames.
-# Uniform output: every crop is 196x210, the SAME uniform size shared with the
-# gandalf sprite set so the two characters are interchangeable at one frame size.
-# (196 = widest gimli bounding box; 210 = tallest gandalf bounding box.)
+# Uniform output: every crop is 196x211, the SAME uniform size shared with the
+# gandalf and frodo sprite sets so all three characters are interchangeable at one size.
+# (196 = widest gimli box; 211 = tallest frodo box, shared across all three sheets.)
 #
 # Two adjacent figures on the sheet overlap at the axe handle (merged by plain
 # black-gap splitting); crop2.go splits any run >1.6x the median width at the
@@ -13,7 +13,7 @@
 #
 # Each sprite is centered horizontally and bottom-anchored on the canvas so frames
 # align on a common ground line; the black background is keyed to transparent.
-size	196x210
+size	196x211
 sprite	01	gimli-01.png	src=x[174..369],y[39..226]	tight=196x188
 sprite	02	gimli-02.png	src=x[399..570],y[39..231]	tight=172x193
 sprite	03	gimli-03.png	src=x[571..726],y[39..231]	tight=156x193
