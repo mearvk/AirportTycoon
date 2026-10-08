@@ -115,6 +115,8 @@ class MoriaDungeon {
 
     // ---- RPG layer: stats, level, the Fireball, the saved book ------------
     MoriaStats   statLib;    // the stat library (modifiers + Character-Number)
+    MoriaAnimation anim;     // the walk animation (start/mid/stop sampled frames)
+    Walker       heroWalk;   // the hero's walking actor (frame + facing + motion)
     StatBlock    stats;      // the hero's six ability scores (incl. Constitution)
     MoriaSpells  spellLib;   // the spellbook (names thousands; owns the Fireball)
     MoriaWeapons armoury;    // the armoury (names thousands; many +4 or greater)
@@ -184,6 +186,7 @@ class MoriaDungeon {
 
         // --- RPG layer: roll the six stats, set the level, forge a weapon ---
         statLib = new MoriaStats();
+        anim = new MoriaAnimation();
         spellLib = new MoriaSpells();
         armoury = new MoriaWeapons();
         book = new MoriaSave();
@@ -230,6 +233,9 @@ class MoriaDungeon {
 
         carveLevel();
         musterFellowship();
+        // The hero's walking actor: start/mid/stop frames, spawned where he
+        // stands. His sprite is the autocropped "adventurer" set in images/.
+        heroWalk = anim.spawn("adventurer", heroX, heroY);
         say("You step into the Mines of Moria. The dark is patient.");
         say("Depth 1. Your torch throws a small, brave circle of light.");
         say(heroName + ": " + statLib.describe(stats));
@@ -568,9 +574,28 @@ class MoriaDungeon {
     }
 
     void stepHeroTo(int nx, int ny) {
+        // Animate the walk: face the step and advance the gait (start/mid/stop)
+        // so the character MOVES like he's walking. The walker tracks the hero.
+        if (heroWalk != null) {
+            anim.face(heroWalk, nx - heroX, ny - heroY);
+            anim.step(heroWalk);
+            heroWalk.x = nx;
+            heroWalk.y = ny;
+        }
         heroX = nx;
         heroY = ny;
     }
+
+    // The hero's current walk frame label ("start"/"mid"/"stop") and sprite.
+    String heroFrame() {
+        if (heroWalk == null) { return "stop"; }
+        return anim.frameLabel(anim.frameOf(heroWalk));
+    }
+    String heroSprite() {
+        if (heroWalk == null) { return "images/adventurer/adventurer-stop.png"; }
+        return anim.framePath(heroWalk);
+    }
+    boolean heroWalking() { if (heroWalk == null) { return false; } return heroWalk.moving; }
 
     // =======================================================================
     // Combat (deterministic rolls)
@@ -1217,6 +1242,7 @@ class MoriaDungeon {
         print("  sidearm: " + sidearmName() + " (range " + sidearmRange()
             + " sq, 2d12+8 +" + sidearmBonus() + ", avg " + sidearmAverage() + ")");
         print("  fireball: " + fireballFormula());
+        print("  walk: frame " + heroFrame() + "  sprite " + heroSprite());
         if (hasLord()) {
             print("  the lord of this depth: " + lordName() + " ("
                 + lordSpecies() + ", CR " + lordCr() + ", HP " + lordHp() + ")");

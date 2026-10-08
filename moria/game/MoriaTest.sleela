@@ -480,6 +480,52 @@ class MoriaTest {
         check("the dungeon carries the created character's feats",
             cd.heroHasFeat(cr.FEAT_GREAT_WEALTH) && cd.heroHasFeat(cr.FEAT_KNIGHTHOOD));
 
+        // --- The walk animation: start / mid / stop, and the character moves --
+        MoriaAnimation an = new MoriaAnimation();
+        check("animation samples exactly 3 frames (start/mid/stop)", an.FRAMES == 3);
+        Walker wk = an.spawn("adventurer", 2, 9);
+        check("a fresh walker is at rest on the STOP frame",
+            an.frameOf(wk) == an.FRAME_STOP);
+        an.face(wk, 1, 0);
+        int startX = wk.x;
+        an.step(wk);
+        check("one step moves the character one cell (walking)", wk.x == startX + 1);
+        check("a walking character is moving", wk.moving);
+        check("the walk cycles through the sampled frames",
+            an.frameOf(wk) >= an.FRAME_START && an.frameOf(wk) <= an.FRAME_STOP);
+        check("the frame maps to its sprite path under the character's name",
+            an.framePath(wk) == "images/adventurer/adventurer-" + an.frameLabel(an.frameOf(wk)) + ".png");
+        an.halt(wk);
+        check("halting settles on the STOP frame", an.frameOf(wk) == an.FRAME_STOP);
+        // The hero in the live dungeon animates as he walks.
+        check("the hero reports a walk frame", r.heroFrame() != "");
+        check("the hero's sprite lives under images/adventurer/",
+            r.heroSprite() == "images/adventurer/adventurer-start.png"
+            || r.heroSprite() == "images/adventurer/adventurer-mid.png"
+            || r.heroSprite() == "images/adventurer/adventurer-stop.png");
+
+        // --- The 2000+ dungeon catalog, sized for the GUI gameboard ----------
+        MoriaDungeonCatalog cat = new MoriaDungeonCatalog();
+        check("the catalog names 2000+ dungeons", cat.catalogSize() >= 2000);
+        int over = 0; int kc = 0;
+        while (kc < 400) {
+            int did = kc * 31 + 1;
+            Dungeon dg = cat.forge(did);
+            // Every board must fit inside the Sleela GUI pane.
+            if (dg.boardWidthPx > cat.GUI_PANE_W || dg.boardHeightPx > cat.GUI_PANE_H) {
+                over = over + 1;
+            }
+            kc = kc + 1;
+        }
+        check("every sampled dungeon board fits the Sleela GUI pane", over == 0);
+        Dungeon d0 = cat.forge(777);
+        check("a dungeon carries an original authoring size",
+            cat.originalWidthPx(d0) > 0 && cat.originalHeightPx(d0) > 0);
+        check("a dungeon carries a GUI board size",
+            d0.boardWidthPx > 0 && d0.boardHeightPx > 0);
+        check("a dungeon carries animation times (a positive stride)",
+            cat.strideMs(d0) > 0);
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

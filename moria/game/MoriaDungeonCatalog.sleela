@@ -1,0 +1,257 @@
+#sleela 1.6
+//
+// Moria — the Dungeon Catalog
+// ===========================
+// A name-forge of MORE THAN 2000 distinct dungeons, each sized twice: once at
+// its ORIGINAL authoring resolution (how it was drawn) and once SIZED FOR THE
+// SLEELA GUI (how it is shown on the gameboard), with the animation "times"
+// (frame holds) that pace a walk across it.
+//
+//   [Depth-Theme] [Hall-Form] of [Legend]   (#index)
+//
+// With 24 themes x 22 forms x 24 legends the forge names 12,672 distinct
+// dungeons — well past the 2000+ asked for. Every name, size, and timing is a
+// pure function of the catalog index, so a given index always yields the same
+// dungeon (determinism; the Careful Years of Time repeat).
+//
+// Sizing model (the "original, then size for the gameboard and times"):
+//   * ORIGINAL   — authoring grid, cols x rows in CELLS, and a cell drawn at
+//                  originalCellPx (e.g. 48 px) — the resolution it was made at.
+//   * GAMEBOARD  — the same grid shown in the Sleela GUI at a GUI cell size
+//                  (boardCellPx, ~16..28 px) chosen so the whole board fits the
+//                  pane; boardWidthPx/boardHeightPx are the on-screen pixels.
+//   * TIMES      — the walk animation's frame holds (start/mid/stop) in ticks,
+//                  plus the ms-per-tick that paces a stride on this board.
+//
+// #sleela 1.6: scalars + struct, no arrays, no hex.
+
+// One catalogued dungeon, sized for authoring AND for the GUI gameboard.
+struct Dungeon {
+    int    id;              // stable catalog index
+    String name;            // the dressed-up name
+    int    cols;            // grid width  in cells
+    int    rows;            // grid height in cells
+    int    originalCellPx;  // authoring cell size (px)
+    int    boardCellPx;     // GUI gameboard cell size (px)
+    int    boardWidthPx;    // cols * boardCellPx
+    int    boardHeightPx;   // rows * boardCellPx
+    // --- animation "times" (frame holds, in ticks) + pacing ---
+    int    holdStart;       // ticks the START frame is held
+    int    holdMid;         // ticks the MID frame is held
+    int    holdStop;        // ticks the STOP frame is held
+    int    msPerTick;       // milliseconds per animation tick on this board
+}
+
+class MoriaDungeonCatalog {
+
+    static int THEMES  = 24;
+    static int FORMS   = 22;
+    static int LEGENDS = 24;
+    // Catalog size = 24 * 22 * 24 = 12,672 distinct dungeons (>= 2000).
+
+    // The Sleela GUI pane the gameboard must fit inside (px). The board cell
+    // size is chosen so cols*cell and rows*cell stay within these bounds.
+    static int GUI_PANE_W = 760;
+    static int GUI_PANE_H = 560;
+    static int CELL_MIN   = 8;    // smallest GUI cell (floor; always fits the pane)
+    static int CELL_PREF  = 14;   // smallest PREFERRED (readable) GUI cell
+    static int CELL_MAX   = 28;   // largest GUI cell
+    static int ORIGINAL_CELL = 48; // authoring resolution per cell
+
+    int catalogSize() { return THEMES * FORMS * LEGENDS; }
+
+    // --- name banks ---------------------------------------------------------
+    String theme(int i) {
+        int k = i % THEMES;
+        if (k == 0)  { return "First Deep"; }
+        if (k == 1)  { return "Dwarrowdelf"; }
+        if (k == 2)  { return "Black Pit"; }
+        if (k == 3)  { return "Shadowed"; }
+        if (k == 4)  { return "Molten"; }
+        if (k == 5)  { return "Frost-bound"; }
+        if (k == 6)  { return "Echoing"; }
+        if (k == 7)  { return "Collapsed"; }
+        if (k == 8)  { return "Gilded"; }
+        if (k == 9)  { return "Ruined"; }
+        if (k == 10) { return "Flooded"; }
+        if (k == 11) { return "Cavernous"; }
+        if (k == 12) { return "Pillared"; }
+        if (k == 13) { return "Forgotten"; }
+        if (k == 14) { return "Haunted"; }
+        if (k == 15) { return "Mithril-veined"; }
+        if (k == 16) { return "Ember-lit"; }
+        if (k == 17) { return "Silent"; }
+        if (k == 18) { return "Nameless"; }
+        if (k == 19) { return "Sunless"; }
+        if (k == 20) { return "Riven"; }
+        if (k == 21) { return "Deep-delved"; }
+        if (k == 22) { return "Rune-marked"; }
+        return "Abyssal";
+    }
+
+    String hallForm(int i) {
+        int k = i % FORMS;
+        if (k == 0)  { return "Hall"; }
+        if (k == 1)  { return "Gallery"; }
+        if (k == 2)  { return "Vault"; }
+        if (k == 3)  { return "Crypt"; }
+        if (k == 4)  { return "Mine"; }
+        if (k == 5)  { return "Chasm"; }
+        if (k == 6)  { return "Causeway"; }
+        if (k == 7)  { return "Stair"; }
+        if (k == 8)  { return "Bridge"; }
+        if (k == 9)  { return "Chamber"; }
+        if (k == 10) { return "Warren"; }
+        if (k == 11) { return "Labyrinth"; }
+        if (k == 12) { return "Delve"; }
+        if (k == 13) { return "Rotunda"; }
+        if (k == 14) { return "Undercroft"; }
+        if (k == 15) { return "Catacomb"; }
+        if (k == 16) { return "Foundry"; }
+        if (k == 17) { return "Reliquary"; }
+        if (k == 18) { return "Cistern"; }
+        if (k == 19) { return "Barrow"; }
+        if (k == 20) { return "Threshold"; }
+        return "Deeproad";
+    }
+
+    String legend(int i) {
+        int k = i % LEGENDS;
+        if (k == 0)  { return "Durin"; }
+        if (k == 1)  { return "the Deep"; }
+        if (k == 2)  { return "the Balrog"; }
+        if (k == 3)  { return "Seven Fathers"; }
+        if (k == 4)  { return "Khazad-dum"; }
+        if (k == 5)  { return "the First Forge"; }
+        if (k == 6)  { return "the Lonely Mountain"; }
+        if (k == 7)  { return "Fallen Kings"; }
+        if (k == 8)  { return "the Last Stand"; }
+        if (k == 9)  { return "Riven Stone"; }
+        if (k == 10) { return "the Silent Deep"; }
+        if (k == 11) { return "the Molten Heart"; }
+        if (k == 12) { return "Hidden Veins"; }
+        if (k == 13) { return "the Watcher"; }
+        if (k == 14) { return "the Bridge"; }
+        if (k == 15) { return "the Elder Days"; }
+        if (k == 16) { return "the Nameless Dark"; }
+        if (k == 17) { return "the East Wind"; }
+        if (k == 18) { return "the Undying Flame"; }
+        if (k == 19) { return "the Threshold"; }
+        if (k == 20) { return "Mithril Hall"; }
+        if (k == 21) { return "the Dwarf-Lords"; }
+        if (k == 22) { return "the Careful Years"; }
+        return "Dawn's Edge";
+    }
+
+    String nameOf(int id) {
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        int t = i % THEMES;
+        int f = (i / THEMES) % FORMS;
+        int l = (i / (THEMES * FORMS)) % LEGENDS;
+        return theme(t) + " " + hallForm(f) + " of " + legend(l) + " (#" + i + ")";
+    }
+
+    // --- grid dimensions (deterministic per index) --------------------------
+    // Cols 32..64, rows 16..36, so every dungeon is a distinct, sensibly-shaped
+    // hall. Derived from the index so a given dungeon always has the same shape.
+    int colsOf(int id) { return 32 + (hash(id, 1) % 33); }   // 32..64
+    int rowsOf(int id) { return 16 + (hash(id, 2) % 21); }   // 16..36
+
+    // --- GUI gameboard sizing ----------------------------------------------
+    // Choose the LARGEST GUI cell (down to CELL_MIN) that still fits the WHOLE
+    // board inside the Sleela pane — this is the "size for the gameboard" step,
+    // and it ALWAYS fits (the widest 64-col hall needs an 11px cell for 760px,
+    // comfortably above the 8px floor). Preferred readable cells are >= CELL_PREF.
+    int boardCellOf(int id) {
+        int cols = colsOf(id); int rows = rowsOf(id);
+        int cell = CELL_MAX;
+        while (cell > CELL_MIN) {
+            if (cols * cell <= GUI_PANE_W && rows * cell <= GUI_PANE_H) {
+                return cell;
+            }
+            cell = cell - 1;
+        }
+        return CELL_MIN;
+    }
+
+    // --- animation "times" --------------------------------------------------
+    // Larger boards pace a touch slower (more ms per tick) so a stride reads
+    // across the bigger hall; frame holds are the walk-cycle sample weights.
+    int msPerTickOf(int id) {
+        int cols = colsOf(id);
+        int base = 90;                         // ms per tick on a small board
+        int extra = (cols - 32) * 2;           // up to +64 ms on the widest
+        return base + extra;
+    }
+
+    // Forge a fully-sized dungeon at a catalog index.
+    Dungeon forge(int id) {
+        Dungeon d = new Dungeon();
+        int n = catalogSize();
+        int i = id % n; if (i < 0) { i = i + n; }
+        d.id = i;
+        d.name = nameOf(i);
+        d.cols = colsOf(i);
+        d.rows = rowsOf(i);
+        d.originalCellPx = ORIGINAL_CELL;
+        d.boardCellPx = boardCellOf(i);
+        d.boardWidthPx = d.cols * d.boardCellPx;
+        d.boardHeightPx = d.rows * d.boardCellPx;
+        // Animation times: the START/MID/STOP holds mirror MoriaAnimation, and
+        // the per-tick pacing scales with the board width.
+        d.holdStart = 2;
+        d.holdMid = 1;
+        d.holdStop = 2;
+        d.msPerTick = msPerTickOf(i);
+        return d;
+    }
+
+    // The original (authoring) pixel size, for the record.
+    int originalWidthPx(Dungeon d) { return d.cols * d.originalCellPx; }
+    int originalHeightPx(Dungeon d) { return d.rows * d.originalCellPx; }
+
+    // A full stride's duration in ms on this board (START+MID+STOP+MID ticks).
+    int strideMs(Dungeon d) {
+        int ticks = d.holdStart + d.holdMid + d.holdStop + d.holdMid;
+        return ticks * d.msPerTick;
+    }
+
+    // A small stable hash for shape derivation.
+    int hash(int id, int salt) {
+        int h = (id + 1) * 2654435761;
+        h = h ^ (salt * 40503);
+        if (h < 0) { h = 0 - h; }
+        return h;
+    }
+
+    String describe(Dungeon d) {
+        return "#" + d.id + "  " + d.name
+             + "  grid " + d.cols + "x" + d.rows
+             + "  original " + originalWidthPx(d) + "x" + originalHeightPx(d) + "px"
+             + "  board " + d.boardWidthPx + "x" + d.boardHeightPx
+             + "px @" + d.boardCellPx + "px/cell"
+             + "  stride " + strideMs(d) + "ms";
+    }
+
+    void main() {
+        print("Moria — the Dungeon Catalog");
+        print("Catalog size: " + catalogSize() + " distinct dungeons (>= 2000).");
+        print("Each is sized at its ORIGINAL authoring resolution and then for");
+        print("the Sleela GUI gameboard, with the walk animation times.");
+        print("");
+        print("A scattering across the catalog:");
+        int i = 0;
+        while (i < 12) {
+            int id = i * 1051 + 7;      // scatter across the catalog
+            Dungeon d = forge(id);
+            print("  " + describe(d));
+            i = i + 1;
+        }
+        print("");
+        Dungeon big = forge(64 * 20 + 21);   // a wide one, to show GUI fit
+        print("Fit check (a wide hall): " + describe(big));
+        print("  (board " + big.boardWidthPx + "x" + big.boardHeightPx
+            + "px fits the " + GUI_PANE_W + "x" + GUI_PANE_H + "px pane.)");
+    }
+}
