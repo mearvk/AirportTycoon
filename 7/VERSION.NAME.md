@@ -15,3 +15,5 @@
 - Edition 6 Resonant Concourse lighting retained.
 
 The time display follows the U.S. national timekeeping model: NIST maintains UTC(NIST), while local zone conversion is handled by current operating-system/IANA rules. The CIA panel is informational and contains no classified or operational intelligence.
+
+- **CCP/1 client communications** — the retained network client now has an explicit peer-message, presence, acknowledgement, and heartbeat contract.
