@@ -28,7 +28,12 @@ game is fully playable **headless** too — the same text read drives both.
 | [`game/MoriaCreator.sleela`](game/MoriaCreator.sleela) | **The character-creation generator** — base-stat allowances (**Rolled**, **Point-set**, **Old Wisdoms**) and **lifetime feats** (the *snuff*): **Law Degree, Trusts of Universities, Great Wealth, Exception Institute**, Knighthood, Endowed Chair. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, and same-seed reproducibility. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
-| [`ui-sleela/MoriaTitleLogo.sleela`](ui-sleela/MoriaTitleLogo.sleela) | The **title-bar logo** widget: paints the D&D mark ([`images/D&D-logo-title.png`](images/D&D-logo-title.png) — trimmed to the mark, transparent background) as the window's cool title logo, with the text heading as a graceful fallback. |
+| [`ui-sleela/SLImageFile.sleela`](ui-sleela/SLImageFile.sleela) | The **file loader**: a SleelaUI image widget that loads a real image **file** from a path (preserving its alpha), scaled to a box while keeping aspect — the loader behind the title logo. Bottoms out in the `uiImageFile` bridge. |
+| [`ui-sleela/SLFontEffect.sleela`](ui-sleela/SLFontEffect.sleela) | The **light emitter descriptor**: a GLOW/LIGHT/EMITTER with a packed `0xRRGGBBAA` colour, an emitter radius, an intensity, and a **direction** (so an emitter can cast its light one way only — e.g. straight down). Binds through the `uiFontEffect*` bridge. |
+| [`ui-sleela/MoriaTitleLogo.sleela`](ui-sleela/MoriaTitleLogo.sleela) | The **title-bar logo** widget: paints the D&D mark ([`images/D&D-logo-title.png`](images/D&D-logo-title.png) — trimmed to the mark, transparent background) as the window's cool title logo via `SLImageFile`, with the text heading as a graceful fallback. |
+| [`ui-sleela/MoriaThrobber.sleela`](ui-sleela/MoriaThrobber.sleela) | The **title throbber**: a thin (2–4 px), full-width, resizing light strip directly under the title that casts a radiant **white-and-yellow** light **downward only** onto the Descriptive Canvas, with a constant 3D light-ebb animation that runs until the program ends. |
+| [`ui-sleela/MoriaCharacterSelect.sleela`](ui-sleela/MoriaCharacterSelect.sleela) | The **character-select startup**: choose a ready-made hero from a small roster, or **forge a new one** with the creation generator — the chosen `Creature0` is adopted by `beginFromCharacter`. |
+| [`ui-sleela/BRIDGE.md`](ui-sleela/BRIDGE.md) | The **SLVM bridge manifest**: the new `ui*` built-ins the Moria UI helpers introduce (`uiImageFile`, `uiFontEffectBind/Update`, `uiSleepMillis`), with signatures and the C ABI each should call. |
 | [`Makefile`](Makefile) | Build dispatcher (`game` / `run` / `ui` / `test`). |
 
 The SleelaUI widget toolkit is **reused** from the Airport Tycoon Edition 1
@@ -54,6 +59,31 @@ primitives — and layers the "excellent text" on top in SLeeLa:
   so a picky Adventurer can read the whole descent.
 - **A themed result banner.** Victory, a fall in the dark, or an ongoing
   descent, as an inline notice.
+
+## The title logo, the throbber, and character select
+
+- **A cool title logo.** The window title is the **D&D mark**, loaded from a
+  real image file ([`images/D&D-logo-title.png`](images/D&D-logo-title.png)) by
+  the `SLImageFile` loader. The asset is trimmed to the mark with a transparent
+  background, so only the red dragon-ampersand reads over the slick-black stone.
+  If the image can't be bound, the title falls back to a text heading.
+- **A radiant throbber under the title.** Directly beneath the title sits a thin
+  **2–4 px, full-width** light strip (it resizes with the window). It casts a
+  **radiant white-and-yellow** light **downward only** — out of its bottom edge,
+  onto and into the Descriptive Canvas the board is drawn on — via an
+  `SLFontEffect` emitter masked to `DIR_DOWN`. A travelling bright spot sweeps
+  across it while a slower breath pulses the intensity and warms the colour
+  between white and yellow, so the band reads as light **moving in 3D** as time
+  ebbs and fades. It is **quite visible and never stops**: the UI drives its own
+  frame loop (`pump` + `requestRedraw`), ticking the light every frame until the
+  user ends the program.
+- **Choose or create your Adventurer.** On startup the GUI shows a neat
+  **"Choose your Adventurer"** panel: pick a ready-made hero from a small roster
+  (each a full `Creature0` from the generator) or **forge a new one** with the
+  allowances and lifetime feats. The chosen hero is adopted via
+  `beginFromCharacter`, so it walks into the Mines with its own stats, gold,
+  standing, and feats. With no display (or no pick) a sensible, distinguished
+  default is used so the game always begins.
 
 ## Scoreboard lighting — lights out of the text
 

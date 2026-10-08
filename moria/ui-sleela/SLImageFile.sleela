@@ -1,0 +1,52 @@
+#sleela 1.6
+//
+// SLImageFile — a SleelaUI image widget that loads a REAL file
+// ============================================================
+// The vendored toolkit's SLImage draws a glyph tile; this companion widget
+// loads an actual image FILE (PNG, with its alpha preserved) from a path and
+// paints it, scaled to a requested box while keeping its aspect ratio. It is
+// the file loader behind the Moria title logo.
+//
+// Pattern: an SLImageFile IS an SLWidget whose constructor bottoms out in the
+// `uiImageFile` SLVM bridge built-in (SleelaUI C ABI slui_image_file()), just
+// as SLImage bottoms out in `uiImage` — a subclass that only adds a constructor
+// over the inherited widget handle, matching every other toolkit widget. It
+// lives in the Moria tree so the byte-for-byte vendored toolkit stays untouched.
+//
+// Graceful degradation: a width/height of 0 means "size to the source"; a
+// non-zero value caps that dimension (the other scales to preserve aspect when
+// its cap is 0). If the built-in or the file is missing, the handle stays < 0,
+// loaded() is false, and callers fall back to text — so the UI always reads.
+//
+class SLImageFile extends SLWidget {
+
+    // Load `assetPath` into `parent`, capped to maxW x maxH px (0 = auto on
+    // that axis). Returns true when a real image was bound.
+    boolean createIn(SLWidget parent, String assetPath, int maxW, int maxH) {
+        widget = uiImageFile(parent.handle(), normalize(assetPath),
+                             max0(maxW), max0(maxH));
+        return loaded();
+    }
+
+    boolean createInHandle(int parentHandle, String assetPath,
+                           int maxW, int maxH) {
+        widget = uiImageFile(parentHandle, normalize(assetPath),
+                             max0(maxW), max0(maxH));
+        return loaded();
+    }
+
+    boolean loaded() { return widget >= 0; }
+
+    int max0(int v) { if (v < 0) { return 0; } return v; }
+
+    // Light path hygiene: drop a leading "./" so the toolkit's loader resolves
+    // against the module root consistently. (No filesystem access here — the
+    // native loader opens the file; this only normalises the string.)
+    String normalize(String p) {
+        if (p == null) { return ""; }
+        if (p.length() >= 2 && p.substring(0, 2) == "./") {
+            return p.substring(2, p.length());
+        }
+        return p;
+    }
+}

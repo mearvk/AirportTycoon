@@ -2,43 +2,50 @@
 //
 // Moria — the Title Bar logo
 // ==========================
-// A thin, non-interactive SleelaUI widget that paints a REAL image file (the
-// trimmed, transparent-background D&D mark) as the Moria window's title logo.
+// A thin, non-interactive helper that paints a REAL image file (the trimmed,
+// transparent-background D&D mark) as the Moria window's title logo.
 //
-// It mirrors the vendored SLImage widget's shape exactly — an SLWidget whose
-// constructor bottoms out in a `ui*` SLVM bridge built-in — but loads an image
-// *from a path* (`uiImageFile`, SleelaUI C ABI slui_image_file()) rather than
-// drawing a centred glyph tile. The toolkit draws it with its natural alpha, so
-// the cleared (transparent) background lets the slick-black stone show through
-// and only the red mark reads.
+// It loads through SLImageFile — the Moria file loader that bottoms out in the
+// `uiImageFile` SLVM bridge (SleelaUI C ABI slui_image_file()) and preserves
+// the PNG's alpha — so the cleared (transparent) background lets the slick-black
+// stone show through and only the red mark reads.
 //
 // The vendored toolkit at ../../1/sources/user-interface is kept byte-for-byte
-// with upstream mearvk/SLeeLa, so this presentation-only helper lives in the
-// Moria tree beside MoriaUI rather than inside the shared widget vocabulary.
+// with upstream mearvk/SLeeLa, so this presentation-only helper (and the file
+// loader it uses) live in the Moria tree beside MoriaUI.
 //
 // Headless / no-loader fallback: callers check loaded(); when the image cannot
 // be bound (no display, missing file, or a build without the uiImageFile
 // bridge) they fall back to the text heading, so the title always reads.
 //
-class MoriaTitleLogo extends SLWidget {
+class MoriaTitleLogo {
 
     // The logo asset, relative to the Moria module root (ui-sleela runs from
     // moria/, matching how MoriaUI resolves its sibling game/ sources).
     static String ASSET = "images/D&D-logo-title.png";
+
+    SLImageFile image;
 
     // Create the title logo inside `parent`, drawn no taller than `maxHeight`
     // px (width scales to preserve the mark's aspect; "careful, adult size").
     // Returns true when a real image widget was bound, false when the caller
     // should fall back to the text title.
     boolean createIn(SLWidget parent, int maxHeight) {
-        widget = uiImageFile(parent.handle(), ASSET, 0, maxHeight);
-        if (widget >= 0) {
+        image = new SLImageFile();
+        boolean ok = image.createIn(parent, ASSET, 0, maxHeight);
+        if (ok) {
             // Centre the mark in the title area and let it breathe a little.
-            setAlign(SLWidget.ALIGN_CENTER, SLWidget.ALIGN_CENTER);
-            setMargin(4, 0, 4, 0);
+            image.setAlign(SLWidget.ALIGN_CENTER, SLWidget.ALIGN_CENTER);
+            image.setMargin(4, 0, 4, 0);
         }
-        return loaded();
+        return ok;
     }
 
-    boolean loaded() { return widget >= 0; }
+    boolean loaded() {
+        if (image == null) { return false; }
+        return image.loaded();
+    }
+
+    // The underlying widget (so callers can place the throbber relative to it).
+    SLWidget widgetRef() { return image; }
 }
