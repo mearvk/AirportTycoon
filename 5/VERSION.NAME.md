@@ -30,3 +30,5 @@ Editions 1–4 remain intact: tower operations, economic feedback, Prosperity Co
 The multiplayer layer is designed for trusted LAN/private networks in this edition; it does not yet provide internet-grade authentication or TLS.
 
 See README.md for the full overview and Edition 5 notes.
+
+- **CCP/1 client communications** — presence, peer discovery, broadcast/direct messages, ACKs, and heartbeats are relayed through the authoritative server.
