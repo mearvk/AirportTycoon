@@ -1,3 +1,5 @@
+<img src="../../images/debian-vs-ubuntu.jpeg" alt="Debian vs Ubuntu" width="180">
+
 # Imported SLeeLa sources (`/sources`)
 
 Vendored SLeeLa standard-library packages that Airport Tycoon builds on. These
