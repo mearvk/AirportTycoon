@@ -10,6 +10,8 @@ import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -40,7 +42,7 @@ public final class AirportTycoonApp extends Application {
     private static final double FIELD_H = 440;
     private static final double WINDOW_W = 1280; // room for the economy panel
 
-    private final SleelaRuntime runtime = new SleelaProcessRuntime();
+    private SleelaRuntime runtime;
 
     // The business/life layer (Character owner + Citizen travelers), mirroring
     // game/AirportTycoonLife.sleela and the vendored /sources classes.
@@ -55,6 +57,8 @@ public final class AirportTycoonApp extends Application {
     private Label messageLabel;
     private Label economyLabel;
     private ToggleButton pauseBtn;
+    private TextArea chatArea;
+    private TextField chatInput;
 
     private long lastTickNanos = 0;
     private static final long TICK_NANOS = 100_000_000L; // 10 Hz
@@ -65,6 +69,7 @@ public final class AirportTycoonApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        runtime = createRuntime();
         runtime.reset();
 
         canvas = new Canvas(W, FIELD_H);
@@ -126,9 +131,32 @@ public final class AirportTycoonApp extends Application {
                 render(snap);
                 updateHud(snap);
                 updateEconomy();
+                updateNetworkUi();
             }
         };
         loop.start();
+    }
+
+    private SleelaRuntime createRuntime() {
+        String host = setting("AIRPORT_NETWORK_HOST", "airport.network.host", "");
+        if (!host.isBlank()) {
+            int port = parseInt(setting("AIRPORT_NETWORK_PORT", "airport.network.port", "47500"), 47500);
+            String mode = setting("AIRPORT_NETWORK_MODE", "airport.network.mode", "shared");
+            String name = setting("AIRPORT_PLAYER", "airport.player", System.getProperty("user.name", "Player"));
+            return new NetworkRuntime(host, port, name, mode);
+        }
+        return new SleelaProcessRuntime();
+    }
+
+    private static String setting(String env, String property, String fallback) {
+        String p = System.getProperty(property);
+        if (p != null && !p.isBlank()) return p;
+        String e = System.getenv(env);
+        return e == null ? fallback : e;
+    }
+
+    private static int parseInt(String value, int fallback) {
+        try { return Integer.parseInt(value); } catch (NumberFormatException e) { return fallback; }
     }
 
     private Region buildHeader() {
@@ -203,7 +231,27 @@ public final class AirportTycoonApp extends Application {
         HBox priceRow = new HBox(6, priceUp, priceDown);
         HBox taxRow = new HBox(6, taxUp, taxDown);
 
-        VBox box = new VBox(8, title, sub, economyLabel, priceRow, taxRow);
+        chatArea = new TextArea();
+        chatArea.setEditable(false);
+        chatArea.setWrapText(true);
+        chatArea.setPrefRowCount(8);
+        chatArea.setPromptText("Network chat");
+
+        chatInput = new TextField();
+        chatInput.setPromptText("Message everyone…");
+        Button chatSend = new Button("Send");
+        chatSend.setOnAction(e -> sendChat());
+        chatInput.setOnAction(e -> sendChat());
+        HBox chatRow = new HBox(6, chatInput, chatSend);
+        HBox.setHgrow(chatInput, Priority.ALWAYS);
+
+        Label network = new Label();
+        network.setFont(Font.font("Consolas", 10));
+        network.setTextFill(Color.web("#7fa8d0"));
+        network.setId("networkStatus");
+
+        VBox box = new VBox(8, title, sub, economyLabel, priceRow, taxRow,
+                new Label("PLAYER CHAT"), network, chatArea, chatRow);
         box.setPadding(new Insets(12));
         box.setPrefWidth(300);
         box.setStyle("-fx-background-color: #0e1830; -fx-border-color: #1c2a44; -fx-border-width: 0 0 0 1;");
@@ -213,6 +261,31 @@ public final class AirportTycoonApp extends Application {
     // Advance the business/life layer one in-game month every TICKS_PER_MONTH
     // ticks, folding the tower game's fare income earned this month into the
     // owner's Character book.
+    private void updateNetworkUi() {
+        if (chatArea == null) return;
+        if (runtime instanceof NetworkRuntime network) {
+            chatArea.setText(network.chatText());
+            chatArea.positionCaret(chatArea.getLength());
+            if (network.networkStatus().startsWith("connected")) {
+                chatArea.setPromptText("Connected — chat with the other players");
+            } else {
+                chatArea.setPromptText("Network: " + network.networkStatus());
+            }
+        } else {
+            chatArea.setPromptText("Local game — set AIRPORT_NETWORK_HOST to play online");
+        }
+    }
+
+    private void sendChat() {
+        if (runtime instanceof NetworkRuntime network && chatInput != null) {
+            String text = chatInput.getText().trim();
+            if (!text.isEmpty()) {
+                network.sendChat(text);
+                chatInput.clear();
+            }
+        }
+    }
+
     private void maybeAdvanceMonth() {
         GameSnapshot snap = runtime.snapshot();
         if (snap.tick > 0 && snap.tick % TICKS_PER_MONTH == 0) {
@@ -412,5 +485,11 @@ public final class AirportTycoonApp extends Application {
 
     public static void main(String[] args) {
         launch(args);
+    }
+    @Override
+    public void stop() {
+        if (runtime instanceof AutoCloseable closeable) {
+            try { closeable.close(); } catch (Exception ignored) { }
+        }
     }
 }
