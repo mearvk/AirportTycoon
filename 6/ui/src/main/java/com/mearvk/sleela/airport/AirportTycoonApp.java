@@ -67,6 +67,9 @@ public final class AirportTycoonApp extends Application {
     private static final int TICKS_PER_MONTH = 60;
     private int cashAtMonthStart = 0;
     private boolean paused = false;
+    // Edition 6: slow, steady visual resonance for the floor emitters.
+    private long lightingNanos = 0L;
+    private static final double LIGHT_RESONANCE_SECONDS = 8.0;
 
     @Override
     public void start(Stage stage) {
@@ -119,7 +122,7 @@ public final class AirportTycoonApp extends Application {
             }
         });
 
-        stage.setTitle("Airport Tycoon — Business Edition (SLeeLa)");
+        stage.setTitle("Airport Tycoon — Grand Meridian (SLeeLa)");
         stage.setScene(scene);
         stage.show();
 
@@ -134,6 +137,7 @@ public final class AirportTycoonApp extends Application {
                     lastTickNanos = now;
                     maybeAdvanceMonth();
                 }
+                lightingNanos = now;
                 GameSnapshot snap = runtime.snapshot();
                 updateSprites(snap);
                 render(snap);
@@ -418,21 +422,33 @@ public final class AirportTycoonApp extends Application {
         }
         g.setStroke(Color.web("#515861"));
         g.setLineWidth(1);
-        for (int col = 0; col <= columns; col++) { double x = col * tileW; g.strokeLine(x, 0, x, fieldH); }
-        for (int row = 0; row <= rows; row++) { double y = row * tileH; g.strokeLine(0, y, fieldW, y); }
+        for (int col = 0; col <= columns; col++) {
+            double x = col * tileW; g.strokeLine(x, 0, x, fieldH);
+        }
+        for (int row = 0; row <= rows; row++) {
+            double y = row * tileH; g.strokeLine(0, y, fieldW, y);
+        }
+        // Resonant Concourse: a slow travelling glow across the intersections.
+        double seconds = lightingNanos / 1_000_000_000.0;
+        double cycle = seconds / LIGHT_RESONANCE_SECONDS * Math.PI * 2.0;
         for (int row = 0; row <= rows; row++) {
             for (int col = 0; col <= columns; col++) {
                 double x = col * tileW, y = row * tileH;
-                g.setFill(Color.color(1.0, 0.98, 0.82, 0.10));
-                g.fillOval(x - radius * 3.2, y - radius * 3.2, radius * 6.4, radius * 6.4);
+                double phase = cycle + (col * 0.27) + (row * 0.19);
+                double pulse = 0.5 + 0.5 * Math.sin(phase);
+                double haloRadius = radius * (2.5 + pulse * 1.8);
+                double haloAlpha = 0.055 + pulse * 0.075;
+                g.setFill(Color.color(1.0, 0.98, 0.82, haloAlpha));
+                g.fillOval(x - haloRadius, y - haloRadius, haloRadius * 2, haloRadius * 2);
+                double core = radius * (0.88 + pulse * 0.22);
                 g.setFill(Color.web("#e8e8e4"));
-                g.fillOval(x - radius, y - radius, radius * 2, radius * 2);
+                g.fillOval(x - core, y - core, core * 2, core * 2);
+                double highlight = core * (0.48 + pulse * 0.12);
                 g.setFill(Color.web("#fffdf0"));
-                g.fillOval(x - radius * 0.55, y - radius * 0.55, radius * 1.1, radius * 1.1);
+                g.fillOval(x - highlight, y - highlight, highlight * 2, highlight * 2);
             }
         }
     }
-
     private void drawRunways(GraphicsContext g, GameSnapshot snap, double fieldW, double fieldH) {
         double y = fieldH * 0.80, runwayW = Math.min(260, Math.max(120, fieldW * 0.25));
         double gap = (fieldW - runwayW * 3) / 4.0;
