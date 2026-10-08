@@ -473,3 +473,16 @@ Edition 6 carries forward the multiplayer foundation and gives client-to-client 
 CCP/1 provides **presence**, a **peer list**, **broadcast messages**, **direct peer messages**, **delivery acknowledgements**, and **PING/PONG heartbeats**. Each peer receives a stable session ID such as P1; direct messages can target that ID or the player's displayed name. UTF-8 text is Base64 encoded so it cannot break the existing line framing.
 
 The protocol is separate from simulation CMD and STATE records. The implementation lives in ui/.../ClientCommunicationProtocol.java; Edition 6's NetworkRuntime and MultiplayerServer relay the protocol while retaining the responsive Resonant Concourse UI.
+
+
+## Timeless Route Profitability Model
+
+Edition 6 now loads `game/RouteProfitabilityModel.sleela` as a common management model for routes and airline ownership. Planes and the airline are treated as the player's investment: normal routes begin from the assumption that aircraft operations are generally profitable, while the game asks the player to prove that a route is sound, secure, and sustainable.
+
+Every completed flight has **three economic moments**: **Pickup** posts passenger/ticket revenue; **Flight** posts the aircraft and route operating value; **Dropoff** posts the destination/service value. The airline balance updates at each of these three moments, rather than only once at the end of a flight.
+
+The management model is **timeless**. It observes its own decision horizon while also observing the game world and the global economy as separate frames of time. This gives the player an executive-level investment view: establish that a new route can perform as well as existing routes, then invest when the evidence supports it.
+
+The **MoreStandard intelligence** layer searches beyond ordinary route profitability for additional conditions that make the system work — demand, reliability, security, capacity, timing, economic climate, and other observable factors. It is an exploratory intelligence layer, not an automatic irreversible decision-maker.
+
+Run the standalone loaded model with `make route-economy`.
