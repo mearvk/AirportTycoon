@@ -32,7 +32,7 @@ else
 fi
 for n in 1 2 3 4 5 6 7 8; do
   if [ -f "$n/Makefile" ]; then
-    if grep -q '$(if $(wildcard $(CURDIR)/../../../SLeeLa/impl/build/sleela)' "$n/Makefile"; then
+    if grep -Fq '$(if $(wildcard $(CURDIR)/../../SLeeLa/impl/build/sleela)' "$n/Makefile"; then
       echo "PASS: edition $n prefers the local SLeeLa build when present"
     else
       echo "WARN: edition $n may select an older PATH executable"
