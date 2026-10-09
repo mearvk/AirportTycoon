@@ -13,6 +13,14 @@ if [ -n "${SLEELA_HOME:-}" ]; then
 else
   echo "INFO: SLEELA_HOME unset; Makefile discovery must select a valid root"
 fi
+if [ -x SLeeLa/impl/build/sleela ] && command -v strings >/dev/null 2>&1; then
+  if strings SLeeLa/impl/build/sleela | grep -q 'searched upward from'; then
+    echo "FAIL: sibling SLeeLa executable is stale; rebuild SLeeLa with make -C impl all"
+    fail=1
+  else
+    echo "PASS: sibling SLeeLa executable has no known stale diagnostic"
+  fi
+fi
 echo "== Search: verifier path assumptions across editions =="
 if grep -R -n --include='Makefile' -E 'verification tool not found|searched upward from|SLEELA_ENV|SLEELA \?=' 1 2 3 4 5 6 7 8; then echo "INFO: reviewed edition Makefiles"; else echo "FAIL: no edition toolchain configuration found"; fail=1; fi
 for n in 1 2 3 4 5 6 7 8; do
