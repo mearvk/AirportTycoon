@@ -10,11 +10,14 @@ SHELL := /bin/sh
 EDITIONS := 1 2 3 4 5 6 7 8
 BUILD_DIR := build
 
-.PHONY: all build prepare game check editions moria clean help
+.PHONY: autocheck all build prepare game check editions moria clean help
 
 all: build game check
 
 build: prepare
+
+autocheck:
+	@sh ./scripts/autocheck-toolchain.sh
 
 prepare:
 	@mkdir -p $(BUILD_DIR)
@@ -22,12 +25,12 @@ prepare:
 	@mkdir -p $(BUILD_DIR)/dungeons-of-moria
 	@echo "Airport Tycoon build tree prepared under /$(BUILD_DIR)/"
 
-game: prepare
+game: prepare autocheck
 	@for n in $(EDITIONS); do echo "== Edition $$n =="; $(MAKE) -C $$n game; done
 	@echo "== Moria =="
 	@$(MAKE) -C dungeons-of-moria game
 
-check: prepare
+check: prepare autocheck
 	@for n in $(EDITIONS); do echo "== Edition $n checks =="; $(MAKE) -C $n check; done
 	@echo "Edition checks requested; individual Makefiles remain authoritative."
 
