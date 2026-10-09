@@ -51,7 +51,10 @@ all: game check ui
 build-dir:
 	@mkdir -p $(BUILD_DIR)
 
-game:
+autocheck:
+	@sh ../scripts/autocheck-toolchain.sh
+
+game: autocheck
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
