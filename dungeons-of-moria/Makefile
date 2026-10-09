@@ -68,6 +68,47 @@ RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC)
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
+# ---------------------------------------------------------------------------
+# SLeeLa environment auto-discovery (fail-closed SHA-256 execution gate).
+# ---------------------------------------------------------------------------
+# The SLeeLa VM refuses to run unless it can find its verification assets:
+#   * SLEELA_SHA256_MANIFEST -> security/sha256-manifest.json  (the trusted hashes)
+#   * the verify tool        -> tools/verify-before-execution.py
+#   * SLEELA_SHEET           -> SHEET.sheet                     (the object catalog)
+# All three live under one SLeeLa root ("SLEELA_HOME"). The installer sets these
+# env vars, but a user who runs `make` without sourcing the install profile (or
+# who points SLEELA at a bare binary) hits a cryptic gate abort. To make `make`
+# self-contained, $(SLEELA_ENV) below DISCOVERS the SLeeLa root at build time
+# and exports the vars for the sleela invocation — so the environment is set at
+# the time of Make, not left for the user to locate. Any value already exported
+# is honored and never overridden.
+#
+# $(SLEELA_ENV) is a shell prelude prepended (with `&&`) to each sleela call.
+# A valid SLEELA_HOME is any directory holding BOTH the manifest and the verify
+# tool. Search order: an exported SLEELA_HOME; the dir two levels above the
+# resolved `sleela` binary (…/bin/sleela -> root); then standard install roots
+# and a sibling SLeeLa checkout.
+SLEELA_ENV = \
+	if [ -z "$${SLEELA_SHA256_MANIFEST:-}" ] || [ -z "$${SLEELA_HOME:-}" ]; then \
+		_sl_bin=$$(command -v $(SLEELA) 2>/dev/null); \
+		_sl_cands="$${SLEELA_HOME:-} $${_sl_bin:+$$(cd "$$(dirname "$$_sl_bin")/.." 2>/dev/null && pwd)} $$HOME/.local/sleela /usr/local/sleela /opt/sleela $(CURDIR)/../../SLeeLa $(CURDIR)/../SLeeLa"; \
+		for _sl_h in $$_sl_cands; do \
+			[ -n "$$_sl_h" ] || continue; \
+			if [ -f "$$_sl_h/security/sha256-manifest.json" ] && [ -f "$$_sl_h/tools/verify-before-execution.py" ]; then \
+				SLEELA_HOME="$$_sl_h"; export SLEELA_HOME; \
+				: "$${SLEELA_SHA256_MANIFEST:=$$_sl_h/security/sha256-manifest.json}"; export SLEELA_SHA256_MANIFEST; \
+				[ -f "$$_sl_h/SHEET.sheet" ] && : "$${SLEELA_SHEET:=$$_sl_h/SHEET.sheet}" && export SLEELA_SHEET; \
+				break; \
+			fi; \
+		done; \
+	fi; \
+	if [ -z "$${SLEELA_SHA256_MANIFEST:-}" ]; then \
+		echo "SLeeLa: could not locate the SHA-256 verification assets." >&2; \
+		echo "  Set SLEELA_HOME to your SLeeLa root (the dir with security/sha256-manifest.json" >&2; \
+		echo "  and tools/verify-before-execution.py), or run: make $@ SLEELA=/path/to/SLeeLa/bin/SLeeLa" >&2; \
+		exit 1; \
+	fi
+
 .PHONY: build-dir all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites updown-sprites tiles ui sprite-ui test help
 
 all: game test
@@ -83,6 +124,7 @@ build-dir:
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
+		$(SLEELA_ENV) && \
 		$(SLEELA) check $(RPG_SRC) $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(UI_SPRITE_WIDGET_SRC) $(UI_SPRITE_BOARD_SRC) $(UI_SPRITE_UI_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
@@ -91,34 +133,34 @@ game:
 
 # Headless self-descent: prints the final map, HUD, and chronicle.
 run:
-	$(SLEELA) run $(GAME_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(GAME_SRC)
 
 # The scoreboard city-lights demo (great=orange, excellent=green, player=purple).
 lights:
-	$(SLEELA) run $(LIGHTS_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(LIGHTS_SRC)
 
 # The figuring-pieces read: the headless self-descent shows the roster of
 # Original Characters and their positions on the board (same as `make run`).
 figures:
-	$(SLEELA) run $(GAME_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(GAME_SRC)
 
 # The RPG-layer self-demos.
 stats:
-	$(SLEELA) run $(STATS_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(STATS_SRC)
 
 spells:
-	$(SLEELA) run $(SPELLS_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(SPELLS_SRC)
 
 weapons:
-	$(SLEELA) run $(WEAPONS_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(WEAPONS_SRC)
 
 # The walk animation: start/mid/stop frames, the character moving like he walks.
 animation:
-	$(SLEELA) run $(ANIM_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(ANIM_SRC)
 
 # The 2000+ dungeon catalog, each sized for authoring AND the Sleela GUI board.
 catalog:
-	$(SLEELA) run $(CATALOG_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(CATALOG_SRC)
 
 # Autocrop the sprite sheets in images/ into images/<character>/{start,mid,stop}.
 # Pure-stdlib Python (no deps); decodes baseline JPEG, trims to the figure, and
@@ -129,29 +171,29 @@ sprites:
 	python3 tools/autocrop_sprites.py $(SHEET) $(CHARACTER) --frames 3 --directions --out images
 
 save:
-	$(SLEELA) run $(SAVE_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(SAVE_SRC)
 
 # The Legends Bestiary: 24 named legends keyed to dungeon depth.
 bestiary:
-	$(SLEELA) run $(BESTIARY_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(BESTIARY_SRC)
 
 # The Grimoire: usable castings by class + the lich obedience pact / duo demo.
 grimoire:
-	$(SLEELA) run $(GRIMOIRE_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(GRIMOIRE_SRC)
 
 # The character-creation generator: base allowances + lifetime feats (snuff).
 creator:
-	$(SLEELA) run $(CREATOR_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(CREATOR_SRC)
 
 # Open the native SleelaUI text-pane window (X11 / Cocoa / Win32).
 ui:
-	$(SLEELA) run $(UI_SRC) $(UI_EXTRA_SRC) --library $(UI_SOURCES)
+	@$(SLEELA_ENV) && $(SLEELA) run $(UI_SRC) $(UI_EXTRA_SRC) --library $(UI_SOURCES)
 
 # Open the native SleelaUI SPRITE window: the moving-picture gameboard where the
 # hero and the Fellowship walk in all four directions (falls back to the text
 # pane / headless read with no display or no image bridge).
 sprite-ui:
-	$(SLEELA) run $(UI_SPRITE_SRC) $(GAME_SRC) $(RPG_SRC) --library $(UI_SOURCES)
+	@$(SLEELA_ENV) && $(SLEELA) run $(UI_SPRITE_SRC) $(GAME_SRC) $(RPG_SRC) --library $(UI_SOURCES)
 
 # Complete the two autocropped heroes (adventurer, warden) with their TOP/DOWN
 # directional frames (derived from their real left/right crops) so they move in
@@ -166,7 +208,7 @@ tiles:
 
 # Deterministic self-check (no display required).
 test:
-	$(SLEELA) run $(TEST_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(TEST_SRC)
 
 help:
 	@echo "Moria — Dungeon Crawler (SLeeLa)"
