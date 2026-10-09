@@ -1,0 +1,10 @@
+# terrain tiles for the Moria sprite board
+size	64x64
+tile	floor	floor.png	64x64
+tile	surface	surface.png	64x64
+tile	wall	wall.png	64x64
+tile	door	door.png	64x64
+tile	stair-down	stair-down.png	64x64
+tile	stair-up	stair-up.png	64x64
+tile	treasure	treasure.png	64x64
+tile	dark	dark.png	64x64

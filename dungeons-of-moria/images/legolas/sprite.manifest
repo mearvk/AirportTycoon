@@ -1,0 +1,23 @@
+# sprite manifest for legolas
+# generated placeholder set: 4 directions x 3 frames
+# directions: top, down, left, right
+# frames: start, mid, end (end == engine 'stop')
+size	320x480
+frame	start	legolas-start.png	320x480
+frame	start	top	legolas-start-top.png	320x480
+frame	start	down	legolas-start-down.png	320x480
+frame	start	left	legolas-start-left.png	320x480
+frame	start	right	legolas-start-right.png	320x480
+frame	mid	legolas-mid.png	320x480
+frame	mid	top	legolas-mid-top.png	320x480
+frame	mid	down	legolas-mid-down.png	320x480
+frame	mid	left	legolas-mid-left.png	320x480
+frame	mid	right	legolas-mid-right.png	320x480
+frame	end	legolas-end.png	320x480
+frame	stop	legolas-stop.png	320x480	(alias of end)
+frame	end	top	legolas-end-top.png	320x480
+frame	end	down	legolas-end-down.png	320x480
+frame	end	left	legolas-end-left.png	320x480
+frame	stop	left	legolas-stop-left.png	320x480	(alias of end)
+frame	end	right	legolas-end-right.png	320x480
+frame	stop	right	legolas-stop-right.png	320x480	(alias of end)

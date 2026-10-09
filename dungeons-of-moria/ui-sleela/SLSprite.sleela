@@ -1,0 +1,77 @@
+#sleela 1.6
+//
+// SLSprite — a re-pointable image tile for the moving sprite board
+// ================================================================
+// The sprite GUI draws the dungeon as a grid of image tiles (one per cell).
+// Every frame the hero and the Fellowship WALK, so the tile under a piece must
+// swap its picture — floor one tick, a facing sprite the next, floor again when
+// the piece steps off. SLImageFile loads a file once at construction; SLSprite
+// adds the missing piece: it keeps its widget handle and RE-POINTS it at a new
+// image FILE at runtime, so a cell can change its sprite without being rebuilt.
+//
+// Pattern: an SLSprite IS an SLWidget. createIn() binds the first image through
+// the same `uiImageFile` bridge SLImageFile uses; setFile() pushes a new path
+// onto the live widget through `uiImageFileSet` (SleelaUI C ABI slui_image_file_set()).
+// It also remembers the LAST path it painted, so re-setting the same sprite is
+// a no-op (no needless native work while a piece stands still) — the small
+// optimisation that keeps a 40x18 board of tiles cheap to animate at 60 fps.
+//
+// Graceful degradation (the house rule): if `uiImageFileSet` is absent (older
+// runtime) the handle simply keeps its construction image; if `uiImageFile`
+// itself is absent the handle stays < 0, loaded() is false, and the board falls
+// back to its text pane — so the game always reads.
+//
+class SLSprite extends SLWidget {
+
+    String current;    // the path last painted (for the no-op fast path)
+    int    boxW;       // the fixed draw box this tile scales into (px)
+    int    boxH;
+
+    // Create the tile inside `parent`, sized to boxW x boxH px, showing
+    // `assetPath` to begin with (an empty path draws nothing / a blank cell).
+    // Returns true when a real widget handle was obtained.
+    boolean createIn(SLWidget parent, String assetPath, int cellW, int cellH) {
+        boxW = max1(cellW);
+        boxH = max1(cellH);
+        current = normalize(assetPath);
+        widget = uiImageFile(parent.handle(), current, boxW, boxH);
+        return loaded();
+    }
+
+    boolean createInHandle(int parentHandle, String assetPath,
+                           int cellW, int cellH) {
+        boxW = max1(cellW);
+        boxH = max1(cellH);
+        current = normalize(assetPath);
+        widget = uiImageFile(parentHandle, current, boxW, boxH);
+        return loaded();
+    }
+
+    boolean loaded() { return widget >= 0; }
+
+    // Re-point this tile at a new image file, scaled into the same box. A no-op
+    // when the path is unchanged (the piece did not move) so a still board does
+    // no native work. Safe on an invalid handle and when the bridge is absent.
+    void setFile(String assetPath) {
+        if (widget < 0) { return; }
+        String p = normalize(assetPath);
+        if (p == current) { return; }       // unchanged — skip the native call
+        current = p;
+        uiImageFileSet(widget, p, boxW, boxH);
+    }
+
+    // The path this tile is currently painting.
+    String path() { return current; }
+
+    // Light path hygiene, matching SLImageFile: drop a leading "./" so the
+    // native loader resolves against the module root consistently.
+    String normalize(String p) {
+        if (p == null) { return ""; }
+        if (p.length() >= 2 && p.substring(0, 2) == "./") {
+            return p.substring(2, p.length());
+        }
+        return p;
+    }
+
+    int max1(int v) { if (v < 1) { return 1; } return v; }
+}

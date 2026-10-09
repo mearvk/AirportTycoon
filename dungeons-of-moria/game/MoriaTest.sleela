@@ -705,6 +705,52 @@ class MoriaTest {
         check("the surface holds no hostile creatures (threat/toughness are mild)",
             df.orcThreatAtMineLevel(0) >= 0);
 
+        // --- The single-step autopilot the sprite board drives -------------
+        // The sprite GUI (MoriaSpriteUI) advances the model one autoStep() per
+        // few frames so the hero and the Fellowship are SEEN to walk one cell at
+        // a time. autoStep() must be a faithful single iteration of autoDescend:
+        // stepping it to exhaustion reaches the SAME outcome as autoDescend, and
+        // it keeps every figure in bounds, off walls, and off the hero's cell at
+        // every intermediate frame (so the moving board never draws a bad cell).
+        MoriaDungeon sa = new MoriaDungeon();
+        sa.begin("Stepper", 1428);
+        boolean framesClean = true;
+        int frames = 0;
+        while (!sa.over() && frames < 600) {
+            sa.autoStep();
+            if (!figuresInBounds(sa) || !noFigureInWall(sa) || !noFigureOnHero(sa)) {
+                framesClean = false;
+            }
+            if (sa.heroCol() < 0 || sa.heroCol() >= sa.width()
+                || sa.heroRow() < 0 || sa.heroRow() >= sa.height()) {
+                framesClean = false;
+            }
+            frames = frames + 1;
+        }
+        check("stepping autoStep() to the end terminates", sa.over() || frames < 600);
+        check("every intermediate frame is drawable (figures sane, hero in bounds)",
+            framesClean);
+        // Same seed, driven one step at a time, reaches the same place as the
+        // batch autoDescend — so the animated board and the headless run agree.
+        MoriaDungeon sb = new MoriaDungeon();
+        sb.begin("Stepper", 1428);
+        sb.autoDescend(600);
+        check("autoStep() loop matches autoDescend() final depth",
+            sa.currentDepth() == sb.currentDepth());
+        check("autoStep() loop matches autoDescend() alive state",
+            sa.isAlive() == sb.isAlive());
+        check("autoStep() loop matches autoDescend() gold",
+            sa.goldCount() == sb.goldCount());
+        // autoStep() on a finished game is a safe no-op (the loop over-calls it
+        // during the settle phase of the frame loop).
+        MoriaDungeon sc = new MoriaDungeon();
+        sc.begin("Stepper", 1428);
+        sc.autoDescend(600);
+        int depthDone = sc.currentDepth();
+        boolean more = sc.autoStep();
+        check("autoStep() past the end is a safe no-op", !more
+            && sc.currentDepth() == depthDone);
+
         print("");
         print("Moria self-check: " + passed + " passed, " + failed + " failed.");
         if (failed == 0) {

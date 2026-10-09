@@ -37,9 +37,17 @@ UI_FX_SRC     := ui-sleela/SLFontEffect.sleela
 UI_LOGO_SRC   := ui-sleela/MoriaTitleLogo.sleela
 UI_THROB_SRC  := ui-sleela/MoriaThrobber.sleela
 UI_SELECT_SRC := ui-sleela/MoriaCharacterSelect.sleela
+# The SPRITE front-end: a re-pointable image tile (SLSprite), the moving-picture
+# gameboard (MoriaSpriteBoard), and the sprite window front-end (MoriaSpriteUI).
+UI_SPRITE_WIDGET_SRC := ui-sleela/SLSprite.sleela
+UI_SPRITE_BOARD_SRC  := ui-sleela/MoriaSpriteBoard.sleela
+UI_SPRITE_UI_SRC     := ui-sleela/MoriaSpriteUI.sleela
 # All the Moria-side UI helpers, in dependency-friendly order (loaders/effects
 # first, then the widgets that use them).
 UI_EXTRA_SRC  := $(UI_LOADER_SRC) $(UI_FX_SRC) $(UI_LOGO_SRC) $(UI_THROB_SRC) $(UI_SELECT_SRC)
+# The sprite-UI sources (plus the shared helpers it reuses).
+UI_SPRITE_SRC := $(UI_SPRITE_WIDGET_SRC) $(UI_SPRITE_BOARD_SRC) $(UI_SPRITE_UI_SRC) \
+                 $(UI_LOADER_SRC) $(UI_FX_SRC) $(UI_LOGO_SRC) $(UI_THROB_SRC) $(UI_SELECT_SRC)
 # The RPG layer: stats (incl. Constitution + Character#), the spellbook (the
 # Fireball = 1d28 + 6/level), the armoury (+4 or greater), and Save/Load/Alter.
 STATS_SRC   := game/MoriaStats.sleela
@@ -60,7 +68,7 @@ RPG_SRC := $(STATS_SRC) $(SPELLS_SRC) $(WEAPONS_SRC) $(SAVE_SRC) $(BESTIARY_SRC)
 # byte-for-byte the upstream mearvk/SLeeLa lib/user-interface sources.
 UI_SOURCES := ../1/sources/user-interface
 
-.PHONY: build-dir all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites ui test help
+.PHONY: build-dir all game run lights figures stats spells weapons save bestiary grimoire creator animation catalog sprites updown-sprites tiles ui sprite-ui test help
 
 all: game test
 
@@ -71,7 +79,7 @@ build-dir:
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(UI_SPRITE_WIDGET_SRC) $(UI_SPRITE_BOARD_SRC) $(UI_SPRITE_UI_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \
@@ -135,6 +143,23 @@ creator:
 ui:
 	$(SLEELA) run $(UI_SRC) $(UI_EXTRA_SRC) --library $(UI_SOURCES)
 
+# Open the native SleelaUI SPRITE window: the moving-picture gameboard where the
+# hero and the Fellowship walk in all four directions (falls back to the text
+# pane / headless read with no display or no image bridge).
+sprite-ui:
+	$(SLEELA) run $(UI_SPRITE_SRC) $(GAME_SRC) $(RPG_SRC) --library $(UI_SOURCES)
+
+# Complete the two autocropped heroes (adventurer, warden) with their TOP/DOWN
+# directional frames (derived from their real left/right crops) so they move in
+# all four directions on the sprite board. Pure-stdlib Python (no deps).
+updown-sprites:
+	python3 tools/make_updown_sprites.py adventurer warden --out images
+
+# Render the dungeon terrain tiles (floor/wall/door/stairs/treasure/dark/surface)
+# the sprite board draws under the characters. Pure-stdlib Python (no deps).
+tiles:
+	python3 tools/make_tiles.py --out images --size 64
+
 # Deterministic self-check (no display required).
 test:
 	$(SLEELA) run $(TEST_SRC)
@@ -153,5 +178,8 @@ help:
 	@echo "  make grimoire The Grimoire — castings by class + lich pacts / Spelling Duo"
 	@echo "  make creator  Character-creation generator — base allowances + lifetime feats"
 	@echo "  make ui     Open the native SleelaUI text-pane front-end"
+	@echo "  make sprite-ui Open the SPRITE gameboard — sprites moving in all directions"
+	@echo "  make tiles  Render the dungeon terrain tiles for the sprite board"
+	@echo "  make updown-sprites  Add the hero's top/down frames (all-direction walk)"
 	@echo "  make test   Run the deterministic self-check Wrapper"
 	@echo "  make all    game + test"

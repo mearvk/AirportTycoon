@@ -1,0 +1,15 @@
+# derived up/down directional frames for adventurer
+# source: real adventurer-<frame>-<left|right>.png crops
+# top   = left pose, darkened (seen from behind) + up chip
+# down  = right pose + down chip
+derived	adventurer-end-left.png
+derived	adventurer-end-right.png
+derived	adventurer-end.png
+derived	adventurer-start-top.png
+derived	adventurer-start-down.png
+derived	adventurer-mid-top.png
+derived	adventurer-mid-down.png
+derived	adventurer-stop-top.png
+derived	adventurer-end-top.png
+derived	adventurer-stop-down.png
+derived	adventurer-end-down.png

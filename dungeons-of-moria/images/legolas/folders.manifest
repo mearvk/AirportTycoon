@@ -1,0 +1,16 @@
+# nested sprite tree for legolas
+# layout: <direction>/<action>/legolas-<direction>-<action>.png
+# directions: top, left, down, right
+# actions: start, mid, end
+sprite	top	start	top/start/legolas-top-start.png
+sprite	top	mid	top/mid/legolas-top-mid.png
+sprite	top	end	top/end/legolas-top-end.png
+sprite	left	start	left/start/legolas-left-start.png
+sprite	left	mid	left/mid/legolas-left-mid.png
+sprite	left	end	left/end/legolas-left-end.png
+sprite	down	start	down/start/legolas-down-start.png
+sprite	down	mid	down/mid/legolas-down-mid.png
+sprite	down	end	down/end/legolas-down-end.png
+sprite	right	start	right/start/legolas-right-start.png
+sprite	right	mid	right/mid/legolas-right-mid.png
+sprite	right	end	right/end/legolas-right-end.png

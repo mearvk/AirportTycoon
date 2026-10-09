@@ -1,0 +1,363 @@
+#sleela 1.6
+//
+// Moria — the SleelaUI SPRITE front-end (sprites that move in all directions)
+// ===========================================================================
+// The picture version of the crawler. Where MoriaUI paints the dungeon as a
+// monospaced TEXT pane, this front-end paints it as a real GAMEBOARD OF SPRITES:
+// a grid of torch-lit stone tiles (images/tiles/) under the autocropped and
+// rendered CHARACTER SPRITES — the hero and the Fellowship — each WALKING around
+// the hall in whatever direction it heads: north, south, east, west, through
+// its own start -> mid -> end gait.
+//
+// It opens a REAL native SleelaUI window (X11 / Cocoa / Win32) on the same
+// slick-black / torch-amber theme as MoriaUI, with the cool D&D title logo and
+// the radiant downward throbber, then drives its OWN frame loop:
+//
+//     every frame:  tick the throbber (the 3D light ebb)
+//                   every few frames: advance the model one autopilot STEP
+//                                     (the hero + Fellowship each walk one cell)
+//                   repaint the sprite board (re-point the tiles)
+//                   refresh the HUD + chronicle
+//                   requestRedraw + pump(false) + sleep(~16ms)  (≈ 60 fps)
+//     until the window closes (or the descent ends and settles).
+//
+// So the board is ALIVE: the Fellowship picks its way through the Mines in
+// moving pictures, not a static dump. The model (MoriaDungeon) is the one rules
+// engine; this Wrapper only presents and paces it.
+//
+// Graceful degradation (the house rule): with no display, or on a build without
+// the image/pump bridges, it falls back to MoriaUI's text read, so the game is
+// always playable headless. The quality target — "looks fine for our Users" —
+// is met by real tiles, real directional sprites, a smooth 60 fps walk, fog of
+// war on the board, and the themed HUD/legend/chronicle around it.
+//
+class MoriaSpriteUI {
+
+    // Accent colour: torch-amber on dwarf-stone (shared with MoriaUI).
+    static int TORCH_R = 240;
+    static int TORCH_G = 170;
+    static int TORCH_B = 60;
+
+    // The Sleela gameboard pane the catalog sizes dungeons into (px). The board
+    // fits itself inside this, exactly like MoriaDungeonCatalog's gameboard fit.
+    static int PANE_W = 760;
+    static int PANE_H = 560;
+
+    // Pacing: advance the autopilot one step every N frames, so a stride reads
+    // (a touch slower than 60 fps so the eye follows the walk). At ~16 ms/frame,
+    // 6 frames ≈ 100 ms per cell — a brisk, legible walk.
+    static int FRAMES_PER_STEP = 6;
+
+    // How long to keep animating after the descent settles (frames), so the
+    // final tableau and the light keep breathing rather than snapping shut.
+    static int SETTLE_FRAMES = 240;
+
+    void main() {
+        // --- Character select: choose a ready-made hero or forge a new one. --
+        MoriaCharacterSelect select = new MoriaCharacterSelect();
+        select.begin();
+        Creature0 hero = select.resolve();
+
+        // The model. We do NOT auto-descend up front — the frame loop steps it
+        // one cell at a time so the sprites are seen to WALK. The hero carries
+        // its own Walker (set in begin), so its facing drives the 4-way sprite.
+        MoriaDungeon dungeon = new MoriaDungeon();
+        dungeon.beginFromCharacter(hero, 1428);
+
+        // The scoreboard lighting (same cities as MoriaUI), shown beside the
+        // board so the picture version keeps the "lights out of the text".
+        CityLights lights = new CityLights();
+        lights.begin(dungeon.name());
+        lights.trustPlayer(true);
+        lights.learnCity("Rivendell",    40713,  -74006, 2, "atlas.example (rated 4.8)", 92);
+        lights.learnCity("Minas Tirith", 51507,    -127, 1, "trusted-search:gondor",     81);
+        lights.learnCity("Moria Gate",   37774, -122419, 2, "survey.example (rated 4.6)", 88);
+        lights.learnCity("Bree",         48856,    2352, 1, "rumor-blog",                 35);
+
+        SLUserInterface ui = new SLUserInterface();
+        ui.configure("com.mearvk.moria.sprite");
+
+        if (!ui.open()) {
+            // No display — fall back to the text read so the game always reads.
+            fallbackText(dungeon, lights, select, "headless");
+            return;
+        }
+
+        // --- Theme: slick-black stone, torch-amber accent, generous radius. --
+        SLTheme theme = new SLTheme();
+        theme.slickBlack();
+        SLColor torch = new SLColor();
+        torch.rgb(TORCH_R, TORCH_G, TORCH_B);
+        theme.setAccentColor(torch);
+        theme.setRadius(10);
+        theme.setFont("monospace", 13);
+
+        SLWindow win = ui.openWindow(
+            "Moria — the Sprite Board · the Careful Years of Time",
+            PANE_W + 120, 980, theme.handle());
+        SLWidget root = win.rootWidget();
+
+        SLBox col = new SLBox();
+        col.vertical(root, 12);
+        col.setMarginAll(20);
+
+        // Character select panel (the pick is already resolved into `hero`).
+        select.buildIn(col);
+
+        // The cool D&D title logo, with a text heading as the fallback.
+        MoriaTitleLogo logo = new MoriaTitleLogo();
+        if (!logo.createIn(col, 64)) {
+            SLHeading title = new SLHeading();
+            title.createIn(col, "The Mines of Moria — Sprite Board", 24);
+        }
+
+        // The radiant downward throbber directly under the title.
+        MoriaThrobber throbber = new MoriaThrobber();
+        if (!throbber.createIn(col)) {
+            SLSeparator rule = new SLSeparator();
+            rule.horizontal(col);
+        }
+
+        SLLabel sub = new SLLabel();
+        sub.createIn(col, "SleelaUI sprite board · backend: " + ui.backend()
+            + " · " + ui.version()
+            + " · the hero and the Fellowship walk in all four directions");
+
+        // --- The HUD status strip (kept live each frame) -------------------
+        SLCard hudCard = new SLCard();
+        hudCard.createIn(col);
+        SLBox hudBox = new SLBox();
+        hudBox.vertical(hudCard, 4);
+        hudBox.setMarginAll(10);
+        SLLabel hud = new SLLabel();
+        hud.createIn(hudBox, dungeon.statusLine());
+
+        // --- The SPRITE BOARD: the moving-picture canvas -------------------
+        SLCard boardCard = new SLCard();
+        boardCard.createIn(col);
+        SLBox boardBox = new SLBox();
+        boardBox.vertical(boardCard, 6);
+        boardBox.setMarginAll(14);
+        SLHeading boardH = new SLHeading();
+        boardH.createIn(boardBox, "The Mines — Torchlit Gameboard", 15);
+
+        MoriaSpriteBoard board = new MoriaSpriteBoard();
+        board.begin(dungeon, PANE_W, PANE_H);
+        boolean boardLive = board.buildIn(boardBox);
+        board.repaint();        // first frame
+
+        // If the image bridge is absent (no tiles bound), the picture board
+        // cannot show — fall back to the text pane rows beneath it so the game
+        // still reads in the SAME window.
+        if (!boardLive) {
+            SLLabel note = new SLLabel();
+            note.createIn(boardBox, "(image bridge unavailable — showing the "
+                + "text pane; see MoriaUI for the full text front-end)");
+            buildTextRows(boardBox, dungeon);
+        }
+
+        // --- The glyph legend ----------------------------------------------
+        buildLegend(col);
+
+        // --- The chronicle (kept live each frame) --------------------------
+        SLCard chronCard = new SLCard();
+        chronCard.createIn(col);
+        SLBox chronBox = new SLBox();
+        chronBox.vertical(chronCard, 3);
+        chronBox.setMarginAll(12);
+        SLHeading chronH = new SLHeading();
+        chronH.createIn(chronBox, "Chronicle", 15);
+        SLLabel chron = new SLLabel();
+        chron.createIn(chronBox, dungeon.recentLog(3));
+        chron.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+
+        // --- The scoreboard (static) ---------------------------------------
+        buildScoreboard(col, lights);
+
+        // --- The result banner (refreshed at the end) ----------------------
+        SLInfoBar resultBar = new SLInfoBar();
+        resultBar.info(col, "DESCENDING — the dark goes deeper still (depth "
+            + dungeon.currentDepth() + "/8).");
+
+        // --- Footer --------------------------------------------------------
+        SLStatusBar status = new SLStatusBar();
+        status.createIn(col);
+        SLLabel statusText = new SLLabel();
+        statusText.createIn(status, board.describe());
+
+        win.show();
+
+        // The living frame loop: walk the sprites one step at a time.
+        animate(ui, win, throbber, dungeon, board, hud, chron, boardLive);
+
+        // Final banner, after the loop settles.
+        refreshResult(resultBar, dungeon);
+        ui.close();
+    }
+
+    // =======================================================================
+    // The frame loop — the heart of the moving board.
+    // =======================================================================
+    // Each frame: tick the throbber's light; every FRAMES_PER_STEP frames take
+    // one autopilot STEP (the hero + Fellowship each walk one cell, animated by
+    // the model); repaint the board; refresh the HUD + chronicle; redraw + pump
+    // without blocking; sleep ~16 ms. When the descent is over, keep breathing
+    // for SETTLE_FRAMES so the final tableau and the light live on, then stop.
+    // Falls back to the blocking run loop if this build cannot pump.
+    void animate(SLUserInterface ui, SLWindow win, MoriaThrobber throbber,
+                 MoriaDungeon dungeon, MoriaSpriteBoard board,
+                 SLLabel hud, SLLabel chron, boolean boardLive) {
+        boolean running = true;
+        boolean pumpedEver = false;
+        int frame = 0;
+        int settle = 0;
+
+        while (running) {
+            throbber.tick();
+
+            // Advance the model one visible stride every FRAMES_PER_STEP frames.
+            if (!dungeon.over()) {
+                if (frame % FRAMES_PER_STEP == 0) {
+                    dungeon.autoStep();
+                    if (boardLive) { board.repaint(); }
+                    hud.setText(dungeon.statusLine());
+                    chron.setText(dungeon.recentLog(3));
+                }
+            } else {
+                // Descent settled: let the light keep breathing a while.
+                settle = settle + 1;
+                if (settle >= SETTLE_FRAMES) { running = false; }
+            }
+
+            win.requestRedraw();
+            int n = ui.pump(false);
+            if (n < 0) {
+                running = false;            // the window closed
+            } else {
+                pumpedEver = true;
+                uiSleepMillis(16);          // ~60 fps
+            }
+            frame = frame + 1;
+        }
+
+        // No non-blocking pump on this runtime: finish the descent at once and
+        // fall back to the blocking run loop so the window still shows.
+        if (!pumpedEver) {
+            dungeon.autoDescend(600);
+            if (boardLive) { board.repaint(); }
+            hud.setText(dungeon.statusLine());
+            chron.setText(dungeon.recentLog(3));
+            ui.run();
+        }
+    }
+
+    // The result banner: win, death, or ongoing. The bar already exists, so we
+    // UPDATE its message through the inherited setText() (calling info() again
+    // would try to build a second widget).
+    void refreshResult(SLInfoBar bar, MoriaDungeon d) {
+        if (d.hasWon()) {
+            bar.setText("VICTORY — you crossed all eight levels of Moria "
+                + "and lived. Excellent, Adventurer.");
+        } else if (!d.isAlive()) {
+            bar.setText("FALLEN — the Mines keep their silence at depth "
+                + d.currentDepth() + ".");
+        } else {
+            bar.setText("DESCENDING — the dark goes deeper still (depth "
+                + d.currentDepth() + "/8).");
+        }
+    }
+
+    // The glyph/sprite legend: each piece as a badge + what it is.
+    void buildLegend(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 4);
+        box.setMarginAll(12);
+        SLHeading h = new SLHeading();
+        h.createIn(box, "The Cast — Sprites on the Board", 15);
+        legendRow(box, "@", "the Adventurer (walks N/S/E/W)");
+        legendRow(box, "G", "Gandalf — the Guide");
+        legendRow(box, "F", "Frodo — the Bearer");
+        legendRow(box, "A", "Aragorn — the Ranger");
+        legendRow(box, "L", "Legolas — the Elf");
+        legendRow(box, "D", "Gimli — the Dwarf");
+        legendRow(box, "S", "Sauron's Eye — the Stalker (depth 4+)");
+        legendRow(box, "#", "rough dwarf-stone wall · . lit floor · > < stairs");
+    }
+
+    void legendRow(SLBox parent, String glyph, String meaning) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 10);
+        SLBadge g = new SLBadge();
+        g.createIn(row, glyph);
+        SLLabel m = new SLLabel();
+        m.createIn(row, meaning);
+    }
+
+    // The scoreboard: the lit city Fonts (2..4 mm lights).
+    void buildScoreboard(SLBox parent, CityLights lights) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 5);
+        box.setMarginAll(12);
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Scoreboard — City Lights (2–4 mm)", 15);
+        SLLabel board = new SLLabel();
+        board.createIn(box, lights.renderScoreboard());
+        board.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+    }
+
+    // The text-pane rows, used only when the image bridge is absent so the
+    // picture board cannot bind — the game still reads in the same window.
+    void buildTextRows(SLBox parent, MoriaDungeon d) {
+        int y = 0;
+        int rows = d.height();
+        while (y < rows) {
+            SLLabel line = new SLLabel();
+            line.createIn(parent, d.renderRow(y));
+            line.setAlign(SLWidget.ALIGN_START, SLWidget.ALIGN_CENTER);
+            y = y + 1;
+        }
+    }
+
+    // Headless fallback: run the model to its conclusion and print the same
+    // read MoriaUI prints, plus the sprite-board descriptor, so the sprite
+    // front-end still "reads" with no display.
+    void fallbackText(MoriaDungeon d, CityLights lights,
+                      MoriaCharacterSelect select, String why) {
+        d.autoDescend(600);
+        MoriaSpriteBoard board = new MoriaSpriteBoard();
+        board.begin(d, PANE_W, PANE_H);
+
+        print("Moria — the Sprite Board (SleelaUI, " + why + ")");
+        print("====================================================");
+        print(select.renderRoster());
+        print("  -> " + select.describeChoice());
+        print("");
+        print(board.describe());
+        MoriaThrobber throbber = new MoriaThrobber();
+        print(throbber.describe());
+        print("");
+        print(d.renderGrid());
+        print("");
+        print(d.statusLine());
+        print("  hero sprite now: " + d.heroSprite()
+            + " (frame " + d.heroFrame() + ")");
+        print("");
+        print(d.renderRoster());
+        print("");
+        print(lights.renderScoreboard());
+        print("");
+        print("Chronicle (recent):");
+        print(d.recentLog(8));
+        if (d.hasWon()) {
+            print("");
+            print("VICTORY — all eight levels crossed. Excellent, Adventurer.");
+        } else if (!d.isAlive()) {
+            print("");
+            print("FALLEN — the Mines keep their silence.");
+        }
+    }
+}

@@ -122,6 +122,11 @@ game is fully playable **headless** too — the same text read drives both.
 | [`tools/folderize_sprites.py`](tools/folderize_sprites.py) | **The sprite folderizer** — pure-stdlib Python: builds the **nested `<direction>/<action>/` folder tree** (top/left/down/right × start/mid/end) for a character by copying the flat sprites into their folders byte-for-byte, with per-direction and index manifests. |
 | [`game/MoriaTest.sleela`](game/MoriaTest.sleela) | A deterministic self-check: map geometry, in-bounds invariants, chronicle growth, same-seed reproducibility, the ranged arms, the walk animation, and the GUI-fit of the dungeon catalog. |
 | [`ui-sleela/MoriaUI.sleela`](ui-sleela/MoriaUI.sleela) | The SleelaUI **text-pane front-end**: a real native window presenting the map pane, the HUD, the glyph legend, and the chronicle, on a slick-black / torch-amber theme. |
+| [`ui-sleela/MoriaSpriteUI.sleela`](ui-sleela/MoriaSpriteUI.sleela) | The SleelaUI **sprite front-end**: the moving-picture gameboard. A real native window that paints the dungeon as a grid of terrain tiles under the **character sprites**, and runs its own frame loop so the hero and the Fellowship **walk in all four directions**. `make sprite-ui`. |
+| [`ui-sleela/MoriaSpriteBoard.sleela`](ui-sleela/MoriaSpriteBoard.sleela) | The **sprite gameboard**: a grid of re-pointable image tiles that reads the live model each frame and repaints — terrain tiles under the hero + figuring-piece sprites, each in its facing (N/S/E/W) and gait, with fog of war. Fits itself to the Sleela pane. |
+| [`ui-sleela/SLSprite.sleela`](ui-sleela/SLSprite.sleela) | A **re-pointable image tile**: like `SLImageFile`, but it swaps its picture **at runtime** (`setFile`, via the new `uiImageFileSet` bridge) so a board cell can change its sprite each frame — the piece that lets sprites move. |
+| [`tools/make_updown_sprites.py`](tools/make_updown_sprites.py) | **The up/down sprite completer** — pure-stdlib Python: derives the missing `-top` / `-down` directional frames for the autocropped heroes (adventurer, warden) from their own real left/right crops, so they move in **all four directions** (never overwrites the real art). |
+| [`tools/make_tiles.py`](tools/make_tiles.py) | **The terrain-tile renderer** — pure-stdlib Python: writes the sprite board's dungeon tiles (floor, wall, door, stairs, treasure, dark, surface) as themed 64×64 RGBA PNGs under `images/tiles/`. |
 | [`ui-sleela/SLImageFile.sleela`](ui-sleela/SLImageFile.sleela) | The **file loader**: a SleelaUI image widget that loads a real image **file** from a path (preserving its alpha), scaled to a box while keeping aspect — the loader behind the title logo. Bottoms out in the `uiImageFile` bridge. |
 | [`ui-sleela/SLFontEffect.sleela`](ui-sleela/SLFontEffect.sleela) | The **light emitter descriptor**: a GLOW/LIGHT/EMITTER with a packed `0xRRGGBBAA` colour, an emitter radius, an intensity, and a **direction** (so an emitter can cast its light one way only — e.g. straight down). Binds through the `uiFontEffect*` bridge. |
 | [`ui-sleela/MoriaTitleLogo.sleela`](ui-sleela/MoriaTitleLogo.sleela) | The **title-bar logo** widget: paints the D&D mark ([`images/D&D-logo-title.png`](images/D&D-logo-title.png) — trimmed to the mark, transparent background) as the window's cool title logo via `SLImageFile`, with the text heading as a graceful fallback. |
@@ -368,6 +373,61 @@ the matching **`-right`/`-left`** sprite. The hero in the live dungeon carries a
 `Walker`; `stepHeroTo()` faces and steps it on every move, and
 `heroFrame()`/`heroSprite()` report the current frame and its facing PNG under
 `images/adventurer/`.
+
+## The Sprite Board — a GUI where the sprites move in all directions
+
+Alongside the text pane there is now a true **sprite GUI**: a moving-picture
+gameboard where the hero and the whole Fellowship **walk around the hall in all
+four directions** — north, south, east, west — in real, scaled character art
+rather than letters. Run it with **`make sprite-ui`**.
+
+**How it is built.** [`MoriaSpriteBoard`](ui-sleela/MoriaSpriteBoard.sleela)
+owns a `width × height` grid of **re-pointable image tiles**
+([`SLSprite`](ui-sleela/SLSprite.sleela) — an `SLImageFile` that can swap its
+picture at runtime). Each frame it reads the live `MoriaDungeon` and repaints:
+
+- **Terrain tiles** under everything — floor, wall, door, the stairs, treasure,
+  the dark beyond the torch, and open daylight on the surface — themed 64×64
+  PNGs rendered by [`make_tiles.py`](tools/make_tiles.py) into `images/tiles/`.
+  Fog of war still governs the picture board: cells beyond the torch read dark,
+  remembered walls stay faintly drawn, and the lit circle follows the hero.
+- **The hero sprite** on top, in the facing from his own `Walker`
+  (`anim.framePath4` → `top`/`down`/`left`/`right`), stepping through his
+  start → mid → end gait as he walks.
+- **The Fellowship + the stalker** — Gandalf, Frodo, Aragorn, Legolas, Gimli,
+  and Sauron's Eye — each drawn with its own four-direction sprite set. The
+  figuring pieces carry no `Walker`, so the board **derives each one's facing**
+  from its `(col,row)` delta between frames and animates its gait locally — the
+  Fellowship picks its way through the Mines in moving pictures.
+
+**All four directions, for everyone.** The cast already carried the full
+`top/down/left/right × start/mid/end` matrix. The two autocropped heroes
+(`adventurer`, `warden`) only had left/right, so
+[`make_updown_sprites.py`](tools/make_updown_sprites.py) **derives their missing
+`-top`/`-down` frames from their own real crops** (the back view lightly
+darkened, a small facing chip for legibility) — it never overwrites the real
+art. Now every walker on the board can face and move any of the four ways. A
+companion missing a sprite set (`legolas`) is filled with the generator so the
+whole Fellowship shows.
+
+**It is alive.** [`MoriaSpriteUI`](ui-sleela/MoriaSpriteUI.sleela) opens a real
+native window on the same slick-black / torch-amber theme (with the D&D title
+logo and the radiant downward throbber) and drives its **own frame loop**: tick
+the light every frame, advance the model one autopilot **step** every few frames
+(`MoriaDungeon.autoStep()` — one visible stride, keeping the model as the single
+rules engine), repaint the board, refresh the HUD and chronicle, then
+`requestRedraw` + `pump(false)` + a ~16 ms sleep (≈ 60 fps) until the window
+closes. The only new SLVM bridge built-in it needs is `uiImageFileSet` (see
+[`BRIDGE.md`](ui-sleela/BRIDGE.md)); everything else already exists.
+
+**Always reads.** With no display, or on a build without the image/pump bridges,
+the sprite UI falls back to the text read (and, if the window opens but the
+image bridge is missing, to the text pane **inside the same window**) — so the
+game is playable with or without pictures. The self-check
+([`make test`](game/MoriaTest.sleela)) asserts that `autoStep()` is a faithful
+single-step of `autoDescend` (same final outcome), and that **every intermediate
+frame is drawable** — figures in bounds, never on a wall, never on the hero's
+cell — so the moving board never paints a bad cell.
 
 ### 2000+ dungeons, sized for the GUI gameboard — and the times
 

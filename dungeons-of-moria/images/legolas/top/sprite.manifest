@@ -1,0 +1,4 @@
+# legolas — facing top
+action	start	top/start/legolas-top-start.png
+action	mid	top/mid/legolas-top-mid.png
+action	end	top/end/legolas-top-end.png

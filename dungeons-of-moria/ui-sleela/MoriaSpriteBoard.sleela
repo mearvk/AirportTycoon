@@ -1,0 +1,424 @@
+#sleela 1.6
+//
+// Moria — the Sprite Gameboard (sprites that move in all directions)
+// ==================================================================
+// The TRUE picture board for the Moria crawler: not rows of text, but a GRID of
+// image tiles, one per dungeon cell, drawn with the slick-black / torch-amber
+// terrain tiles (images/tiles/) under the real CHARACTER SPRITES (the hero and
+// the Fellowship). Every frame the board READS the live model and RE-POINTS the
+// tiles, so the hero and the figuring pieces visibly WALK around the hall —
+// north, south, east and west — each stepping through its start/mid/end gait in
+// the facing it is heading (the full four-direction sprite matrix under
+// images/<character>/).
+//
+// How "moving in all directions" is drawn
+//   * The board owns W x H SLSprite tiles (W=dungeon width, H=height). A tile is
+//     a re-pointable image: cheap to swap its picture when a piece steps onto or
+//     off it.
+//   * repaint() walks every cell: terrain glyph -> a tiles/*.png; then overlays
+//     the hero and each active figuring piece with its directional walk sprite
+//     for THIS frame. A piece that moved since last frame updates its tile and
+//     clears the one it left; a still board does no native work (SLSprite skips
+//     an unchanged path).
+//   * The hero's facing comes from the model's own Walker (anim.framePath4 /
+//     facing4). The figuring pieces carry no Walker, so the board DERIVES each
+//     one's facing from its (col,row) delta between frames (top/down/left/right)
+//     and steps its gait frame locally — so the Fellowship animates like the
+//     hero, in whatever direction it drifts.
+//
+// Model-read only: the board never changes game state. It is driven by
+// MoriaSpriteUI, which advances the model one move() per frame and calls
+// repaint(). Graceful degradation: if the image bridge is absent the tiles are
+// inert and MoriaSpriteUI falls back to the text pane — the game always reads.
+//
+// #sleela 1.6: scalars + a small struct, no arrays. The per-figure facing/gait
+// memory is a fixed-size parallel set of scalar fields (there are only six
+// figuring pieces), kept array-free in the Wrappers' house style.
+//
+class MoriaSpriteBoard {
+
+    MoriaDungeon model;     // the live crawler (read-only here)
+    MoriaAnimation anim;    // the walk engine (frame labels, facings)
+
+    int cols;               // dungeon width  in cells
+    int rows;               // dungeon height in cells
+    int cellPx;             // the square draw box per cell (px), fit to the pane
+
+    boolean built;          // tiles were created (a display is present)
+    boolean usable;         // at least one tile bound (the bridge exists)
+
+    // The grid of tiles, flattened row-major into an intrusive linked list of
+    // Tile nodes (array-free). Index i = row*cols + col.
+    Tile head;              // first tile (i = 0)
+    Tile tail;              // last appended (for O(1) build)
+
+    // --- Per-figure facing + gait memory (max six pieces: G F A L D S) -----
+    static int MAX_FIG = 6;
+    int figDir0; int figDir1; int figDir2; int figDir3; int figDir4; int figDir5;
+    int figTick0; int figTick1; int figTick2; int figTick3; int figTick4; int figTick5;
+    int figX0; int figX1; int figX2; int figX3; int figX4; int figX5;
+    int figY0; int figY1; int figY2; int figY3; int figY4; int figY5;
+    // Whether the piece moved on the frame just recorded (1 = walking this
+    // frame, so it shows a stride; 0 = standing, so it shows the planted pose).
+    int figMove0; int figMove1; int figMove2; int figMove3; int figMove4; int figMove5;
+
+    // Direction ordinals for the derived figure facing.
+    static int DIR_DOWN = 0;    // facing the viewer (south) — the default
+    static int DIR_TOP  = 1;    // away (north)
+    static int DIR_LEFT = 2;
+    static int DIR_RIGHT = 3;
+
+    // =======================================================================
+    // Build
+    // =======================================================================
+
+    // Attach to the model and compute the cell size that fits the whole board
+    // inside a paneW x paneH pixel area (so the board always fits the GUI pane,
+    // like the dungeon catalog's gameboard sizing).
+    void begin(MoriaDungeon d, int paneW, int paneH) {
+        model = d;
+        anim = new MoriaAnimation();
+        cols = d.width();
+        rows = d.height();
+        cellPx = fitCell(paneW, paneH);
+        built = false;
+        usable = false;
+        head = null;
+        tail = null;
+        resetFigureMemory();
+    }
+
+    // The largest square cell (clamped to a sane 12..48 px) that still fits the
+    // whole cols x rows board inside the pane.
+    int fitCell(int paneW, int paneH) {
+        int byW = paneW / max1(cols);
+        int byH = paneH / max1(rows);
+        int c = byW;
+        if (byH < c) { c = byH; }
+        if (c < 12) { c = 12; }
+        if (c > 48) { c = 48; }
+        return c;
+    }
+
+    int boardWidthPx()  { return cols * cellPx; }
+    int boardHeightPx() { return rows * cellPx; }
+
+    // Build the tile grid into `parent`. `parent` should be a container the
+    // caller lays out (a card). The tiles are packed into one vertical box of
+    // horizontal row boxes (zero spacing) so they abut like a canvas. Returns
+    // true if a usable (bound) grid was made.
+    boolean buildIn(SLWidget parent) {
+        SLBox colBox = new SLBox();
+        colBox.vertical(parent, 0);
+
+        int y = 0;
+        while (y < rows) {
+            SLBox rowBox = new SLBox();
+            rowBox.horizontal(colBox, 0);
+            int x = 0;
+            while (x < cols) {
+                SLSprite tile = new SLSprite();
+                String firstPath = terrainTile(x, y);
+                boolean ok = tile.createIn(rowBox, firstPath, cellPx, cellPx);
+                if (ok) { usable = true; }
+                appendTile(tile);
+                x = x + 1;
+            }
+            y = y + 1;
+        }
+        built = true;
+        return usable;
+    }
+
+    // =======================================================================
+    // Repaint — the per-frame draw. Reads the model and re-points every tile.
+    // =======================================================================
+    void repaint() {
+        if (!built) { return; }
+
+        // 1) Lay the terrain under everything.
+        Tile t = head;
+        while (t != null) {
+            int x = t.index % cols;
+            int y = t.index / cols;
+            t.sprite.setFile(terrainTile(x, y));
+            t = t.next;
+        }
+
+        // 2) Overlay the figuring pieces (companions + the stalker). Their
+        // facing is derived from how each piece moved since the last frame.
+        paintFigures();
+
+        // 3) Overlay the hero last, so he is never hidden under a companion
+        // sharing a cell. The hero's facing comes from the model's Walker.
+        if (model.isAlive()) {
+            int hx = model.heroCol();
+            int hy = model.heroRow();
+            setTile(hx, hy, heroSprite());
+        }
+    }
+
+    // The hero's directional walk sprite for this frame, from the model's own
+    // Walker through the 4-way sprite matrix (adventurer now carries top/down
+    // as well as left/right). Falls back to the planted base pose if the Walker
+    // is unavailable.
+    String heroSprite() {
+        if (model.heroWalk == null) {
+            return "images/adventurer/adventurer-stop.png";
+        }
+        return anim.framePath4(model.heroWalk);
+    }
+
+    // Paint each active figuring piece, deriving its facing + gait locally.
+    void paintFigures() {
+        int n = model.figures_();
+        if (n > MAX_FIG) { n = MAX_FIG; }
+        int i = 0;
+        while (i < n) {
+            if (model.figureActive(i)) {
+                int fx = model.figureCol(i);
+                int fy = model.figureRow(i);
+                int dir = updateFigure(i, fx, fy);     // facing + gait tick
+                String character = figureCharacter(model.figureGlyph(i),
+                                                   model.figureName(i));
+                String sprite = figureSprite(character, i, dir);
+                setTile(fx, fy, sprite);
+            }
+            i = i + 1;
+        }
+    }
+
+    // Update a figure's remembered position, derive its facing from the delta,
+    // and advance its local gait tick when it moved. Returns the DIR_* facing.
+    int updateFigure(int i, int fx, int fy) {
+        int px = figX(i);
+        int py = figY(i);
+        int dir = figDir(i);
+        int tick = figTick(i);
+
+        int dx = fx - px;
+        int dy = fy - py;
+        boolean moved = (dx != 0) || (dy != 0);
+        if (moved) {
+            // Vertical motion wins the facing (matches anim.facing4): a piece
+            // stepping up faces TOP, down faces DOWN, else left/right.
+            if (dy < 0) { dir = DIR_TOP; }
+            else if (dy > 0) { dir = DIR_DOWN; }
+            else if (dx < 0) { dir = DIR_LEFT; }
+            else if (dx > 0) { dir = DIR_RIGHT; }
+            tick = tick + 1;
+        }
+        setFigX(i, fx); setFigY(i, fy);
+        setFigDir(i, dir); setFigTick(i, tick);
+        setFigMove(i, moved);
+        return dir;
+    }
+
+    // A figure's sprite for its facing + current gait frame. Moving pieces step
+    // start -> mid -> end; a still piece shows the planted (end) pose.
+    String figureSprite(String character, int i, int dir) {
+        int frame = gaitFrame(figTick(i), figMoved(i));
+        return anim.spritePath(character, frame, dirWord(dir));
+    }
+
+    // The gait frame from a tick count (START,MID,END cycling), or the planted
+    // END pose when the piece did not move this frame.
+    int gaitFrame(int tick, boolean moving) {
+        if (!moving) { return anim.FRAME_STOP; }    // planted (end) pose
+        int t = tick % 3;
+        if (t == 0) { return anim.FRAME_START; }
+        if (t == 1) { return anim.FRAME_MID; }
+        return anim.FRAME_STOP;
+    }
+
+    // =======================================================================
+    // Glyph -> terrain tile, figure glyph/name -> sprite character
+    // =======================================================================
+
+    // The terrain tile for a cell, honouring the torch (fog of war): cells the
+    // hero cannot presently see read as the dark tile, so the torchlight still
+    // governs the picture board exactly as it governs the text pane.
+    String terrainTile(int x, int y) {
+        if (!visible(x, y)) {
+            // Remembered walls stay faintly drawn; all else goes dark.
+            String base = model.cellGlyph(x, y);
+            if (base == "#") { return tilePath("wall"); }
+            return tilePath("dark");
+        }
+        String g = model.cellGlyph(x, y);
+        if (g == "#") { return tilePath("wall"); }
+        if (g == "+") { return tilePath("door"); }
+        if (g == ">") { return tilePath("stair-down"); }
+        if (g == "<") { return tilePath("stair-up"); }
+        if (g == "$") { return tilePath("treasure"); }
+        // Floor: open daylight on the surface (level 1), lit stone below.
+        if (model.currentDepth() <= 1) { return tilePath("surface"); }
+        return tilePath("floor");
+    }
+
+    // Within the torch radius of the hero? (A simple square-distance test using
+    // the model's torch radius — the lit circle follows the hero.)
+    boolean visible(int x, int y) {
+        int hx = model.heroCol();
+        int hy = model.heroRow();
+        int r = model.torchRadius();
+        int dx = x - hx; if (dx < 0) { dx = 0 - dx; }
+        int dy = y - hy; if (dy < 0) { dy = 0 - dy; }
+        return (dx <= r) && (dy <= r);
+    }
+
+    // Map a figuring piece's glyph (preferred) or name to its sprite-character
+    // folder under images/. The Fellowship + the stalker each have the full
+    // four-direction set; an unknown piece falls back to gandalf's set.
+    String figureCharacter(String glyph, String name) {
+        if (glyph == "G") { return "gandalf"; }
+        if (glyph == "F") { return "frodo"; }
+        if (glyph == "A") { return "aragorn"; }
+        if (glyph == "L") { return "legolas"; }
+        if (glyph == "D") { return "gimli"; }
+        if (glyph == "S") { return "moria-goblin"; }   // the stalker token
+        // Fall back on the name if the glyph was unexpected.
+        if (name != null) {
+            if (contains(name, "Gandalf")) { return "gandalf"; }
+            if (contains(name, "Frodo"))   { return "frodo"; }
+            if (contains(name, "Aragorn")) { return "aragorn"; }
+            if (contains(name, "Legolas")) { return "legolas"; }
+            if (contains(name, "Gimli"))   { return "gimli"; }
+        }
+        return "gandalf";
+    }
+
+    boolean contains(String hay, String needle) {
+        if (hay == null || needle == null) { return false; }
+        int n = hay.length();
+        int m = needle.length();
+        if (m == 0) { return true; }
+        int i = 0;
+        while (i + m <= n) {
+            if (hay.substring(i, i + m) == needle) { return true; }
+            i = i + 1;
+        }
+        return false;
+    }
+
+    String tilePath(String name) { return "images/tiles/" + name + ".png"; }
+
+    String dirWord(int dir) {
+        if (dir == DIR_TOP)   { return "top"; }
+        if (dir == DIR_LEFT)  { return "left"; }
+        if (dir == DIR_RIGHT) { return "right"; }
+        return "down";
+    }
+
+    // =======================================================================
+    // Tile list plumbing (array-free)
+    // =======================================================================
+    void appendTile(SLSprite s) {
+        Tile node = new Tile();
+        node.sprite = s;
+        if (head == null) { node.index = 0; } else { node.index = tail.index + 1; }
+        node.next = null;
+        if (head == null) { head = node; tail = node; }
+        else { tail.next = node; tail = node; }
+    }
+
+    Tile tileAt(int x, int y) {
+        if (x < 0 || y < 0 || x >= cols || y >= rows) { return null; }
+        int want = y * cols + x;
+        Tile t = head;
+        while (t != null) {
+            if (t.index == want) { return t; }
+            t = t.next;
+        }
+        return null;
+    }
+
+    void setTile(int x, int y, String path) {
+        Tile t = tileAt(x, y);
+        if (t != null) { t.sprite.setFile(path); }
+    }
+
+    // =======================================================================
+    // Per-figure scalar memory accessors (array-free; six slots).
+    // =======================================================================
+    void resetFigureMemory() {
+        figDir0 = DIR_DOWN; figDir1 = DIR_DOWN; figDir2 = DIR_DOWN;
+        figDir3 = DIR_DOWN; figDir4 = DIR_DOWN; figDir5 = DIR_DOWN;
+        figTick0 = 0; figTick1 = 0; figTick2 = 0; figTick3 = 0; figTick4 = 0; figTick5 = 0;
+        figX0 = 0 - 1; figX1 = 0 - 1; figX2 = 0 - 1; figX3 = 0 - 1; figX4 = 0 - 1; figX5 = 0 - 1;
+        figY0 = 0 - 1; figY1 = 0 - 1; figY2 = 0 - 1; figY3 = 0 - 1; figY4 = 0 - 1; figY5 = 0 - 1;
+        figMove0 = 0; figMove1 = 0; figMove2 = 0; figMove3 = 0; figMove4 = 0; figMove5 = 0;
+    }
+
+    void setFigMove(int i, boolean v) {
+        int m = 0; if (v) { m = 1; }
+        if (i == 0) { figMove0 = m; } else if (i == 1) { figMove1 = m; }
+        else if (i == 2) { figMove2 = m; } else if (i == 3) { figMove3 = m; }
+        else if (i == 4) { figMove4 = m; } else { figMove5 = m; }
+    }
+
+    int figDir(int i) {
+        if (i == 0) { return figDir0; } if (i == 1) { return figDir1; }
+        if (i == 2) { return figDir2; } if (i == 3) { return figDir3; }
+        if (i == 4) { return figDir4; } return figDir5;
+    }
+    void setFigDir(int i, int v) {
+        if (i == 0) { figDir0 = v; } else if (i == 1) { figDir1 = v; }
+        else if (i == 2) { figDir2 = v; } else if (i == 3) { figDir3 = v; }
+        else if (i == 4) { figDir4 = v; } else { figDir5 = v; }
+    }
+    int figTick(int i) {
+        if (i == 0) { return figTick0; } if (i == 1) { return figTick1; }
+        if (i == 2) { return figTick2; } if (i == 3) { return figTick3; }
+        if (i == 4) { return figTick4; } return figTick5;
+    }
+    void setFigTick(int i, int v) {
+        if (i == 0) { figTick0 = v; } else if (i == 1) { figTick1 = v; }
+        else if (i == 2) { figTick2 = v; } else if (i == 3) { figTick3 = v; }
+        else if (i == 4) { figTick4 = v; } else { figTick5 = v; }
+    }
+    int figX(int i) {
+        if (i == 0) { return figX0; } if (i == 1) { return figX1; }
+        if (i == 2) { return figX2; } if (i == 3) { return figX3; }
+        if (i == 4) { return figX4; } return figX5;
+    }
+    void setFigX(int i, int v) {
+        if (i == 0) { figX0 = v; } else if (i == 1) { figX1 = v; }
+        else if (i == 2) { figX2 = v; } else if (i == 3) { figX3 = v; }
+        else if (i == 4) { figX4 = v; } else { figX5 = v; }
+    }
+    int figY(int i) {
+        if (i == 0) { return figY0; } if (i == 1) { return figY1; }
+        if (i == 2) { return figY2; } if (i == 3) { return figY3; }
+        if (i == 4) { return figY4; } return figY5;
+    }
+    void setFigY(int i, int v) {
+        if (i == 0) { figY0 = v; } else if (i == 1) { figY1 = v; }
+        else if (i == 2) { figY2 = v; } else if (i == 3) { figY3 = v; }
+        else if (i == 4) { figY4 = v; } else { figY5 = v; }
+    }
+    // Did the figure move on the frame just recorded? A piece that just walked
+    // shows a stride; a piece standing still shows its planted (end) pose.
+    boolean figMoved(int i) {
+        if (i == 0) { return figMove0 != 0; } if (i == 1) { return figMove1 != 0; }
+        if (i == 2) { return figMove2 != 0; } if (i == 3) { return figMove3 != 0; }
+        if (i == 4) { return figMove4 != 0; } return figMove5 != 0;
+    }
+
+    int max1(int v) { if (v < 1) { return 1; } return v; }
+
+    // A one-line read for the headless/status output.
+    String describe() {
+        return "sprite board: " + cols + "x" + rows + " tiles @ " + cellPx
+            + "px (" + boardWidthPx() + "x" + boardHeightPx() + " px), "
+            + "hero + Fellowship walk in four directions";
+    }
+}
+
+// One board cell: a re-pointable sprite tile at a flat index (row*cols + col).
+// Reference struct, intrusive singly-linked (the Wrappers' array-free pattern).
+struct Tile {
+    SLSprite sprite;
+    int      index;
+    Tile     next;
+}

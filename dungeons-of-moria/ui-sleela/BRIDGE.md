@@ -16,7 +16,8 @@ when a built-in is absent (negative handle / no-op), so the game still reads.
 | `uiImageFile` | `SLImageFile` | `uiImageFile(parentHandle, path, maxW, maxH) -> widgetHandle` | `slui_image_file()` | Load the image **file** at `path`, preserving alpha, scaled into `maxW x maxH` (0 on an axis = size to source / preserve aspect). Returns the new widget handle, or `-1` if the file or decoder is unavailable. |
 | `uiFontEffectBind` | `SLFontEffect` | `uiFontEffectBind(widgetHandle, kind, color0xRRGGBBAA, radiusPx, intensity, direction) -> effectHandle` | `slui_font_effect_bind()` | Bind a light/glow emitter onto a widget. `kind` ∈ {NONE,SHADOW,GLOW,LIGHT,EMITTER}; `direction` ∈ {RADIAL,UP,DOWN,LEFT,RIGHT} masks the cast so the light only leaves that side. Returns the effect handle, or `-1` if effects are unsupported. |
 | `uiFontEffectUpdate` | `SLFontEffect` | `uiFontEffectUpdate(effectHandle, kind, color, radiusPx, intensity, direction) -> void` | `slui_font_effect_update()` | Push new emitter state onto a bound effect each frame (animation). No-op on an invalid handle. |
-| `uiSleepMillis` | `MoriaUI.animate` | `uiSleepMillis(ms) -> void` | `slui_sleep_ms()` | Frame-pacing sleep for the constant throbber loop (~16 ms ≈ 60 fps). Harmless no-op if absent. |
+| `uiSleepMillis` | `MoriaUI.animate`, `MoriaSpriteUI.animate` | `uiSleepMillis(ms) -> void` | `slui_sleep_ms()` | Frame-pacing sleep for the constant animation loop (~16 ms ≈ 60 fps). Harmless no-op if absent. |
+| `uiImageFileSet` | `SLSprite` | `uiImageFileSet(widgetHandle, path, maxW, maxH) -> void` | `slui_image_file_set()` | RE-POINT an existing image-file widget (one made by `uiImageFile`) at a new image `path`, scaled into `maxW x maxH` with the same alpha/aspect rules as `uiImageFile`. This is what lets the sprite board SWAP a cell's picture each frame so the hero and the Fellowship visibly WALK (move) around the board. No-op on an invalid handle; if absent, a cell simply keeps its construction image (the board then shows a static first frame rather than animating). |
 
 ## Notes
 
@@ -31,3 +32,12 @@ when a built-in is absent (negative handle / no-op), so the game still reads.
   and calling `uiWindowRedraw` every frame until `pump` reports the window has
   closed. If `pump` is unavailable the loop falls back to `uiAppRun` so the
   window still shows (the throbber then holds a lit, static state).
+- **The sprite board** (`MoriaSpriteUI` / `MoriaSpriteBoard`) reuses that same
+  loop: every few frames it advances the model one autopilot step
+  (`MoriaDungeon.autoStep()`) and repaints the board by calling
+  `SLSprite.setFile()` (→ `uiImageFileSet`) on the cells that changed, so the
+  hero and the Fellowship walk one cell at a time in moving pictures. The only
+  NEW built-in it needs beyond `uiImageFile` is `uiImageFileSet` (re-point a
+  live image widget); everything else (`uiBox`, `uiImageFile`, `uiAppPump`,
+  `uiWindowRedraw`, `uiSleepMillis`) already exists. With no image bridge the
+  board falls back to the text pane in the same window.

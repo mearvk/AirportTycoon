@@ -1,0 +1,15 @@
+# derived up/down directional frames for warden
+# source: real warden-<frame>-<left|right>.png crops
+# top   = left pose, darkened (seen from behind) + up chip
+# down  = right pose + down chip
+derived	warden-end-left.png
+derived	warden-end-right.png
+derived	warden-end.png
+derived	warden-start-top.png
+derived	warden-start-down.png
+derived	warden-mid-top.png
+derived	warden-mid-down.png
+derived	warden-stop-top.png
+derived	warden-end-top.png
+derived	warden-stop-down.png
+derived	warden-end-down.png

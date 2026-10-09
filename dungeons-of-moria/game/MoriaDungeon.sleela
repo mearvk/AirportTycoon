@@ -1558,19 +1558,32 @@ class MoriaDungeon {
     void autoDescend(int stepBudget) {
         int steps = 0;
         while (!over() && steps < stepBudget) {
-            // First, if a monster stands down the hall within bow/crossbow
-            // range, open with a ranged shot rather than closing to melee.
-            tryRangedShot();
-            boolean moved = false;
-            // Toward the stair row first, then rightward toward the stair column.
-            if (heroY < stairY) { moved = move(0, 1); }
-            else if (heroY > stairY) { moved = move(0, 0 - 1); }
-            if (!moved && !over()) { moved = move(1, 0); }
-            if (!moved && !over()) { moved = move(1, nudgeRow()); }
-            if (!moved && !over()) { moved = move(0, 1); }
-            if (!moved && !over()) { moved = move(0, 0 - 1); }
+            autoStep();
             steps = steps + 1;
         }
+    }
+
+    // ONE iteration of the scripted autopilot: open with a ranged shot if a
+    // monster stands down the hall, then take a single step toward the stair
+    // (fighting what blocks the way). Returns true while the game continues
+    // (so a front-end can call it once per animation FRAME and watch the hero
+    // and the Fellowship WALK one cell at a time), false once the descent is
+    // over. The per-move animation (hero Walker + figuring pieces) is advanced
+    // inside move()/stepFigures(), so each autoStep() is one visible stride.
+    boolean autoStep() {
+        if (over()) { return false; }
+        // First, if a monster stands down the hall within bow/crossbow range,
+        // open with a ranged shot rather than closing to melee.
+        tryRangedShot();
+        boolean moved = false;
+        // Toward the stair row first, then rightward toward the stair column.
+        if (heroY < stairY) { moved = move(0, 1); }
+        else if (heroY > stairY) { moved = move(0, 0 - 1); }
+        if (!moved && !over()) { moved = move(1, 0); }
+        if (!moved && !over()) { moved = move(1, nudgeRow()); }
+        if (!moved && !over()) { moved = move(0, 1); }
+        if (!moved && !over()) { moved = move(0, 0 - 1); }
+        return !over();
     }
 
     // Scan rightward along the hero's row; if the nearest monster is within the
