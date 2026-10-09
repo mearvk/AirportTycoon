@@ -5,7 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 fail=0
 echo "== Airport Tycoon autocheck: SLeeLa verifier assets =="
-for p in SLeeLa/tools/verify-before-execution.py SLeeLa/security/sha256-manifest.json; do
+for p in ../SLeeLa/tools/verify-before-execution.py ../SLeeLa/security/sha256-manifest.json; do
   if [ -f "$p" ]; then echo "PASS: $p"; else echo "WARN: not at sibling path $p (discovery will test configured roots)"; fi
 done
 if [ -n "${SLEELA_HOME:-}" ]; then
@@ -16,8 +16,8 @@ if [ -n "${SLEELA_HOME:-}" ]; then
 else
   echo "INFO: SLEELA_HOME is unset; Makefile auto-discovery must select a valid SLeeLa root"
 fi
-if [ -x SLeeLa/impl/build/sleela ] && command -v strings >/dev/null 2>&1; then
-  if strings SLeeLa/impl/build/sleela | grep -q 'searched upward from'; then
+if [ -x ../SLeeLa/impl/build/sleela ] && command -v strings >/dev/null 2>&1; then
+  if strings ../SLeeLa/impl/build/sleela | grep -q 'searched upward from'; then
     echo "FAIL: sibling SLeeLa executable is stale; rebuild SLeeLa with make -C impl all"
     fail=1
   else
@@ -32,7 +32,7 @@ else
 fi
 for n in 1 2 3 4 5 6 7 8; do
   if [ -f "$n/Makefile" ]; then
-    if grep -q '$(if $(wildcard $(CURDIR)/../../SLeeLa/impl/build/sleela)' "$n/Makefile"; then
+    if grep -q '$(if $(wildcard $(CURDIR)/../../../SLeeLa/impl/build/sleela)' "$n/Makefile"; then
       echo "PASS: edition $n prefers the local SLeeLa build when present"
     else
       echo "WARN: edition $n may select an older PATH executable"
