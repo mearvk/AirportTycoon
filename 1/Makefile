@@ -56,7 +56,7 @@ game:
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
 			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(LIGHTS_SRC) \
-			$(ROUTE_ECONOMY_SRC) $(FLEET_MAINTENANCE_SRC) $(FLEET_MANAGEMENT_SRC) $(FLEET_DESK_SRC) \\
+			$(ROUTE_ECONOMY_SRC) $(FLEET_MAINTENANCE_SRC) $(FLEET_MANAGEMENT_SRC) $(FLEET_DESK_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
@@ -156,9 +156,9 @@ clean:
 help:
 	@echo "Airport Tycoon — Business Edition (SLeeLa)"
 	@echo "  make game     Type/parse-check the .sleela Wrappers (Sleelvac)"
-	@echo "  make route-economy Run the timeless route-profitability observer
-  make fleet-maintenance Run the 23-fleet aircraft maintenance registry
-  make fleet-management Run fleet standards and Top Brass management controls"
+	@echo "  make route-economy Run the timeless route-profitability observer"
+	@echo "  make fleet-maintenance Run the 23-fleet aircraft maintenance registry"
+	@echo "  make fleet-management Run fleet standards and Top Brass management controls"
 	@echo "  make run      Headless self-play (SLeeLa toolchain)"
 	@echo "  make run-life  Headless business/life layer (Character + Citizen)"
 	@echo "  make author    Prove the author path wins in 1001 moves, every time"

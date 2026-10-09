@@ -76,10 +76,14 @@ all: game test
 build-dir:
 	@mkdir -p $(BUILD_DIR)
 
+# Sleelvac resolves cross-file types in command-line order, so a file that
+# USES a type must be listed AFTER the file that DECLARES it. $(RPG_SRC) is
+# checked first because it declares shared structs (e.g. `struct Legend` in
+# MoriaBestiary) that the dungeon/UI Wrappers reference.
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Moria Wrappers with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(UI_SPRITE_WIDGET_SRC) $(UI_SPRITE_BOARD_SRC) $(UI_SPRITE_UI_SRC) $(RPG_SRC) --library $(UI_SOURCES); \
+		$(SLEELA) check $(RPG_SRC) $(GAME_SRC) $(LIGHTS_SRC) $(TEST_SRC) $(UI_SRC) $(UI_EXTRA_SRC) $(UI_SPRITE_WIDGET_SRC) $(UI_SPRITE_BOARD_SRC) $(UI_SPRITE_UI_SRC) --library $(UI_SOURCES); \
 	else \
 		echo "SLeeLa toolchain ('$(SLEELA)') not found — skipping .sleela check."; \
 		echo "Install SLeeLa and set SLEELA=/path/to/sleela to enable it."; \

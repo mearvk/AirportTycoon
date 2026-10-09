@@ -20,6 +20,10 @@
 SLEELA ?= sleela
 BUILD_DIR := ../build/7
 GAME_SRC := game/AirportTycoon.sleela
+# The Reservations business module. GAME_SRC references the `Reservations` type
+# (field `reservationBook`), so Sleelvac must see this declaration first — it is
+# listed ahead of GAME_SRC in the `game` check below.
+RESERVATIONS_SRC := game/Reservations.sleela
 LIFE_SRC := game/AirportTycoonLife.sleela
 AUTHOR_SRC := game/AuthorPath.sleela
 TEST_SRC := game/AirportTycoonTest.sleela
@@ -54,7 +58,7 @@ build-dir:
 game:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
-		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
+		$(SLEELA) check $(RESERVATIONS_SRC) $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
 			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) $(ROUTE_ECONOMY_SRC) $(PACING_SRC) $(DESK_OPS_SRC) $(PACING_UI_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
 	else \

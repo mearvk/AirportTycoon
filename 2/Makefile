@@ -155,9 +155,9 @@ clean:
 help:
 	@echo "Airport Tycoon — Business Edition (SLeeLa)"
 	@echo "  make game     Type/parse-check the .sleela Wrappers (Sleelvac)"
-	@echo "  make route-economy Run the timeless route-profitability observer
-  make fleet-maintenance Run the 23-fleet aircraft maintenance registry
-  make fleet-management Run fleet standards and Top Brass management controls"
+	@echo "  make route-economy Run the timeless route-profitability observer"
+	@echo "  make fleet-maintenance Run the 23-fleet aircraft maintenance registry"
+	@echo "  make fleet-management Run fleet standards and Top Brass management controls"
 	@echo "  make run      Headless self-play (SLeeLa toolchain)"
 	@echo "  make run-life  Headless business/life layer (Character + Citizen)"
 	@echo "  make author    Prove the author path wins in 1001 moves, every time"
