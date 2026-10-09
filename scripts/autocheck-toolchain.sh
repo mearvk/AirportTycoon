@@ -1,0 +1,34 @@
+#!/bin/sh
+# Airport Tycoon autocheck for the SLeeLa toolchain/verifier discovery failure.
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+cd "$ROOT"
+fail=0
+echo "== Airport Tycoon autocheck: SLeeLa verifier assets =="
+for p in SLeeLa/tools/verify-before-execution.py SLeeLa/security/sha256-manifest.json; do
+  if [ -f "$p" ]; then echo "PASS: $p"; else echo "WARN: not at sibling path $p (discovery will test configured roots)"; fi
+done
+if [ -n "${SLEELA_HOME:-}" ]; then
+  echo "INFO: SLEELA_HOME=$SLEELA_HOME"
+  for p in tools/verify-before-execution.py security/sha256-manifest.json; do
+    if [ -f "$SLEELA_HOME/$p" ]; then echo "PASS: SLEELA_HOME/$p"; else echo "WARN: SLEELA_HOME missing $p"; fi
+  done
+else
+  echo "INFO: SLEELA_HOME is unset; Makefile auto-discovery must select a valid SLeeLa root"
+fi
+echo "== Search: verifier path assumptions across editions =="
+if grep -R -n --include='Makefile' -E 'verification tool not found|searched upward from|SLEELA_ENV|SLEELA \?=' 1 2 3 4 5 6 7 8; then
+  echo "INFO: reviewed edition Makefiles for toolchain discovery"
+else
+  echo "FAIL: no edition toolchain configuration found"; fail=1
+fi
+for n in 1 2 3 4 5 6 7 8; do
+  if [ -f "$n/Makefile" ]; then
+    if grep -q '$(if $(wildcard $(CURDIR)/../../SLeeLa/impl/build/sleela)' "$n/Makefile"; then
+      echo "PASS: edition $n prefers the local SLeeLa build when present"
+    else
+      echo "WARN: edition $n may select an older PATH executable"
+    fi
+  fi
+done
+exit "$fail"
