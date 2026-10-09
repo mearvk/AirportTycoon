@@ -17,7 +17,7 @@
 #   make all    game + ui + check
 #   make clean  Remove UI build output
 
-SLEELA ?= sleela
+SLEELA ?= $(if $(wildcard $(CURDIR)/../../SLeeLa/impl/build/sleela),$(CURDIR)/../../SLeeLa/impl/build/sleela,sleela)
 BUILD_DIR := ../build/8
 GAME_SRC := game/AirportTycoon.sleela
 LIFE_SRC := game/AirportTycoonLife.sleela
