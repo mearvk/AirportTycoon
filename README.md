@@ -29,21 +29,52 @@ evolve it there; older versions remain frozen for reference and comparison.
 Every Edition also carries a **superb name** drawn from a wealth of vocabulary,
 recorded in a `VERSION.NAME.md` inside its folder.
 
-| Version | Name | Epithet | Path | Contents |
+The eight editions are one game played at eight depths. Each edition keeps
+**every** earlier system and lights exactly **one** new controllable system on
+the same panel, so Edition *N* contains systems *1..N*. The systems are ordered
+as a progression of mastery — operate, reward quality, read the environment,
+sustain the machine, plan ahead, scale out, delegate, compete — so depth and
+interest multiply as you climb.
+
+| Version | Name | Epithet | New system (cumulative) | Mastery |
 |---|---|---|---|---|
-| **1** | *Keystone Meridian* | *The Foundational Shift* | [`1/`](1/) | The base game: the tower game, the business/life layer (Character + Citizen), the win condition (> $240,000 in a Major Eastern Region, rising month-over-month), and the Author Path that wins in exactly 1001 moves. See [`1/README.md`](1/README.md) · [`1/VERSION.NAME.md`](1/VERSION.NAME.md). |
-| **2** | *Golden Assimilation* | *The Assimilation Era* | [`2/`](2/) | The improvement line: the reputation-driven service premium, the on-time combo, and the Business Desk whose Level-5 **Great Assimilation** rakes in Major-Eastern money. See [`2/README.md`](2/README.md) · [`2/VERSION.NAME.md`](2/VERSION.NAME.md). |
-| **3** | *Platinum Ascension* | *The Prosperity Era* | [`3/`](3/) | Edition 3 common base, carrying the Golden Assimilation foundation forward for its own evolution. See [`3/README.md`](3/README.md) · [`3/VERSION.NAME.md`](3/VERSION.NAME.md). |
-| **4** | *Sovereign Skies* | *The Dominion Era* | [`4/`](4/) | Edition 4 common base, carrying the shared foundation forward for its own evolution. See [`4/README.md`](4/README.md) · [`4/VERSION.NAME.md`](4/VERSION.NAME.md). |
-| **5** | *Imperial Horizons* | *The Grand Strategy Era* | [`5/`](5/) | Edition 5 common base, carrying the shared foundation forward for its own evolution. See [`5/README.md`](5/README.md) · [`5/VERSION.NAME.md`](5/VERSION.NAME.md). |
-| **6** | *Grand Meridian* | *The Continental Era* | [`6/`](6/) | Edition 6 common base, carrying the shared foundation forward for its own evolution. See [`6/README.md`](6/README.md) · [`6/VERSION.NAME.md`](6/VERSION.NAME.md). |
-| **7** | *Celestial Concourse* | *The Zenith Era* | [`7/`](7/) | Edition 7 common base, carrying the shared foundation forward for its own evolution. See [`7/README.md`](7/README.md) · [`7/VERSION.NAME.md`](7/VERSION.NAME.md). |
-| **8** | *Apex Dominion* | *The Ultimate Era* | [`8/`](8/) | Edition 8 common base, carrying the shared foundation forward for its own evolution. See [`8/README.md`](8/README.md) · [`8/VERSION.NAME.md`](8/VERSION.NAME.md). |
+| **1** | *Keystone Meridian* | *The Foundational Shift* | **Tower Operations** — land → gate → service → depart; patience, reputation, cash | Operate |
+| **2** | *Golden Assimilation* | *The Assimilation Era* | **Service Premium & On-Time Combo** — reputation scales fares; five clean departures pay a tip | Reward quality |
+| **3** | *Platinum Ascension* | *The Prosperity Era* | **Weather & Runway Conditions** — fronts ice the runways; de-ice and land into the gap | Read the environment |
+| **4** | *Sovereign Skies* | *The Dominion Era* | **Fleet Health & Maintenance** — a use-rating that decays and must be serviced | Sustain the machine |
+| **5** | *Imperial Horizons* | *The Grand Strategy Era* | **Route Network & Reservations** — book arrivals ahead for a steady bonus | Plan ahead |
+| **6** | *Grand Meridian* | *The Continental Era* | **Multi-Terminal Expansion** — unlock terminals and balance load across them | Scale out |
+| **7** | *Celestial Concourse* | *The Zenith Era* | **Automation & Policy** — program the autopilot instead of pressing it | Delegate control |
+| **8** | *Apex Dominion* | *The Ultimate Era* | **Live Competitive Economy** — publish one live score with every system running at once | Compete |
+
+Each row's path: [`1/`](1/) · [`2/`](2/) · [`3/`](3/) · [`4/`](4/) ·
+[`5/`](5/) · [`6/`](6/) · [`7/`](7/) · [`8/`](8/). See each edition's
+`VERSION.NAME.md` for its full notes.
 
 > The latest version is the highest-numbered folder. Start at
 > [`8/README.md`](8/README.md) for the current edition, or
 > [`1/README.md`](1/README.md) for the original base game overview,
 > architecture, and build/run instructions.
+
+## Unified graphics — the green-phosphor look
+
+Every edition renders through one monochrome, 8-bit **green-phosphor** palette
+(a dark CRT ground, a six-step green intensity ladder, and a single amber tint
+reserved for danger), with all world objects snapped to one orthogonal grid —
+the same unit, the same corner radius, and the same orientation (an aircraft's
+nose always points along +X toward departure). The look is identical across
+Editions 1→8, so the series reads as a single machine; the only thing that
+changes going up is **how many systems are lit on the same panel**.
+
+The palette and geometry live in one place —
+[`ui/src/main/java/com/mearvk/sleela/airport/Phosphor.java`](8/ui/src/main/java/com/mearvk/sleela/airport/Phosphor.java)
+for the JavaFX front and the green `SLTheme` in each
+[`ui-sleela/AirportTycoonUI.sleela`](8/ui-sleela/AirportTycoonUI.sleela) for the
+native SleelaUI front — so a change there restyles both fronts of every edition
+at once. The ordered ladder itself is modelled in
+[`EditionGimmicks.java`](8/ui/src/main/java/com/mearvk/sleela/airport/EditionGimmicks.java)
+and [`GimmickSystems.java`](8/ui/src/main/java/com/mearvk/sleela/airport/GimmickSystems.java),
+with the edition number selected per folder by `EditionConfig.java`.
 
 
 ## Gameplay & Goals

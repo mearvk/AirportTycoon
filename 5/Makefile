@@ -202,6 +202,10 @@ check:
 	  javac -d target/classes \
 	    src/main/java/com/mearvk/sleela/airport/GameSnapshot.java \
 	    src/main/java/com/mearvk/sleela/airport/SleelaRuntime.java \
+	    src/main/java/com/mearvk/sleela/airport/EditionConfig.java \
+	    src/main/java/com/mearvk/sleela/airport/Phosphor.java \
+	    src/main/java/com/mearvk/sleela/airport/EditionGimmicks.java \
+	    src/main/java/com/mearvk/sleela/airport/GimmickSystems.java \
 	    src/main/java/com/mearvk/sleela/airport/LocalGameModel.java \
 	    src/main/java/com/mearvk/sleela/airport/SleelaProcessRuntime.java \
 	    src/main/java/com/mearvk/sleela/airport/LifeEconomy.java \
@@ -209,9 +213,6 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/main/java/com/mearvk/sleela/airport/MediaCenter.java \
 	    src/main/java/com/mearvk/sleela/airport/BusinessDesk.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerProtocol.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerServer.java \
-    src/main/java/com/mearvk/sleela/airport/NetworkRuntime.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 

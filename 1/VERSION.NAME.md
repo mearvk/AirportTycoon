@@ -5,31 +5,28 @@
 > **Version:** 1
 > **Name:** Keystone Meridian
 > **Epithet:** *The Foundational Shift*
-> **Status:** Frozen — the base game, kept intact for reference and comparison.
+> **Mastery theme:** Operate
+> **Status:** A complete snapshot carrying systems 1..1 of the mastery ladder.
 
-## Why the name
+## The mastery ladder
 
-**Keystone** — Edition 1 is the load-bearing stone of the whole arch. It
-establishes every concept the later Editions build upon: the fast-paced tower
-game (planes, gates, runways, patience), the two-ended economy (the owner as a
-`Character`, travelers as `Citizen`s), the Major-Eastern win condition
-(> \$240,000, rising month over month), the media/events center read against
-**East 5.0**, the Author Terminal, and the native SleelaUI front-end. Remove the
-keystone and the arch cannot stand; everything after it is cut from this folder.
+Airport Tycoon is one game played at eight depths. Edition **1** sits at depth
+**1** of the ordered 1→8 ladder and introduces **Tower Operations** (*Operate*). Each
+edition keeps every earlier system and lights exactly one new one, so interest
+multiplies as you climb. The whole series shares one **green-phosphor** look —
+a monochrome 8-bit CRT palette with orthogonal, grid-aligned objects — so 1→8
+read as a single machine; only the number of lit systems changes.
 
-**Meridian** — the game is **deterministic**: from a fixed seed the entire shift
-is knowable in advance, which is precisely why *the author knew the clues*. The
-meridian is that high line of certainty the Author walks — the
-[`AuthorPath`](game/AuthorPath.sleela) that wins in **exactly 1001 moves, every
-time**. A meridian is both a zenith (the apex of a predictable arc) and a line of
-longitude (a fixed reference the whole world is measured against); Edition 1 is
-both — the apex of certainty and the reference every later Edition is diffed
-against.
+## The base system — Tower Operations
 
-> *Keystone Meridian* — the foundational stone, set upon the one knowable line.
+The base game: land inbound aircraft, assign gates, service them, and depart them before their patience runs out. Reputation gates survival; cash gates growth.
 
-## What this Edition is
+## What this edition adds
 
-See [`README.md`](README.md) for the full overview, architecture, and build/run
-instructions. In one breath: the complete **Base Concepts** of Airport Tycoon —
-tower, economy, win condition, media center, terminal, and the 1001-move proof.
+- The land → gate → service → depart loop
+- Patience, reputation and cash as the three core signals
+- Deterministic PRNG so a seed replays identically
+- The unified green-phosphor look every later edition inherits
+
+See [README.md](README.md) for the full overview and build/run instructions, and
+the repository README for the complete 1→8 ladder.

@@ -40,6 +40,22 @@ public final class LocalGameModelTest {
         testLightingClueScan();
         testLightingAnsiAndMarkup();
         testLightingDisabledPassthrough();
+        // --- The ordered 1->8 mastery ladder (shared across editions) ---
+        testLadderIsCumulative();
+        testEachEditionAddsExactlyOneSystem();
+        testEditionBoundsRejected();
+        testPhosphorPaletteIsOrderedAndMonochrome();
+        testPhosphorHealthTintFadesToAmber();
+        testWeatherGatesLandingUntilDeIced();
+        testFleetReviewReducesFaresUntilServiced();
+        testNetworkBookPaysSteadyBonus();
+        testTerminalsBalanceLoad();
+        testAutomationDelegatesPolicies();
+        testLiveScoreMonotoneInGoodState();
+        testEditionOneHasOnlyTheTowerSystem();
+        testEditionEightRunsEverySystem();
+        testSystemsStatusListsLiveSystems();
+        testHigherEditionsStayDeterministic();
         if (failures == 0) {
             System.out.println("ALL TESTS PASSED");
         } else {
@@ -399,4 +415,229 @@ public final class LocalGameModelTest {
                 "disabled loader passes a word through unlit");
         check(loader.lastCluesLit() == 0, "disabled loader lit nothing");
     }
+
+    private static void testLadderIsCumulative() {
+        // Edition N must expose exactly the first N systems, in order, so the
+        // ladder is strictly cumulative: nothing is ever dropped going up.
+        for (int ed = 1; ed <= 8; ed++) {
+            EditionGimmicks g = new EditionGimmicks(ed);
+            check(g.systems().size() == ed,
+                    "edition " + ed + " exposes exactly " + ed + " systems");
+            boolean prefix = true;
+            EditionGimmicks.System[] all = EditionGimmicks.System.values();
+            for (int i = 0; i < ed; i++) {
+                if (g.systems().get(i) != all[i]) {
+                    prefix = false;
+                }
+            }
+            check(prefix, "edition " + ed + " systems are the first " + ed + " in order");
+        }
+    }
+
+    private static void testEachEditionAddsExactlyOneSystem() {
+        // Each step up adds precisely one new system on top of the previous.
+        for (int ed = 2; ed <= 8; ed++) {
+            EditionGimmicks prev = new EditionGimmicks(ed - 1);
+            EditionGimmicks cur = new EditionGimmicks(ed);
+            check(cur.systems().size() - prev.systems().size() == 1,
+                    "edition " + ed + " adds exactly one system over " + (ed - 1));
+            check(cur.newThisEdition().introducedIn() == ed,
+                    "edition " + ed + " new system is introduced at " + ed);
+            check(!prev.has(cur.newThisEdition()),
+                    "the new system was absent one edition earlier");
+        }
+    }
+
+    private static void testEditionBoundsRejected() {
+        boolean low = false;
+        boolean high = false;
+        try {
+            new EditionGimmicks(0);
+        } catch (IllegalArgumentException e) {
+            low = true;
+        }
+        try {
+            new EditionGimmicks(9);
+        } catch (IllegalArgumentException e) {
+            high = true;
+        }
+        check(low, "edition 0 rejected");
+        check(high, "edition 9 rejected");
+    }
+
+    private static void testPhosphorPaletteIsOrderedAndMonochrome() {
+        // The six green steps must rise in luminance, and every green step must
+        // be green-dominant (monochrome phosphor: green channel on top).
+        int[] ladder = {Phosphor.GROUND, Phosphor.INACTIVE, Phosphor.FRAME,
+                Phosphor.LABEL, Phosphor.ACTIVE, Phosphor.PEAK};
+        boolean rising = true;
+        boolean greenDominant = true;
+        int prevLum = -1;
+        for (int c : ladder) {
+            int lum = Phosphor.red(c) + 2 * Phosphor.green(c) + Phosphor.blue(c);
+            if (lum <= prevLum) {
+                rising = false;
+            }
+            prevLum = lum;
+            if (!(Phosphor.green(c) >= Phosphor.red(c)
+                    && Phosphor.green(c) >= Phosphor.blue(c))) {
+                greenDominant = false;
+            }
+        }
+        check(rising, "the phosphor ladder rises dim->bright in luminance");
+        check(greenDominant, "every phosphor step is green-dominant (monochrome)");
+        // The one allowed non-green tint is the amber alert (red+green, low blue).
+        check(Phosphor.red(Phosphor.ALERT) > 200 && Phosphor.blue(Phosphor.ALERT) < 60,
+                "the single alert tint is phosphor amber");
+    }
+
+    private static void testPhosphorHealthTintFadesToAmber() {
+        // Full health is pure ACTIVE green; empty fades toward the amber alert.
+        check(Phosphor.healthTint(1.0) == Phosphor.ACTIVE,
+                "healthy object stays ACTIVE green");
+        int empty = Phosphor.healthTint(0.0);
+        check(Phosphor.red(empty) > Phosphor.red(Phosphor.ACTIVE),
+                "an empty object has drifted toward amber (more red)");
+    }
+
+    private static void testWeatherGatesLandingUntilDeIced() {
+        // Edition 3: the weather subsystem exists, and its de-ice semantics
+        // gate landing. An iced runway is unsafe to land on until de-iced.
+        LocalGameModel m = new LocalGameModel(3);
+        check(m.weather() != null, "edition 3 has a weather system");
+
+        // Drive the subsystem directly to a known iced state and assert the
+        // safe-to-land / de-ice contract the model relies on.
+        GimmickSystems.Weather w = new GimmickSystems.Weather(7, 2);
+        for (int i = 0; i < 500 && w.phase() != GimmickSystems.Weather.STORM; i++) {
+            w.tick();
+        }
+        check(w.phase() == GimmickSystems.Weather.STORM, "a storm eventually forms");
+        check(!w.safeToLand(1), "an iced runway is unsafe to land on");
+        check(w.deIce(1), "de-icing an iced runway succeeds");
+        check(w.safeToLand(1), "a de-iced runway is safe to land on again");
+        check(!w.deIce(1), "de-icing an already-clear runway is a no-op");
+    }
+
+    private static void testFleetReviewReducesFaresUntilServiced() {
+        // Edition 4: a fleet below 85 collects reduced fares; maintenance
+        // restores it and the fare factor returns to full.
+        GimmickSystems.Fleet f = new GimmickSystems.Fleet(84);
+        check(f.needsReview(), "fleet below 85 needs a review");
+        check(f.fareFactor() < 1.0, "a flagged fleet collects reduced fares");
+        int cost = f.scheduleMaintenance();
+        check(cost > 0, "maintenance has a cost");
+        check(!f.needsReview() && f.fareFactor() == 1.0,
+                "serviced fleet is healthy and collects full fares");
+    }
+
+    private static void testNetworkBookPaysSteadyBonus() {
+        // Edition 5: a well-stocked book pays a per-departure bonus; an empty
+        // one does not, and departures draw the book down.
+        GimmickSystems.Network n = new GimmickSystems.Network();
+        check(n.departureBonus() == 0, "empty book pays no bonus");
+        n.book(GimmickSystems.Network.TARGET_BOOK);
+        check(n.departureBonus() > 0, "full book pays the steady bonus");
+        int before = n.reservations();
+        n.onDeparture();
+        check(n.reservations() == before - 1, "a departure draws down the book");
+        check(n.fulfilled() == 1, "a fulfilled reservation is counted");
+    }
+
+    private static void testTerminalsBalanceLoad() {
+        // Edition 6: routing sends each departure to the least-loaded open
+        // terminal, so load stays balanced; unlocking adds capacity.
+        GimmickSystems.Terminals t = new GimmickSystems.Terminals(4, 1);
+        check(t.open() == 1, "starts with one terminal open");
+        t.unlockNext();
+        t.unlockNext();
+        check(t.open() == 3, "unlocked two more terminals");
+        for (int i = 0; i < 9; i++) {
+            t.routeDeparture();
+        }
+        check(t.imbalance() <= 1, "balanced routing keeps terminals level");
+    }
+
+    private static void testAutomationDelegatesPolicies() {
+        // Edition 7: the policy is a configurable rule set; delegatedCount
+        // tracks how many systems are on autopilot.
+        GimmickSystems.Automation a = new GimmickSystems.Automation();
+        int base = a.delegatedCount();            // autoLand on by default
+        a.setAutoDeIce(true);
+        a.setAutoMaintain(true);
+        check(a.delegatedCount() == base + 2, "enabling policies raises the count");
+        check(a.policyLine().contains("deice=true"), "policy line reflects de-ice");
+    }
+
+    private static void testLiveScoreMonotoneInGoodState() {
+        // Edition 8: the published live score rises when the controllable
+        // signals rise, so it is a fair competitive number.
+        int low = GimmickSystems.LiveEconomyScore.score(1000, 50, 10, 0);
+        int high = GimmickSystems.LiveEconomyScore.score(2000, 80, 20, 5);
+        check(high > low, "live score rises with cash/rep/served/streak");
+        String line = GimmickSystems.LiveEconomyScore.line("hub-1", "EAST", true, 3, high);
+        check(line.startsWith("LIVE|server=hub-1") && line.contains("score=" + high),
+                "live score line is well-formed");
+    }
+
+    private static void testEditionOneHasOnlyTheTowerSystem() {
+        LocalGameModel m = new LocalGameModel(1);
+        check(m.gimmicks().systems().size() == 1, "edition 1 exposes one system");
+        check(m.weather() == null && m.fleet() == null && m.network() == null
+                        && m.terminals() == null && m.automation() == null,
+                "edition 1 lights none of the later subsystems");
+        // The base tower loop still works at edition 1.
+        for (int i = 0; i < 300; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.served() > 0, "edition 1 tower loop still serves planes");
+    }
+
+    private static void testEditionEightRunsEverySystem() {
+        LocalGameModel m = new LocalGameModel(8);
+        check(m.weather() != null && m.fleet() != null && m.network() != null
+                        && m.terminals() != null && m.automation() != null,
+                "edition 8 lights every cumulative subsystem");
+        // Full stack must still run a clean self-play without stalling.
+        m.book(20);
+        for (int i = 0; i < 600; i++) {
+            m.step();
+            m.autoAssist();
+        }
+        check(m.served() > 0, "edition 8 full stack still serves planes");
+        check(m.cash() >= 0, "edition 8 cash never negative");
+    }
+
+    private static void testSystemsStatusListsLiveSystems() {
+        LocalGameModel m = new LocalGameModel(8);
+        String s = m.systemsStatus();
+        check(s.startsWith("ED|8|Apex Dominion"), "status names the edition");
+        check(s.contains("WEATHER|") && s.contains("FLEET|") && s.contains("NETWORK|")
+                        && s.contains("TERMINALS|") && s.contains("POLICY|") && s.contains("LIVE|"),
+                "edition 8 status lists all cumulative systems");
+        // Edition 1 status lists only the tower.
+        LocalGameModel one = new LocalGameModel(1);
+        String s1 = one.systemsStatus();
+        check(!s1.contains("WEATHER|") && !s1.contains("FLEET|"),
+                "edition 1 status lists no later systems");
+    }
+
+    private static void testHigherEditionsStayDeterministic() {
+        // Same edition, same seed path => identical outcome, like the rest of
+        // the game. Two edition-8 models stepped identically must agree.
+        LocalGameModel a = new LocalGameModel(8);
+        LocalGameModel b = new LocalGameModel(8);
+        a.book(20);
+        b.book(20);
+        for (int i = 0; i < 500; i++) {
+            a.step();
+            a.autoAssist();
+            b.step();
+            b.autoAssist();
+        }
+        check(a.served() == b.served(), "same edition+seed => same served count");
+        check(a.cash() == b.cash(), "same edition+seed => same cash");
+    }
+
 }

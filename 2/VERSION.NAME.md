@@ -5,37 +5,32 @@
 > **Version:** 2
 > **Name:** Golden Assimilation
 > **Epithet:** *The Assimilation Era*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Mastery theme:** Reward quality
+> **Status:** A complete snapshot carrying systems 1..2 of the mastery ladder.
 
-## Why the name
+## The mastery ladder
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+Airport Tycoon is one game played at eight depths. Edition **2** sits at depth
+**2** of the ordered 1→8 ladder and introduces **Service Premium & On-Time Combo** (*Reward quality*). Each
+edition keeps every earlier system and lights exactly one new one, so interest
+multiplies as you climb. The whole series shares one **green-phosphor** look —
+a monochrome 8-bit CRT palette with orthogonal, grid-aligned objects — so 1→8
+read as a single machine; only the number of lit systems changes.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+## New in Edition 2 — Service Premium & On-Time Combo
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+Quality gets a legible price. Reputation now scales every fare through a service premium, and five clean departures in a row pay a combo tip.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## What this edition adds
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+- Reputation-driven service premium (70%–150% of base fare)
+- On-time combo: a flat tip every five clean departures
+- Value-aware auto-assist that protects heavies on a near-tie
+- The Business Desk side ventures and the Level-5 Great Assimilation
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+## Carried forward from Edition 1
+
+Every earlier system remains part of Edition 2: Tower Operations. Edition 2 adds exactly one new system on top, so the player now holds **2** systems at once.
+
+See [README.md](README.md) for the full overview and build/run instructions, and
+the repository README for the complete 1→8 ladder.
