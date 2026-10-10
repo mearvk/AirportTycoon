@@ -5,31 +5,32 @@
 > **Version:** 4
 > **Name:** Sovereign Skies
 > **Epithet:** *The Dominion Era*
-> **Status:** Latest — the dominion line, evolving from the Edition 3 prosperity line.
+> **Mastery theme:** Sustain the machine
+> **Status:** A complete snapshot carrying systems 1..4 of the mastery ladder.
 
-## Why the name
+## The mastery ladder
 
-**Sovereign Skies** — Edition 4 is about control at scale. The player is no
-longer merely reacting to individual aircraft or completing isolated contracts;
-a disciplined airport can build a consecutive prosperity record and make each
-successful contract more valuable.
+Airport Tycoon is one game played at eight depths. Edition **4** sits at depth
+**4** of the ordered 1→8 ladder and introduces **Fleet Health & Maintenance** (*Sustain the machine*). Each
+edition keeps every earlier system and lights exactly one new one, so interest
+multiplies as you climb. The whole series shares one **green-phosphor** look —
+a monochrome 8-bit CRT palette with orthogonal, grid-aligned objects — so 1→8
+read as a single machine; only the number of lit systems changes.
 
-The **Prosperity Ladder** adds measured compounding to Edition 3: +$100 for
-each consecutive completed contract, capped at +$400, while an expired contract
-resets the ladder. The early-completion quality bonus remains intact.
+## New in Edition 4 — Fleet Health & Maintenance
 
-> *Sovereign Skies* — the Edition where operational discipline becomes
-> sustained dominion.
+The machine must be sustained. A fleet-wide use-rating decays as aircraft cycle; below 85 the Maintenance Engineer flags it and fares are reduced until you service it.
 
-## What's new since *Platinum Ascension* (Edition 3)
+## What this edition adds
 
-- **Prosperity Ladder** — consecutive completed contracts increase the next contract's base reward.
-- **+$100 ladder step** — each successful contract adds another $100 to the next base contract reward.
-- **+$400 cap** — the ladder can raise the $500 base reward to $900.
-- **Expiry reset** — missing a contract breaks the ladder without an additional reputation penalty.
-- **Early-quality bonus retained** — Edition 3's $250/+1 early-completion reward remains.
-- **UI-visible progression** — ladder chain, step, and cap are in snapshots.
+- A 0–100 fleet use-rating that wears with departures
+- A sub-85 engineer-review flag that cuts fares to 75%
+- A scheduled-maintenance action whose cost grows with neglect
+- Full fares restored the moment the fleet is serviced
 
-Edition 1's tower rules, Edition 2's economic feedback and Business Desk, and Edition 3's Prosperity Contracts remain intact.
+## Carried forward from Edition 3
 
-See README.md for the full overview and Edition 4 notes.
+Every earlier system remains part of Edition 4: Tower Operations, Service Premium & On-Time Combo, Weather & Runway Conditions. Edition 4 adds exactly one new system on top, so the player now holds **4** systems at once.
+
+See [README.md](README.md) for the full overview and build/run instructions, and
+the repository README for the complete 1→8 ladder.

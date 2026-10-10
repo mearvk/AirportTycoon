@@ -48,7 +48,9 @@ class MoriaAnimation {
     static int CYCLE      = 6;    // HOLD_START + HOLD_MID + HOLD_STOP + HOLD_MID
 
     // --- make / configure a walker -----------------------------------------
-    Walker spawn(String character, int x, int y) {
+    // NB: named spawnWalker, not spawn: `spawn` is a reserved SLeeLa built-in
+    // (the one-arg thread spawn), so a user method named `spawn` is shadowed.
+    Walker spawnWalker(String character, int x, int y) {
         Walker w = new Walker();
         w.character = character;
         if (w.character == null) { w.character = "adventurer"; }
@@ -251,7 +253,7 @@ class MoriaAnimation {
         print("Frames per character: " + FRAMES
             + " (start, mid, stop); cycle " + CYCLE + " ticks.");
         print("");
-        Walker hero = spawn("adventurer", 2, 9);
+        Walker hero = spawnWalker("adventurer", 2, 9);
         face(hero, 1, 0);
         print("Walking RIGHT (east) — uses the -right sprites:");
         int i = 0;
@@ -277,7 +279,7 @@ class MoriaAnimation {
         // under images/gandalf/. Walk him one step each way and read the frame.
         print("");
         print("Gandalf — four-way directional sprites (top/down/left/right):");
-        Walker g = spawn("gandalf", 5, 5);
+        Walker g = spawnWalker("gandalf", 5, 5);
         stepToward(g, g.x, g.y - 1);   // north -> top
         print("  up    -> " + framePath4(g));
         stepToward(g, g.x, g.y + 1);   // south -> down

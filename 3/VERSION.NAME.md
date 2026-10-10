@@ -5,38 +5,32 @@
 > **Version:** 3
 > **Name:** Platinum Ascension
 > **Epithet:** *The Prosperity Era*
-> **Status:** Latest — the prosperity line, evolving from the Edition 2 improvement line.
+> **Mastery theme:** Read the environment
+> **Status:** A complete snapshot carrying systems 1..3 of the mastery ladder.
 
-## Why the name
+## The mastery ladder
 
-**Platinum** — Edition 3 moves beyond simply making money. The airport now
-builds a repeatable operating record: the player must recognize aircraft mix,
-prioritize the right flights, and convert good operations into sustained
-prosperity.
+Airport Tycoon is one game played at eight depths. Edition **3** sits at depth
+**3** of the ordered 1→8 ladder and introduces **Weather & Runway Conditions** (*Read the environment*). Each
+edition keeps every earlier system and lights exactly one new one, so interest
+multiplies as you climb. The whole series shares one **green-phosphor** look —
+a monochrome 8-bit CRT palette with orthogonal, grid-aligned objects — so 1→8
+read as a single machine; only the number of lit systems changes.
 
-**Ascension** — the airport is climbing from reactive tower management into
-deliberate strategic management. The new **Prosperity Contract** gives the
-tower a visible target — five matching aircraft before a deterministic 240-tick
-deadline — with a $500 completion bonus and up to +2 reputation. Missing the
-deadline rotates the target and resets progress without adding another
-reputation penalty.
+## New in Edition 3 — Weather & Runway Conditions
 
-> *Platinum Ascension* — the Edition where disciplined operations become
-> sustained prosperity.
+The sky becomes a system to read. Fronts drift across the field and ice the runways; you must de-ice the right runway and land into the gap.
 
-## What's new since *Golden Assimilation* (Edition 2)
+## What this edition adds
 
-- **Prosperity Contract** — one active aircraft-size target at a time; five
-  matching departures complete the contract.
-- **Deterministic contract clock** — 240 ticks per contract; expiry rotates
-  Small → Medium → Heavy and resets progress.
-- **Prosperity reward** — $500 completion bonus plus up to +2 reputation.
-- **No hidden failure penalty** — missing a contract does not directly reduce
-  reputation or close the airport.
-- **Backward-compatible snapshots** — contract target, progress, goal, time
-  remaining, and completion count are exposed to the UI.
+- Clear → Front → Storm weather phases on a deterministic cadence
+- Storms ice every runway; iced runways refuse landings
+- A de-ice action the player (or a later policy) drives
+- Auto-assist de-ices a blocking runway for the most urgent inbound
 
-Edition 2's service premium, on-time combo, smarter auto-assist, Business Desk,
-deterministic simulation, and Author Path remain part of Edition 3.
+## Carried forward from Edition 2
 
-See README.md for the full overview and the complete Edition 3 notes.
+Every earlier system remains part of Edition 3: Tower Operations, Service Premium & On-Time Combo. Edition 3 adds exactly one new system on top, so the player now holds **3** systems at once.
+
+See [README.md](README.md) for the full overview and build/run instructions, and
+the repository README for the complete 1→8 ladder.

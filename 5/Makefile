@@ -43,6 +43,45 @@ SOURCES := sources/character sources/citizen sources/gameplay
 UI_SOURCES := sources/user-interface
 OS_SOURCES := sources/os
 
+# ---------------------------------------------------------------------------
+# SLeeLa environment auto-discovery (fail-closed SHA-256 execution gate).
+# ---------------------------------------------------------------------------
+# The SLeeLa VM refuses to run unless it can find its verification assets:
+#   * SLEELA_SHA256_MANIFEST -> security/sha256-manifest.json  (the trusted hashes)
+#   * the verify tool        -> tools/verify-before-execution.py
+#   * SLEELA_SHEET           -> SHEET.sheet                     (the object catalog)
+# All three live under one SLeeLa root ("SLEELA_HOME"). The installer sets these
+# env vars, but a user who runs `make` without sourcing the install profile (or
+# who points SLEELA at a bare binary) hits a cryptic gate abort. To make `make`
+# self-contained, $(SLEELA_ENV) below DISCOVERS the SLeeLa root at build time and
+# exports the vars for the sleela invocation -- so the environment is set at the
+# time of Make, not left for the user to locate. Any value already exported is
+# honored and never overridden. $(SLEELA_ENV) is a shell prelude prepended (with
+# `&&`) to each sleela call. Search order: an exported SLEELA_HOME; the dir two
+# levels above the resolved `sleela` binary (.../bin/sleela -> root); then
+# standard install roots and a sibling SLeeLa checkout.
+SLEELA_ENV = \
+	if [ -z "$${SLEELA_SHA256_MANIFEST:-}" ] || [ -z "$${SLEELA_HOME:-}" ]; then \
+		_sl_bin=$$(command -v $(SLEELA) 2>/dev/null); \
+		_sl_cands="$${SLEELA_HOME:-} $${_sl_bin:+$$(cd "$$(dirname "$$_sl_bin")/.." 2>/dev/null && pwd)} $$HOME/.local/sleela /usr/local/sleela /opt/sleela $(CURDIR)/../../SLeeLa $(CURDIR)/../SLeeLa"; \
+		for _sl_h in $$_sl_cands; do \
+			[ -n "$$_sl_h" ] || continue; \
+			if [ -f "$$_sl_h/security/sha256-manifest.json" ] && [ -f "$$_sl_h/tools/verify-before-execution.py" ]; then \
+				SLEELA_HOME="$$_sl_h"; export SLEELA_HOME; \
+				: "$${SLEELA_SHA256_MANIFEST:=$$_sl_h/security/sha256-manifest.json}"; export SLEELA_SHA256_MANIFEST; \
+				[ -f "$$_sl_h/SHEET.sheet" ] && : "$${SLEELA_SHEET:=$$_sl_h/SHEET.sheet}" && export SLEELA_SHEET; \
+				break; \
+			fi; \
+		done; \
+	fi; \
+	if [ -z "$${SLEELA_SHA256_MANIFEST:-}" ]; then \
+		echo "SLeeLa: could not locate the SHA-256 verification assets." >&2; \
+		echo "  Set SLEELA_HOME to your SLeeLa root (the dir with security/sha256-manifest.json" >&2; \
+		echo "  and tools/verify-before-execution.py), or run: make $@ SLEELA=/path/to/SLeeLa/bin/SLeeLa" >&2; \
+		exit 1; \
+	fi
+
+
 .PHONY: build-dir all game run run-life author ui-sleela terminal terminal-run media desk network-server network-client test ui ui-run check clean help route-economy
 
 all: game check ui
@@ -57,6 +96,7 @@ autocheck:
 game: autocheck
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
 		echo "Checking Wrappers + imported /sources with Sleelvac..."; \
+		$(SLEELA_ENV) && \
 		$(SLEELA) check $(GAME_SRC) $(LIFE_SRC) $(AUTHOR_SRC) $(TEST_SRC) \
 			$(UI_SLEELA_SRC) $(TERMINAL_SRC) $(MEDIA_SRC) $(DESK_SRC) $(ROUTE_ECONOMY_SRC) $(PACING_SRC) $(DESK_OPS_SRC) $(PACING_UI_SRC) \
 			--library $(SOURCES) $(UI_SOURCES) $(OS_SOURCES); \
@@ -66,45 +106,46 @@ game: autocheck
 	fi
 
 pacing:
-	$(SLEELA) run $(PACING_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(PACING_SRC)
 
 route-economy:
-	$(SLEELA) run $(ROUTE_ECONOMY_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(ROUTE_ECONOMY_SRC)
 
 fleet-maintenance:
-	$(SLEELA) run $(FLEET_MAINTENANCE_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(FLEET_MAINTENANCE_SRC)
 
 fleet-management:
-	$(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
+	@$(SLEELA_ENV) && $(SLEELA) run $(FLEET_MANAGEMENT_SRC) --library game
 
 run:
-	$(SLEELA) run $(GAME_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(GAME_SRC)
 
 # Run the business/life layer headless (resolves Character/Citizen from /sources)
 run-life:
-	$(SLEELA) run $(LIFE_SRC) --library $(SOURCES)
+	@$(SLEELA_ENV) && $(SLEELA) run $(LIFE_SRC) --library $(SOURCES)
 
 # Prove the author path wins in exactly 1001 moves, every time.
 author:
-	$(SLEELA) run $(AUTHOR_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(AUTHOR_SRC)
 
 # Open the native SleelaUI front-end (real X11/Cocoa/Win32 window).
 ui-sleela:
-	$(SLEELA) run $(UI_SLEELA_SRC) --library $(UI_SOURCES)
+	@$(SLEELA_ENV) && $(SLEELA) run $(UI_SLEELA_SRC) --library $(UI_SOURCES)
 
 # Run the Author Terminal's scripted self-demo via the SLeeLa toolchain.
 terminal:
-	$(SLEELA) run $(TERMINAL_SRC) --library $(OS_SOURCES)
+	@$(SLEELA_ENV) && $(SLEELA) run $(TERMINAL_SRC) --library $(OS_SOURCES)
 
 # Run the media center (300) and the Reporter (220) self-demos.
 media:
-	$(SLEELA) run media/EventsCenter.sleela
-	$(SLEELA) run media/Reporter.sleela
+	@$(SLEELA_ENV) && $(SLEELA) run media/EventsCenter.sleela
+	@$(SLEELA_ENV) && $(SLEELA) run media/Reporter.sleela
 
 # Run the Business Desk self-demo (casino + investment, Level-5 assimilation).
 # Falls back to the Java mirror's main() when the SLeeLa toolchain is absent.
 desk:
 	@if command -v $(SLEELA) >/dev/null 2>&1; then \
+		$(SLEELA_ENV) && \
 		$(SLEELA) run $(DESK_SRC); \
 	else \
 		echo "SLeeLa toolchain not found — running the Java mirror demo:"; \
@@ -145,7 +186,7 @@ network-client:
 	cd ui && mvn -q javafx:run
 
 test:
-	$(SLEELA) run $(TEST_SRC)
+	@$(SLEELA_ENV) && $(SLEELA) run $(TEST_SRC)
 
 ui:
 	cd ui && mvn -q clean package
@@ -161,6 +202,10 @@ check:
 	  javac -d target/classes \
 	    src/main/java/com/mearvk/sleela/airport/GameSnapshot.java \
 	    src/main/java/com/mearvk/sleela/airport/SleelaRuntime.java \
+	    src/main/java/com/mearvk/sleela/airport/EditionConfig.java \
+	    src/main/java/com/mearvk/sleela/airport/Phosphor.java \
+	    src/main/java/com/mearvk/sleela/airport/EditionGimmicks.java \
+	    src/main/java/com/mearvk/sleela/airport/GimmickSystems.java \
 	    src/main/java/com/mearvk/sleela/airport/LocalGameModel.java \
 	    src/main/java/com/mearvk/sleela/airport/SleelaProcessRuntime.java \
 	    src/main/java/com/mearvk/sleela/airport/LifeEconomy.java \
@@ -168,9 +213,6 @@ check:
 	    src/main/java/com/mearvk/sleela/airport/AuthorTerminal.java \
 	    src/main/java/com/mearvk/sleela/airport/MediaCenter.java \
 	    src/main/java/com/mearvk/sleela/airport/BusinessDesk.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerProtocol.java \
-    src/main/java/com/mearvk/sleela/airport/MultiplayerServer.java \
-    src/main/java/com/mearvk/sleela/airport/NetworkRuntime.java \
 	    src/test/java/com/mearvk/sleela/airport/LocalGameModelTest.java && \
 	  java -cp target/classes com.mearvk.sleela.airport.LocalGameModelTest )
 

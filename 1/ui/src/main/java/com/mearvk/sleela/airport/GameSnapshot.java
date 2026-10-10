@@ -33,9 +33,16 @@ public final class GameSnapshot {
     public final boolean gameOver;
     public final List<PlaneView> planes;
 
+    // Edition 2 feedback-loop readouts (default to neutral when a frame
+    // predates the fields, so older snapshots still parse).
+    public final int streak;            // consecutive on-time departures
+    public final int servicePremiumPct; // reputation-driven fare multiplier (%)
+
+    /** Edition 2 constructor carrying the feedback-loop readouts. */
     public GameSnapshot(int tick, int cash, int reputation, int served, int lost,
                         int openGates, int openRunways, int planeCount,
-                        boolean gameOver, List<PlaneView> planes) {
+                        boolean gameOver, List<PlaneView> planes,
+                        int streak, int servicePremiumPct) {
         this.tick = tick;
         this.cash = cash;
         this.reputation = reputation;
@@ -46,6 +53,16 @@ public final class GameSnapshot {
         this.planeCount = planeCount;
         this.gameOver = gameOver;
         this.planes = planes;
+        this.streak = streak;
+        this.servicePremiumPct = servicePremiumPct;
+    }
+
+    /** Edition 1-compatible constructor; neutral premium (100%), no streak. */
+    public GameSnapshot(int tick, int cash, int reputation, int served, int lost,
+                        int openGates, int openRunways, int planeCount,
+                        boolean gameOver, List<PlaneView> planes) {
+        this(tick, cash, reputation, served, lost, openGates, openRunways,
+                planeCount, gameOver, planes, 0, 100);
     }
 
     /** A single plane as the UI needs it for animation. */
@@ -96,6 +113,7 @@ public final class GameSnapshot {
     public static GameSnapshot parse(String text) {
         int tick = 0, cash = 0, rep = 0, served = 0, lost = 0;
         int gates = 0, runways = 0, planeCount = 0;
+        int streak = 0, premium = 100;
         boolean over = false;
         List<PlaneView> planes = new ArrayList<>();
 
@@ -127,6 +145,8 @@ public final class GameSnapshot {
                         case "runways" -> runways = parseInt(v);
                         case "planes" -> planeCount = parseInt(v);
                         case "over" -> over = Boolean.parseBoolean(v);
+                        case "streak" -> streak = parseInt(v);
+                        case "premium" -> premium = parseInt(v);
                         default -> { /* ignore unknown keys */ }
                     }
                 }
@@ -138,7 +158,7 @@ public final class GameSnapshot {
             }
         }
         return new GameSnapshot(tick, cash, rep, served, lost, gates, runways,
-                planeCount, over, planes);
+                planeCount, over, planes, streak, premium);
     }
 
     /** Minimal, dependency-free parse of a flat structPack JSON object. */

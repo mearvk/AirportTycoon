@@ -45,15 +45,19 @@ class AirportTycoonUI {
             return;
         }
 
-        // --- Theme: Slick Black with a green "profit" accent ---------------
+        // --- Theme: unified green-phosphor (the whole series' one look) ----
+        // Monochrome 8-bit phosphor: a dark CRT ground with a single bright
+        // green accent (Phosphor.ACTIVE = 0x45d67f). Every edition uses this
+        // exact palette so 1..8 read as one machine; only the number of lit
+        // systems changes. Mirrors ui/.../Phosphor.java.
         SLTheme theme = new SLTheme();
         theme.slickBlack();
         SLColor accent = new SLColor();
-        accent.rgb(61, 214, 140);        // profit green
+        accent.rgb(69, 214, 127);        // Phosphor.ACTIVE phosphor green
         theme.setAccentColor(accent);
-        theme.setRadius(12);
+        theme.setRadius(4);              // Phosphor.Metrics.RADIUS (orthogonal)
 
-        SLWindow win = ui.openWindow("Airport Tycoon — Business Edition",
+        SLWindow win = ui.openWindow("Airport Tycoon — Edition 2 (Golden Assimilation)",
                                      760, 820, theme.handle());
         SLWidget root = win.rootWidget();
 
@@ -79,6 +83,9 @@ class AirportTycoonUI {
         // --- The win status ------------------------------------------------
         buildWinBar(col);
 
+        // --- The ordered 1->8 mastery ladder -------------------------------
+        buildMasteryLadder(col);
+
         // --- The media / events center (the mid :: center area) ------------
         buildMediaCenter(col);
 
@@ -98,6 +105,40 @@ class AirportTycoonUI {
         win.show();
         ui.run();
         ui.close();
+    }
+
+    // The ordered 1->8 mastery ladder for this edition: Edition 2
+    // holds systems 1..2, each layered on the last, newest marked NEW.
+    // Mirrors EditionGimmicks (ui/.../EditionGimmicks.java).
+    void buildMasteryLadder(SLBox parent) {
+        SLCard card = new SLCard();
+        card.createIn(parent);
+        SLBox box = new SLBox();
+        box.vertical(card, 6);
+        box.setMarginAll(14);
+
+        SLHeading h = new SLHeading();
+        h.createIn(box, "Mastery Ladder — Edition 2 (Golden Assimilation)", 16);
+
+        ladderRow(box, "1", "Tower Operations", "Operate");
+
+        SLInfoBar top = new SLInfoBar();
+        top.info(box, "NEW THIS EDITION — 2. Service Premium & On-Time Combo (Reward quality). It layers on top of every system above, so you now hold 2 systems at once.");
+    }
+
+    // One ladder row: level number badge + system title + mastery verb.
+    void ladderRow(SLBox parent, String level, String title, String mastery) {
+        SLBox row = new SLBox();
+        row.horizontal(parent, 10);
+
+        SLBadge n = new SLBadge();
+        n.createIn(row, level);
+
+        SLLabel t = new SLLabel();
+        t.createIn(row, title);
+
+        SLLabel m = new SLLabel();
+        m.createIn(row, "— " + mastery);
     }
 
     // The owner's business at a glance: cash, and reputation/grit as level bars.
@@ -244,6 +285,9 @@ class AirportTycoonUI {
     // Headless fallback so the program still "reads" without a display.
     void printTextRead() {
         print("Airport Tycoon — Business Edition (SleelaUI, headless)");
+        print("Mastery Ladder (Edition 2, Golden Assimilation):");
+        print("  1 Tower Operations                    — Operate");
+        print("  2 Service Premium & On-Time Combo     — Reward quality  (NEW)");
         print("Owner: Avery Sloane (Subscription) — cash climbing, profitable.");
         print("WIN: Major Eastern revenue > $240,000 and rising, month over month.");
         print("Media Center (IQ 300) — focus routes:");
