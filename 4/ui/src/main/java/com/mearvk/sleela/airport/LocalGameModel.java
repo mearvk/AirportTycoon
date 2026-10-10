@@ -15,6 +15,34 @@ import java.util.List;
  */
 public final class LocalGameModel implements SleelaRuntime {
 
+    // The edition (1..8) this model is playing. Determines which systems of
+    // the ordered mastery ladder are live; see EditionGimmicks. Edition 8 (the
+    // default) runs every system at once.
+    private final EditionGimmicks gimmicks;
+
+    // The cumulative gimmick subsystems. Each is non-null only when its edition
+    // (or later) is being played, so Edition N runs systems 1..N.
+    private GimmickSystems.Weather weather;      // Ed. 3+
+    private GimmickSystems.Fleet fleet;          // Ed. 4+
+    private GimmickSystems.Network network;      // Ed. 5+
+    private GimmickSystems.Terminals terminals;  // Ed. 6+
+    private GimmickSystems.Automation automation;// Ed. 7+
+
+    static final int TOTAL_TERMINALS = 4;        // Ed. 6 continental terminals
+
+    public LocalGameModel() {
+        this(EditionConfig.EDITION);
+    }
+
+    public LocalGameModel(int edition) {
+        this.gimmicks = new EditionGimmicks(edition);
+        reset();
+    }
+
+    public EditionGimmicks gimmicks() {
+        return gimmicks;
+    }
+
     // Mirrors AirportTycoon.sleela constants.
     static final int MAX_GATES = 8;
     static final int MAX_RUNWAYS = 3;
@@ -87,26 +115,9 @@ public final class LocalGameModel implements SleelaRuntime {
     private int nextPlaneId;
     private boolean gameOver;
 
-    // Edition 3: Platinum Ascension / Prosperity Contract.
-    static final int CONTRACT_GOAL = 5;
-    static final int CONTRACT_DEADLINE = 240;
-    static final int CONTRACT_BONUS = 500;
-    static final int CONTRACT_REP_BONUS = 2;
-    static final int CONTRACT_EARLY_TICKS = 120;
-    static final int CONTRACT_EARLY_BONUS = 250;
-    static final int CONTRACT_EARLY_REP_BONUS = 1;
-    private int contractTargetSize;
-    private int contractProgress;
-    private int contractDeadline;
-    private int contractsCompleted;
-
     // Edition 2 feedback-loop state.
     private int streak;        // consecutive on-time departures (resets on abandon)
     private int comboTips;     // cash earned from combo milestones this shift
-
-    public LocalGameModel() {
-        reset();
-    }
 
     @Override
     public void reset() {
@@ -126,10 +137,6 @@ public final class LocalGameModel implements SleelaRuntime {
         openRunways = 1;
         nextPlaneId = 1;
         gameOver = false;
-        contractTargetSize = 0;
-        contractProgress = 0;
-        contractDeadline = CONTRACT_DEADLINE;
-        contractsCompleted = 0;
         streak = 0;
         comboTips = 0;
 
@@ -148,6 +155,45 @@ public final class LocalGameModel implements SleelaRuntime {
             r.open = i <= openRunways;
             runways.add(r);
         }
+
+        // --- Light the ordered mastery ladder for this edition --------------
+        // Each subsystem is created only from the edition that introduces it,
+        // so Edition N runs systems 1..N (see EditionGimmicks / GimmickSystems).
+        weather = gimmicks.has(EditionGimmicks.System.WEATHER)
+                ? new GimmickSystems.Weather(rngState ^ 0x5EED, MAX_RUNWAYS) : null;
+        fleet = gimmicks.has(EditionGimmicks.System.FLEET)
+                ? new GimmickSystems.Fleet(92) : null;
+        network = gimmicks.has(EditionGimmicks.System.NETWORK)
+                ? new GimmickSystems.Network() : null;
+        terminals = gimmicks.has(EditionGimmicks.System.TERMINALS)
+                ? new GimmickSystems.Terminals(TOTAL_TERMINALS, 1) : null;
+        automation = gimmicks.has(EditionGimmicks.System.AUTOMATION)
+                ? new GimmickSystems.Automation() : null;
+    }
+
+    // --- Accessors for the cumulative subsystems (null when not in edition) --
+    GimmickSystems.Weather weather() {
+        return weather;
+    }
+
+    GimmickSystems.Fleet fleet() {
+        return fleet;
+    }
+
+    GimmickSystems.Network network() {
+        return network;
+    }
+
+    GimmickSystems.Terminals terminals() {
+        return terminals;
+    }
+
+    GimmickSystems.Automation automation() {
+        return automation;
+    }
+
+    int liveScore() {
+        return GimmickSystems.LiveEconomyScore.score(cash, reputation, served, streak);
     }
 
     // --- deterministic PRNG, matching the Wrapper ---
@@ -195,12 +241,20 @@ public final class LocalGameModel implements SleelaRuntime {
     }
 
     private Runway freeRunway() {
+        // Prefer a runway that is also safe to land on (Edition 3+ weather);
+        // fall back to any free runway so the de-ice path still has a target.
+        Runway anyFree = null;
         for (Runway r : runways) {
             if (r.open && r.occupant == 0 && r.cooldown == 0) {
-                return r;
+                if (weather == null || weather.safeToLand(r.index)) {
+                    return r;
+                }
+                if (anyFree == null) {
+                    anyFree = r;
+                }
             }
         }
-        return null;
+        return anyFree;
     }
 
     private Plane planeById(int id) {
@@ -241,9 +295,17 @@ public final class LocalGameModel implements SleelaRuntime {
         return pct;
     }
 
-    /** The actual fare paid on departure: base fare times the service premium. */
+    /**
+     * The actual fare paid on departure: Edition 1 base fare, scaled by the
+     * Edition 2 service premium, then (Edition 4+) by the fleet-health fare
+     * factor &mdash; a neglected fleet collects reduced fares until serviced.
+     */
     private int fareFor(int sizeClass) {
-        return (baseFareFor(sizeClass) * servicePremiumPct()) / 100;
+        int fare = (baseFareFor(sizeClass) * servicePremiumPct()) / 100;
+        if (fleet != null) {
+            fare = (int) Math.round(fare * fleet.fareFactor());
+        }
+        return fare;
     }
 
     private void spawnPlane() {
@@ -280,11 +342,46 @@ public final class LocalGameModel implements SleelaRuntime {
         if (rw == null) {
             return false;
         }
+        // Edition 3+: refuse to clear a landing onto an iced runway. The player
+        // must de-ice first (or wait for a safe one), which is the point of the
+        // weather system.
+        if (weather != null && !weather.safeToLand(rw.index)) {
+            return false;
+        }
         p.state = LANDING;
         p.runwayIdx = rw.index;
         rw.occupant = planeId;
         rw.cooldown = 3;
         return true;
+    }
+
+    /** Edition 3+ player action: de-ice a runway so planes can land on it. */
+    boolean deIce(int runwayIndex) {
+        return weather != null && weather.deIce(runwayIndex);
+    }
+
+    /** Edition 4+ player action: schedule fleet maintenance. Returns true if paid. */
+    boolean scheduleMaintenance() {
+        if (fleet == null) {
+            return false;
+        }
+        int cost = fleet.scheduleMaintenance();
+        cash = Math.max(0, cash - cost);
+        return true;
+    }
+
+    /** Edition 5+ player action: book reservations ahead. */
+    boolean book(int n) {
+        if (network == null) {
+            return false;
+        }
+        network.book(n);
+        return true;
+    }
+
+    /** Edition 6+ player action: unlock the next continental terminal. */
+    boolean unlockTerminal() {
+        return terminals != null && terminals.unlockNext();
     }
 
     @Override
@@ -394,6 +491,17 @@ public final class LocalGameModel implements SleelaRuntime {
             return;
         }
         if (best.state == INBOUND) {
+            // Edition 3+: if every open runway is iced, de-ice one first so the
+            // most urgent inbound has somewhere safe to land. Keeps AUTO (and
+            // the headless self-play) coherent once weather is in the mix.
+            if (weather != null && freeRunway() != null
+                    && !weather.safeToLand(freeRunway().index)) {
+                for (int i = 1; i <= MAX_RUNWAYS; i++) {
+                    if (weather.deIce(i)) {
+                        break;
+                    }
+                }
+            }
             clearToLand(best.id);
         } else if (best.state == TAXI_IN) {
             assignGate(best.id, 0);
@@ -409,21 +517,31 @@ public final class LocalGameModel implements SleelaRuntime {
         }
         tick++;
 
-        // Edition 3 contract deadline. Expiry rotates the target and resets
-        // progress; it does not directly damage reputation.
-        if (contractDeadline > 0) {
-            contractDeadline--;
-        }
-        if (contractDeadline <= 0) {
-            contractProgress = 0;
-            contractTargetSize = (contractTargetSize + 1) % 3;
-            contractDeadline = CONTRACT_DEADLINE;
-        }
-
         for (Runway r : runways) {
             if (r.cooldown > 0) {
                 r.cooldown--;
             }
+        }
+
+        // Edition 3+: drift the weather front and (Edition 7+) let a delegated
+        // de-ice policy clear iced runways on the player's behalf.
+        if (weather != null) {
+            weather.tick();
+            if (automation != null && automation.autoDeIce()) {
+                for (int i = 1; i <= MAX_RUNWAYS; i++) {
+                    weather.deIce(i);
+                }
+            }
+        }
+        // Edition 7+: a delegated maintenance policy services a flagged fleet.
+        if (automation != null && automation.autoMaintain()
+                && fleet != null && fleet.needsReview()) {
+            scheduleMaintenance();
+        }
+        // Edition 7+: a delegated booking policy keeps the book topped up.
+        if (automation != null && automation.autoBook()
+                && network != null && network.reservations() < GimmickSystems.Network.TARGET_BOOK) {
+            network.book(1);
         }
 
         for (Plane p : planes) {
@@ -517,25 +635,6 @@ public final class LocalGameModel implements SleelaRuntime {
             }
             cash += fareFor(p.sizeClass);
             served++;
-
-            // Edition 3 Prosperity Contract.
-            if (p.sizeClass == contractTargetSize) {
-                contractProgress++;
-                if (contractProgress >= CONTRACT_GOAL) {
-                    cash += CONTRACT_BONUS;
-                    // Fast completion earns a quality bonus as well.
-                    if (contractDeadline > CONTRACT_DEADLINE - CONTRACT_EARLY_TICKS) {
-                        cash += CONTRACT_EARLY_BONUS;
-                        reputation = Math.min(100, reputation + CONTRACT_EARLY_REP_BONUS);
-                    }
-                    reputation = Math.min(100, reputation + CONTRACT_REP_BONUS);
-                    contractsCompleted++;
-                    contractProgress = 0;
-                    contractTargetSize = (contractTargetSize + 1) % 3;
-                    contractDeadline = CONTRACT_DEADLINE;
-                }
-            }
-
             if (reputation < 100) {
                 reputation++;
             }
@@ -545,6 +644,17 @@ public final class LocalGameModel implements SleelaRuntime {
             if (streak % COMBO_STEP == 0) {
                 cash += COMBO_TIP;
                 comboTips += COMBO_TIP;
+            }
+            // --- Cumulative systems react to a clean departure --------------
+            if (fleet != null) {
+                fleet.onDeparture();          // Ed. 4: wear the fleet a little
+            }
+            if (network != null) {
+                network.onDeparture();        // Ed. 5: draw down the book...
+                cash += network.departureBonus(); // ...and pay the steady bonus
+            }
+            if (terminals != null) {
+                terminals.routeDeparture();   // Ed. 6: balance across terminals
             }
             p.state = DONE;
         }
@@ -585,10 +695,57 @@ public final class LocalGameModel implements SleelaRuntime {
         }
         return new GameSnapshot(tick, cash, reputation, served, lost,
                 openGates, openRunways, planes.size(), gameOver, views,
-                streak, servicePremiumPct(), contractTargetSize,
-                contractProgress, CONTRACT_GOAL, contractDeadline,
-                contractsCompleted, CONTRACT_EARLY_TICKS, CONTRACT_EARLY_BONUS,
-                contractChain, CONTRACT_LADDER_STEP, CONTRACT_LADDER_CAP);
+                streak, servicePremiumPct());
+    }
+
+    /**
+     * A human-readable status line for every cumulative system live at this
+     * edition. The UIs render this down the side so the player sees the whole
+     * mastery ladder they are currently holding. Pure data; no UI dependency.
+     */
+    String systemsStatus() {
+        StringBuilder sb = new StringBuilder("ED|").append(gimmicks.edition())
+                .append("|").append(gimmicks.codename())
+                .append("|depth=").append(gimmicks.depth());
+        sb.append("\nTOWER|cash=").append(cash).append("|rep=").append(reputation)
+                .append("|served=").append(served).append("|lost=").append(lost);
+        if (gimmicks.has(EditionGimmicks.System.SERVICE_PREMIUM)) {
+            sb.append("\nPREMIUM|pct=").append(servicePremiumPct())
+                    .append("|streak=").append(streak).append("|tips=").append(comboTips);
+        }
+        if (weather != null) {
+            sb.append("\nWEATHER|phase=").append(weather.phase())
+                    .append("|rec=").append(weather.recommend());
+        }
+        if (fleet != null) {
+            sb.append("\nFLEET|rating=").append(fleet.useRating())
+                    .append("|review=").append(fleet.needsReview())
+                    .append("|rec=").append(fleet.recommend());
+        }
+        if (network != null) {
+            sb.append("\nNETWORK|book=").append(network.reservations())
+                    .append("|fulfilled=").append(network.fulfilled())
+                    .append("|rec=").append(network.recommend());
+        }
+        if (terminals != null) {
+            sb.append("\nTERMINALS|open=").append(terminals.open())
+                    .append("/").append(terminals.capacity())
+                    .append("|imbalance=").append(terminals.imbalance())
+                    .append("|rec=").append(terminals.recommend());
+        }
+        if (automation != null) {
+            sb.append("\n").append(automation.policyLine())
+                    .append("|delegated=").append(automation.delegatedCount());
+        }
+        if (gimmicks.has(EditionGimmicks.System.LIVE_ECONOMY)) {
+            sb.append("\n").append(GimmickSystems.LiveEconomyScore.line(
+                    "hub-1", "MAJOR-EAST", running(), 1, liveScore()));
+        }
+        return sb.toString();
+    }
+
+    private boolean running() {
+        return !gameOver;
     }
 
     @Override
@@ -616,11 +773,4 @@ public final class LocalGameModel implements SleelaRuntime {
     int comboTips() {
         return comboTips;
     }
-
-    int contractTargetSize() { return contractTargetSize; }
-    int contractProgress() { return contractProgress; }
-    int contractDeadline() { return contractDeadline; }
-    int contractsCompleted() { return contractsCompleted; }
-    int contractEarlyTicks() { return CONTRACT_EARLY_TICKS; }
-    int contractChain() { return contractChain; }
 }

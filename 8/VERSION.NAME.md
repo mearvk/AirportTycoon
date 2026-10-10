@@ -5,39 +5,32 @@
 > **Version:** 8
 > **Name:** Apex Dominion
 > **Epithet:** *The Ultimate Era*
-> **Status:** Latest — the improvement line, evolving from the Edition 1 Base Concepts.
+> **Mastery theme:** Compete
+> **Status:** Latest — the current edition, holding all eight systems.
 
-## Why the name
+## The mastery ladder
 
-**Golden** — Edition 2 is where good play finally turns to **gold**. The flat
-fares of Edition 1 give way to an **economic feedback loop**: a reputation-driven
-**service premium** tips a well-run airport up to +40% on every departure, while
-an **on-time combo** pays a bonus for every clean streak. Prosperity now
-compounds — the airport that runs beautifully is paid beautifully.
+Airport Tycoon is one game played at eight depths. Edition **8** sits at depth
+**8** of the ordered 1→8 ladder and introduces **Live Competitive Economy** (*Compete*). Each
+edition keeps every earlier system and lights exactly one new one, so interest
+multiplies as you climb. The whole series shares one **green-phosphor** look —
+a monochrome 8-bit CRT palette with orthogonal, grid-aligned objects — so 1→8
+read as a single machine; only the number of lit systems changes.
 
-**Assimilation** — the heart of the new **Business Desk**, where the player makes
-a move or transaction while the tower runs. Side ventures (Casino Management and
-Investment Management, modelled as **Chemistry**) accrue **IQ**, and at **Level
-5** a venture fires the **Great Assimilation** — the *"IQ reordering of the
-Orient by assimilation of US capitalist interests"* — a **3× multiplier on
-Major-Eastern revenue** for a run of weeks. Those are the weeks that **rake in
-the money**. The name is the mechanic: wealth, assimilated and multiplied.
+## New in Edition 8 — Live Competitive Economy
 
-> *Golden Assimilation* — the Edition where genius compounds into gold.
+Everything runs at once and the result is published. One authoritative live score, derived from the whole stack, goes to the server so you can compete. Mastery is holding all eight systems green.
 
-## What's new since *Keystone Meridian* (Edition 1)
+## What this edition adds
 
-- **Service premium** — fares scale with reputation, clamped to [70%, 150%],
-  neutral 100% at the reference reputation (Edition 1 fares as the midpoint).
-- **On-time combo** — every 5 consecutive clean departures pays a flat tip; one
-  angry departure resets the streak.
-- **Smarter auto-assist** — ranks planes by `patience × 4 − sizeClass`, so it
-  protects high-value heavies on a near-tie.
-- **The Business Desk** — parallel side ventures (casino + investment) as
-  Chemistry reactions, IQ accrual, and the **Level-5 Great Assimilation** that
-  rakes in Major-Eastern money. Self-demo: `make desk`.
+- A read-only live score derived from cash, reputation, served and streak
+- A published LIVE line for a competitive server to broadcast
+- Every earlier system — weather, fleet, network, terminals, policy — live at once
+- The culmination of the ordered 1→8 mastery ladder
 
-See [`README.md`](README.md) for the full overview and the complete *What's new
-in Edition 2* notes.
+## Carried forward from Edition 7
 
-- **CCP/1 communications foundation** — a versioned client-to-client protocol is included for the network-capable line.
+Every earlier system remains part of Edition 8: Tower Operations, Service Premium & On-Time Combo, Weather & Runway Conditions, Fleet Health & Maintenance, Route Network & Reservations, Multi-Terminal Expansion, Automation & Policy. Edition 8 adds exactly one new system on top, so the player now holds **8** systems at once.
+
+See [README.md](README.md) for the full overview and build/run instructions, and
+the repository README for the complete 1→8 ladder.
